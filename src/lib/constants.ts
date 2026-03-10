@@ -1,1 +1,1 @@
-export const APP_NAME = 'SolarFlow';
+export const APP_NAME = 'Solar Flow';

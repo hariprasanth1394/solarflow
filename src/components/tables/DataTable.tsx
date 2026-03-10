@@ -1,0 +1,180 @@
+"use client"
+
+import { useMemo, useState } from "react"
+import Pagination from "../ui/Pagination"
+
+type Column<T> = {
+  key: keyof T | string
+  label?: string
+  header?: string
+  sortable?: boolean
+  filterable?: boolean
+  render?: (row: T) => React.ReactNode
+}
+
+type DataTableProps<T extends Record<string, unknown>> = {
+  rows: T[]
+  columns: Column<T>[]
+  rowKey?: ((row: T) => string) | string
+  rowActions?: (row: T) => React.ReactNode
+  pageSize?: number
+  page?: number
+  totalCount?: number
+  onPageChange?: (page: number) => void
+  loading?: boolean
+  emptyLabel?: string
+  enableSearch?: boolean
+}
+
+export default function DataTable<T extends Record<string, unknown>>({
+  rows,
+  columns,
+  rowKey = "id",
+  rowActions,
+  pageSize = 10,
+  page,
+  totalCount,
+  onPageChange,
+  loading = false,
+  emptyLabel = "No records found",
+  enableSearch = true
+}: DataTableProps<T>) {
+  const [search, setSearch] = useState("")
+  const [sortColumn, setSortColumn] = useState<keyof T | null>(null)
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc")
+  const [internalPage, setInternalPage] = useState(1)
+  const [columnFilter, setColumnFilter] = useState<Record<string, string>>({})
+
+  const currentPage = page ?? internalPage
+
+  const setPage = (nextPage: number) => {
+    if (onPageChange) {
+      onPageChange(nextPage)
+      return
+    }
+    setInternalPage(nextPage)
+  }
+
+  const filteredRows = useMemo(() => {
+    return rows
+      .filter((row) => {
+        const searchMatch = Object.values(row).some((value) => String(value).toLowerCase().includes(search.toLowerCase()))
+        const filterMatch = columns.every((column) => {
+          if (!column.filterable) return true
+          const filterValue = columnFilter[String(column.key)]
+          if (!filterValue) return true
+          return String(row[String(column.key)] ?? "").toLowerCase().includes(filterValue.toLowerCase())
+        })
+        return (!enableSearch || searchMatch) && filterMatch
+      })
+      .sort((a, b) => {
+        if (!sortColumn) return 0
+        const aValue = String(a[String(sortColumn)] ?? "")
+        const bValue = String(b[String(sortColumn)] ?? "")
+        const result = aValue.localeCompare(bValue, undefined, { numeric: true, sensitivity: "base" })
+        return sortDirection === "asc" ? result : -result
+      })
+  }, [rows, search, columns, columnFilter, sortColumn, sortDirection, enableSearch])
+
+  const totalRows = totalCount ?? filteredRows.length
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize))
+  const paginatedRows = onPageChange ? filteredRows : filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+  const resolveRowKey = (row: T, index: number) => {
+    if (typeof rowKey === "function") return rowKey(row)
+    const value = row[rowKey]
+    return typeof value === "string" ? value : `${index}`
+  }
+
+  return (
+    <div className="space-y-3">
+      {enableSearch || columns.some((column) => column.filterable) ? (
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+          {enableSearch ? (
+            <input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPage(1)
+              }}
+              placeholder="Search..."
+              className="h-10 rounded-xl border border-slate-300 px-3 text-sm"
+            />
+          ) : (
+            <div />
+          )}
+          {columns
+            .filter((column) => column.filterable)
+            .slice(0, 2)
+            .map((column) => (
+              <input
+                key={String(column.key)}
+                value={columnFilter[String(column.key)] ?? ""}
+                onChange={(event) => setColumnFilter((prev) => ({ ...prev, [String(column.key)]: event.target.value }))}
+                placeholder={`Filter ${column.label ?? column.header ?? String(column.key)}`}
+                className="h-10 rounded-xl border border-slate-300 px-3 text-sm"
+              />
+            ))}
+        </div>
+      ) : null}
+
+      <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
+        <table className="min-w-[900px] text-left text-sm md:min-w-full">
+          <thead className="bg-slate-50 text-slate-600">
+            <tr>
+              {columns.map((column) => (
+                <th key={String(column.key)} className="px-4 py-3 font-medium whitespace-nowrap">
+                  <button
+                    type="button"
+                    disabled={!column.sortable}
+                    onClick={() => {
+                      if (!column.sortable) return
+                      if (sortColumn === column.key) {
+                        setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))
+                      } else {
+                        setSortColumn(column.key as keyof T)
+                        setSortDirection("asc")
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 disabled:cursor-default"
+                  >
+                    {column.label ?? column.header ?? String(column.key)}
+                    {sortColumn === column.key ? (sortDirection === "asc" ? "↑" : "↓") : null}
+                  </button>
+                </th>
+              ))}
+              {rowActions ? <th className="px-4 py-3 text-right font-medium">Actions</th> : null}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading ? (
+              <tr>
+                <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-4 py-6 text-center text-slate-500">
+                  Loading...
+                </td>
+              </tr>
+            ) : paginatedRows.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-4 py-6 text-center text-slate-500">
+                  {emptyLabel}
+                </td>
+              </tr>
+            ) : (
+              paginatedRows.map((row, index) => (
+              <tr key={resolveRowKey(row, index)}>
+                {columns.map((column) => (
+                  <td key={String(column.key)} className="px-4 py-3 whitespace-nowrap text-slate-700">
+                    {column.render ? column.render(row) : String(row[String(column.key)] ?? "-")}
+                  </td>
+                ))}
+                {rowActions ? <td className="px-4 py-3 text-right">{rowActions(row)}</td> : null}
+              </tr>
+            ))) }
+          </tbody>
+        </table>
+      </div>
+
+      <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />
+    </div>
+  )
+}

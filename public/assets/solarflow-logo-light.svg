@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 100">
+
+<style>
+@font-face {
+  font-family: 'OhioCollegiate';
+  src: url('./Ohio-Collegiate.woff2') format('woff2'),
+       url('./Ohio-Collegiate.woff') format('woff'),
+       url('./Ohio-Collegiate.ttf') format('truetype');
+}
+
+.logo-text{
+  font-family:'OhioCollegiate', sans-serif;
+  font-size:44px;
+  font-weight: bold;
+  letter-spacing:2px;
+  fill:#00000;
+}
+</style>
+
+<defs>
+<linearGradient id="sfGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" stop-color="#F5C96B"></stop>
+<stop offset="100%" stop-color="#F09A54"></stop>
+</linearGradient>
+</defs>
+
+<!-- ICON -->
+<g transform="translate(10,10)">
+<rect width="80" height="80" rx="18" fill="url(#sfGrad)"></rect>
+<line x1="40" y1="0" x2="40" y2="80" stroke="#ffffff" stroke-opacity="0.45" stroke-width="4"></line>
+<line x1="0" y1="40" x2="80" y2="40" stroke="#ffffff" stroke-opacity="0.45" stroke-width="4"></line>
+<path d="M18 55 C32 40 45 45 62 25" stroke="#ffffff" stroke-width="7" stroke-linecap="round" fill="none"></path>
+</g>
+
+<!-- TEXT -->
+<text x="100" y="58" class="logo-text" dominant-baseline="middle">
+
+SOLAR FLOW
+
+</text>
+
+</svg>

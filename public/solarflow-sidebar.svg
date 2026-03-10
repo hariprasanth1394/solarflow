@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 250 56">
+
+<!-- ICON -->
+<g transform="translate(0,8)">
+
+<rect width="36" height="36" rx="9" fill="none" stroke="#FFFFFF" stroke-width="2.8"></rect>
+
+<!-- energy nodes -->
+<circle cx="9" cy="25" r="3.2" fill="#FFD84D"></circle>
+<circle cx="27" cy="11" r="3.2" fill="#FFD84D"></circle>
+
+<!-- flow path -->
+<path d="M9 25
+C14 15 22 18 27 11" stroke="#FFD84D" stroke-width="3" fill="none" stroke-linecap="round"></path>
+
+</g>
+
+<!-- WORDMARK -->
+<text x="42" y="28" font-family="Futura, Avenir, Century Gothic, sans-serif" font-size="20" font-weight="600" fill="#FFFFFF" dominant-baseline="middle" letter-spacing="0.02">
+
+Solar Flow
+
+</text>
+
+</svg>

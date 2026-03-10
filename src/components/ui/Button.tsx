@@ -1,32 +1,41 @@
-type ButtonProps = {
-  children: React.ReactNode;
-  variant?: "primary" | "secondary";
-  size?: "sm" | "md";
-  onClick?: () => void;
-  type?: "button" | "submit" | "reset";
-  className?: string;
-};
+import type { ButtonHTMLAttributes, ReactNode } from "react"
+import { cn } from "../../lib/utils"
 
-export default function Button({
-  children,
-  variant = "primary",
-  size = "md",
-  onClick,
-  type = "button",
-  className = "",
-}: ButtonProps) {
-  const base = "rounded-lg font-medium transition-all duration-200 whitespace-nowrap";
+type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "danger"
+type ButtonSize = "sm" | "md" | "lg"
 
-  const sizes = size === "sm" ? "px-3 py-2 text-sm" : "px-4 py-3 text-sm";
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode
+  variant?: ButtonVariant
+  size?: ButtonSize
+}
 
-  const styles =
-    variant === "primary"
-      ? "bg-[#6d28d9] text-white hover:opacity-90"
-      : "bg-gray-100 text-gray-700 hover:bg-gray-200";
+const variants: Record<ButtonVariant, string> = {
+  primary: "bg-violet-600 text-white hover:bg-violet-700",
+  secondary: "bg-slate-800 text-white hover:bg-slate-900",
+  outline: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+  ghost: "bg-transparent text-slate-700 hover:bg-slate-100",
+  danger: "bg-rose-600 text-white hover:bg-rose-700"
+}
 
+const sizes: Record<ButtonSize, string> = {
+  sm: "h-8 px-3 text-xs",
+  md: "h-10 px-4 text-sm",
+  lg: "h-11 px-5 text-sm"
+}
+
+export default function Button({ children, className, variant = "primary", size = "md", ...props }: ButtonProps) {
   return (
-    <button type={type} onClick={onClick} className={`${base} ${sizes} ${styles} ${className}`}>
+    <button
+      {...props}
+      className={cn(
+        "inline-flex items-center justify-center rounded-xl font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        variants[variant],
+        sizes[size],
+        className
+      )}
+    >
       {children}
     </button>
-  );
+  )
 }

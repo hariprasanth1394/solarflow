@@ -3,8 +3,16 @@ import type { ReactNode } from 'react';
 import '../styles/globals.css';
 
 export const metadata: Metadata = {
-  title: 'SolarFlow',
-  description: 'SolarFlow application scaffold',
+  title: 'Solar Flow',
+  description: 'Solar Flow application scaffold',
+  icons: {
+    icon: [
+      { url: '/assets/solarflow-favicon.svg', type: 'image/svg+xml' },
+      { url: '/assets/solarflow-app-icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/assets/solarflow-favicon.svg',
+    apple: '/assets/solarflow-app-icon.svg',
+  },
 };
 
 type RootLayoutProps = {
