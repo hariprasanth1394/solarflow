@@ -1,28 +1,38 @@
 "use client"
 
-import { Bell, ChevronDown, Menu, Moon, Search, Sun } from "lucide-react"
+import { Bell, ChevronDown, Menu, Moon, Sun } from "lucide-react"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
-import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { logout } from "../../services/authService"
 
 type HeaderProps = {
   onMenuClick?: () => void
 }
 
-function pathToLabel(pathname: string) {
-  if (pathname === "/") return ["Dashboard"]
-  return pathname
-    .replace(/^\//, "")
-    .split("/")
-    .filter(Boolean)
-    .map((part) => part.replace(/-/g, " ").replace(/\b\w/g, (match) => match.toUpperCase()))
-}
-
 export default function Header({ onMenuClick }: HeaderProps) {
-  const pathname = usePathname()
-  const breadcrumbs = useMemo(() => pathToLabel(pathname), [pathname])
+  const router = useRouter()
   const [dark, setDark] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [menuError, setMenuError] = useState("")
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return
+    setMenuError("")
+    setIsLoggingOut(true)
+
+    try {
+      await logout()
+      setMenuOpen(false)
+      router.replace("/login")
+      router.refresh()
+    } catch (error) {
+      setMenuError(error instanceof Error ? error.message : "Unable to log out. Please try again")
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
 
   return (
     <header className="border-b border-slate-200 bg-white px-4 py-3 md:px-6">
@@ -39,15 +49,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
             height={38}
             priority
             className="h-8 w-32 object-contain md:h-9 md:w-36"
-          />
-        </div>
-
-        <div className="relative hidden flex-1 md:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            type="search"
-            placeholder="Search customers, tasks, inventory..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none ring-violet-500 focus:ring-2"
           />
         </div>
 
@@ -78,23 +79,21 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100">
                   Profile
                 </button>
-                <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100">
-                  Logout
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isLoggingOut ? "Logging out..." : "Logout"}
                 </button>
+                {menuError ? <p className="px-3 py-2 text-xs text-rose-600">{menuError}</p> : null}
               </div>
             ) : null}
           </div>
         </div>
       </div>
 
-      <div className="mt-2 hidden items-center gap-2 text-xs text-slate-500 md:flex">
-        {breadcrumbs.map((crumb, index) => (
-          <div key={`${crumb}-${index}`} className="flex items-center gap-2">
-            <span>{crumb}</span>
-            {index < breadcrumbs.length - 1 ? <span>/</span> : null}
-          </div>
-        ))}
-      </div>
     </header>
   )
 }

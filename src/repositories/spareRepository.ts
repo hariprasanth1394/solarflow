@@ -8,7 +8,14 @@ type SpareUpdate = Database["public"]["Tables"]["spares"]["Update"]
 
 export async function querySpares(
   organizationId: string,
-  params: { search?: string; page?: number; pageSize?: number } = {}
+  params: {
+    search?: string
+    page?: number
+    pageSize?: number
+    availability?: "all" | "in_stock" | "out_of_stock"
+    supplierId?: string
+    category?: string
+  } = {}
 ) {
   const page = Math.max(1, params.page ?? 1)
   const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 10))
@@ -23,6 +30,22 @@ export async function querySpares(
 
   if (params.search) {
     query = query.or(`name.ilike.%${params.search}%,category.ilike.%${params.search}%`)
+  }
+
+  if (params.supplierId) {
+    query = query.eq("supplier_id", params.supplierId)
+  }
+
+  if (params.category) {
+    query = query.ilike("category", `%${params.category}%`)
+  }
+
+  if (params.availability === "in_stock") {
+    query = query.gt("stock_quantity", 0)
+  }
+
+  if (params.availability === "out_of_stock") {
+    query = query.eq("stock_quantity", 0)
   }
 
   const response = await query.range(from, to)

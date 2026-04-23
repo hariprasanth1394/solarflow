@@ -1,8 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { ChevronDown, Plus, X } from "lucide-react"
 import AddComponentModal from "./AddComponentModal"
+import CreateSystemModal from "./CreateSystemModal"
 import SystemComponentsTable from "./SystemComponentsTable"
+import InventoryPageShell from "../components/InventoryPageShell"
+import { inventorySectionCardClass } from "../components/inventoryTableStyles"
 import {
   addSystemComponent,
   createSystem,
@@ -11,7 +15,6 @@ import {
   getSystems,
   removeSystemComponent
 } from "../../../services/systemService"
-import LoadingButton from "../../../components/ui/LoadingButton"
 
 type SystemRow = {
   id: string
@@ -35,6 +38,11 @@ type ComponentRow = {
 
 type SpareOption = { id: string; name: string; unit: string | null }
 
+type ToastState = {
+  tone: 'success' | 'error'
+  text: string
+} | null
+
 function getSpareMeta(value: ComponentApiRow["spares"]) {
   if (!value) return { name: "-", unit: null as string | null }
   if (Array.isArray(value)) return value[0] ?? { name: "-", unit: null }
@@ -46,19 +54,21 @@ export default function SystemBuilderPage() {
   const [selectedSystem, setSelectedSystem] = useState<SystemRow | null>(null)
   const [components, setComponents] = useState<ComponentRow[]>([])
   const [spares, setSpares] = useState<SpareOption[]>([])
-  const [loading, setLoading] = useState(false)
+  const [systemsLoading, setSystemsLoading] = useState(false)
+  const [componentsLoading, setComponentsLoading] = useState(false)
   const [createLoading, setCreateLoading] = useState(false)
   const [componentSubmitting, setComponentSubmitting] = useState(false)
   const [componentModalOpen, setComponentModalOpen] = useState(false)
-  const [systemName, setSystemName] = useState("")
-  const [capacityKw, setCapacityKw] = useState("")
-  const [message, setMessage] = useState("")
+  const [systemModalOpen, setSystemModalOpen] = useState(false)
+  const [toast, setToast] = useState<ToastState>(null)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const loadSystems = useCallback(async () => {
-    setLoading(true)
+    setSystemsLoading(true)
     const { data } = await getSystems()
     setSystems(data as SystemRow[])
-    setLoading(false)
+    setSystemsLoading(false)
   }, [])
 
   const loadSpares = useCallback(async () => {
@@ -67,7 +77,7 @@ export default function SystemBuilderPage() {
   }, [])
 
   const loadComponents = useCallback(async (systemId: string) => {
-    setLoading(true)
+    setComponentsLoading(true)
     const { data } = await getSystemComponents(systemId)
     const mapped = (data as ComponentApiRow[]).map((row) => {
       const spare = getSpareMeta(row.spares)
@@ -79,142 +89,202 @@ export default function SystemBuilderPage() {
       }
     })
     setComponents(mapped)
-    setLoading(false)
+    setComponentsLoading(false)
   }, [])
 
   useEffect(() => {
     let active = true
-
     void (async () => {
       await Promise.all([loadSystems(), loadSpares()])
-      if (!active) {
-        return
-      }
+      if (!active) return
     })()
-
-    return () => {
-      active = false
-    }
+    return () => { active = false }
   }, [loadSystems, loadSpares])
 
-  const selectedTitle = useMemo(() => selectedSystem?.system_name ?? "Select a system", [selectedSystem])
+  // Auto-dismiss toast after 2.5s
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(null), 2500)
+    return () => clearTimeout(timer)
+  }, [toast])
+
+  useEffect(() => {
+    if (!systems.length) {
+      setSelectedSystem(null)
+      setComponents([])
+      return
+    }
+    if (selectedSystem && systems.some((s) => s.id === selectedSystem.id)) return
+    const first = systems[0]
+    setSelectedSystem(first)
+    void loadComponents(first.id)
+  }, [loadComponents, selectedSystem, systems])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleOutsideClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    if (dropdownOpen) document.addEventListener("mousedown", handleOutsideClick)
+    return () => document.removeEventListener("mousedown", handleOutsideClick)
+  }, [dropdownOpen])
+
+  const handleSelectSystem = (system: SystemRow) => {
+    setSelectedSystem(system)
+    setDropdownOpen(false)
+    void loadComponents(system.id)
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h3 className="text-base font-semibold text-gray-900">Create Solar System</h3>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <input
-            value={systemName}
-            onChange={(event) => setSystemName(event.target.value)}
-            placeholder="System name (e.g. 15kW Solar System)"
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
-          <input
-            type="number"
-            min={0}
-            value={capacityKw}
-            onChange={(event) => setCapacityKw(event.target.value)}
-            placeholder="Capacity kW"
-            className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-          />
-          <LoadingButton
-            type="button"
-            loading={createLoading}
-            loadingLabel="Creating..."
-            disabled={!systemName.trim() || !capacityKw || createLoading}
-            onClick={async () => {
-              setCreateLoading(true)
-              try {
-                const { data } = await createSystem({
-                  system_name: systemName.trim(),
-                  capacity_kw: Number(capacityKw),
-                  description: null
-                })
-                if (data) {
-                  setMessage("System created successfully")
-                  setSystemName("")
-                  setCapacityKw("")
-                  await loadSystems()
-                }
-              } catch (error) {
-                setMessage(error instanceof Error ? error.message : "Operation failed")
-              } finally {
-                setCreateLoading(false)
-              }
-            }}
-            className="w-full bg-violet-600 text-white md:w-auto"
-          >
-            Create System
-          </LoadingButton>
+    <InventoryPageShell
+      title="Systems"
+      subtitle="Define system configurations and map the spare components required to build each one."
+      actions={
+        <button
+          type="button"
+          disabled={!selectedSystem || componentSubmitting}
+          onClick={() => setComponentModalOpen(true)}
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Plus className="h-4 w-4" />
+          Add Component
+        </button>
+      }
+    >
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed right-5 top-5 z-50 flex min-w-[260px] items-start justify-between gap-3 rounded-lg px-4 py-3 shadow-[0_12px_32px_rgba(15,23,42,0.14)] text-sm ${
+            toast.tone === 'success'
+              ? 'bg-white text-green-700'
+              : 'bg-white text-red-700'
+          }`}
+        >
+          <span>{toast.text}</span>
+          <button type="button" onClick={() => setToast(null)} className="mt-0.5 shrink-0 opacity-40 transition-opacity hover:opacity-100">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
-      </div>
+      )}
 
-      {message ? <p className="text-sm text-gray-600">{message}</p> : null}
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <h3 className="text-base font-semibold text-gray-900">Systems</h3>
-          <div className="mt-3 space-y-2">
-            {systems.length === 0 ? (
-              <p className="text-sm text-gray-500">No systems yet.</p>
-            ) : (
-              systems.map((system) => (
-                <button
-                  key={system.id}
-                  type="button"
-                  onClick={async () => {
-                    setSelectedSystem(system)
-                    await loadComponents(system.id)
-                  }}
-                  className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${
-                    selectedSystem?.id === system.id ? "border-violet-300 bg-violet-50" : "border-gray-200"
-                  }`}
-                >
-                  <div className="font-medium text-gray-900">{system.system_name}</div>
-                  <div className="text-xs text-gray-500">{system.capacity_kw} kW</div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-gray-900">Components</h3>
-              <p className="text-sm text-gray-500">{selectedTitle}</p>
-            </div>
+      {/* ── Toolbar: controls left, primary action right ─────── */}
+      <section className={`${inventorySectionCardClass} mb-4 flex flex-wrap items-center justify-between gap-2`}>
+        <div className="flex items-center gap-2">
+          <div className="relative" ref={dropdownRef}>
             <button
               type="button"
-              disabled={!selectedSystem || componentSubmitting}
-              onClick={() => setComponentModalOpen(true)}
-              className="w-full rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60 sm:w-auto"
+              onClick={() => setDropdownOpen((prev) => !prev)}
+              disabled={systemsLoading}
+              className="flex h-10 w-[220px] items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 transition duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 hover:bg-slate-50 disabled:opacity-60"
             >
-              Add Component
+              <span className={selectedSystem ? "truncate font-medium text-slate-800" : "text-slate-400"}>
+                {systemsLoading
+                  ? "Loading..."
+                  : selectedSystem
+                    ? `${selectedSystem.system_name} · ${selectedSystem.capacity_kw} kW`
+                    : "Select system"}
+              </span>
+              <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-150 ${dropdownOpen ? "rotate-180" : ""}`} />
             </button>
+
+            {dropdownOpen && (
+              <div className="absolute left-0 top-full z-30 mt-1 w-[220px] overflow-hidden rounded-lg bg-white shadow-[0_12px_32px_rgba(15,23,42,0.14)]">
+                {systems.length === 0 ? (
+                  <div className="px-3 py-3 text-sm text-slate-400">No systems yet</div>
+                ) : (
+                  systems.map((system) => (
+                    <button
+                      key={system.id}
+                      type="button"
+                      onClick={() => handleSelectSystem(system)}
+                      className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors duration-100 hover:bg-slate-50 ${
+                        selectedSystem?.id === system.id ? "bg-blue-50 text-blue-700" : "text-slate-700"
+                      }`}
+                    >
+                      <span className="font-medium">{system.system_name}</span>
+                      <span className="text-xs text-slate-400">{system.capacity_kw} kW</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
 
-          <SystemComponentsTable
-            rows={components}
-            loading={loading}
-            onRemove={async (componentId) => {
-              if (!selectedSystem) return
-              try {
-                await removeSystemComponent(componentId)
-                setMessage("Component removed successfully")
-                await loadComponents(selectedSystem.id)
-              } catch (error) {
-                setMessage(error instanceof Error ? error.message : "Operation failed")
-              }
-            }}
-          />
+          <button
+            type="button"
+            onClick={() => setSystemModalOpen(true)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-600 transition duration-200 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New System
+          </button>
         </div>
-      </div>
+      </section>
+
+      {/* ── Work Area ───────────────────────────────────────────── */}
+      {!selectedSystem ? (
+        <div className={`${inventorySectionCardClass} flex min-h-[300px] flex-col items-center justify-center gap-3 text-center`}>
+          <div>
+            <p className="text-sm font-semibold text-slate-600">No system selected</p>
+            <p className="mt-1 text-xs text-slate-400">Select a system above or create a new one</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSystemModalOpen(true)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition duration-200 hover:bg-slate-50"
+          >
+            <Plus className="h-4 w-4" />
+            New System
+          </button>
+        </div>
+      ) : (
+        <SystemComponentsTable
+          rows={components}
+          loading={componentsLoading}
+          systemName={selectedSystem.system_name}
+          onAddComponent={() => setComponentModalOpen(true)}
+          onRemove={async (componentId) => {
+            try {
+              await removeSystemComponent(componentId)
+              setToast({ tone: 'success', text: 'Component removed.' })
+              await loadComponents(selectedSystem.id)
+            } catch (error) {
+              setToast({ tone: 'error', text: error instanceof Error ? error.message : 'Operation failed' })
+            }
+          }}
+        />
+      )}
+
+      <CreateSystemModal
+        open={systemModalOpen}
+        loading={createLoading}
+        onClose={() => { if (!createLoading) setSystemModalOpen(false) }}
+        onSubmit={async ({ system_name, capacity_kw }) => {
+          setCreateLoading(true)
+          try {
+            const { data } = await createSystem({ system_name, capacity_kw, description: null })
+            if (data) {
+              const created = data as SystemRow
+              setToast({ tone: 'success', text: 'System created successfully.' })
+              setSystemModalOpen(false)
+              await loadSystems()
+              setSelectedSystem(created)
+              await loadComponents(created.id)
+            }
+          } catch (error) {
+            setToast({ tone: 'error', text: error instanceof Error ? error.message : 'Operation failed' })
+          } finally {
+            setCreateLoading(false)
+          }
+        }}
+      />
 
       <AddComponentModal
         open={componentModalOpen}
-        loading={componentSubmitting || loading}
+        loading={componentSubmitting || componentsLoading}
         spares={spares}
         onClose={() => {
           if (!componentSubmitting) {
@@ -230,16 +300,16 @@ export default function SystemBuilderPage() {
               spare_id,
               quantity_required
             })
-            setMessage("Component added successfully")
+            setToast({ tone: 'success', text: 'Component added successfully.' })
             setComponentModalOpen(false)
             await loadComponents(selectedSystem.id)
           } catch (error) {
-            setMessage(error instanceof Error ? error.message : "Operation failed")
+            setToast({ tone: 'error', text: error instanceof Error ? error.message : 'Operation failed' })
           } finally {
             setComponentSubmitting(false)
           }
         }}
       />
-    </div>
+    </InventoryPageShell>
   )
 }

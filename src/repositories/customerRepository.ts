@@ -24,6 +24,32 @@ export async function fetchCustomers(
   orgId: string,
   options?: { search?: string; status?: string; page?: number; pageSize?: number }
 ) {
+  const applyStatusFilter = (query: any, selectColumns: string) => {
+    if (!options?.status || options.status === "All") return query
+
+    const normalized = options.status.toUpperCase().trim()
+    const hasStageColumnInQuery = selectColumns.includes("current_stage")
+
+    if (hasStageColumnInQuery) {
+      if (normalized === "CREATED") return query.eq("current_stage", "CREATED")
+      if (normalized === "GOVERNMENT_APPROVAL") return query.in("current_stage", ["SUBMITTED", "APPROVED"])
+      if (normalized === "INSTALLATION") return query.eq("current_stage", "INSTALLATION")
+      if (normalized === "CLOSED" || normalized === "CLOSURE") return query.eq("current_stage", "CLOSED")
+      return query.eq("status", options.status)
+    }
+
+    if (normalized === "CREATED") return query.ilike("status", "%created%")
+    if (normalized === "GOVERNMENT_APPROVAL") {
+      return query.or("status.ilike.%approval%,status.ilike.%submit%,status.ilike.%gov%")
+    }
+    if (normalized === "INSTALLATION") return query.or("status.ilike.%install%,status.ilike.%progress%")
+    if (normalized === "CLOSED" || normalized === "CLOSURE") {
+      return query.or("status.ilike.%closed%,status.ilike.%completed%,status.ilike.%inactive%")
+    }
+
+    return query.eq("status", options.status)
+  }
+
   const buildQuery = (selectColumns: string) => {
     let query = supabase.from("customers").select(selectColumns, { count: "exact" }).eq("organization_id", orgId)
 
@@ -33,9 +59,7 @@ export async function fetchCustomers(
       )
     }
 
-    if (options?.status && options.status !== "All") {
-      query = query.eq("status", options.status)
-    }
+    query = applyStatusFilter(query, selectColumns)
 
     const page = Math.max(1, options?.page ?? 1)
     const pageSize = Math.min(100, Math.max(1, options?.pageSize ?? 20))

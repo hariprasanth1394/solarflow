@@ -11,7 +11,16 @@ type SpareUpdate = Database["public"]["Tables"]["spares"]["Update"]
 const SUPPLIER_CACHE_TTL_MS = 60_000
 const supplierCache = new Map<string, { expiresAt: number; data: Array<{ id: string; name: string }> }>()
 
-export async function getSpares(params: { search?: string; page?: number; pageSize?: number } = {}) {
+export async function getSpares(
+  params: {
+    search?: string
+    page?: number
+    pageSize?: number
+    availability?: "all" | "in_stock" | "out_of_stock"
+    supplierId?: string
+    category?: string
+  } = {}
+) {
   return withOrganizationContext(async (organizationId) => {
     try {
       const { data, error, count } = await querySpares(organizationId, params)

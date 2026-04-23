@@ -56,30 +56,30 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-        <form onSubmit={handleSubmit} className="my-6 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:p-5">
-          <h3 className="text-lg font-semibold text-gray-900">Add Spare Part</h3>
-          <p className="mt-1 text-sm text-gray-500">Create a new spare item for your organization inventory.</p>
+        <form onSubmit={handleSubmit} className="my-6 w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-5">
+          <h3 className="text-lg font-semibold text-slate-900">Add Spare Part</h3>
+          <p className="mt-1 text-sm text-slate-600">Create a new spare item for your organization inventory.</p>
 
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Name"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700 placeholder:text-slate-400"
               required
             />
             <input
               value={category}
               onChange={(event) => setCategory(event.target.value)}
               placeholder="Category"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700 placeholder:text-slate-400"
             />
             <select
               value={supplierId}
               onChange={(event) => setSupplierId(event.target.value)}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
             >
               <option value="">Select supplier</option>
               {suppliers.map((supplier) => (
@@ -92,7 +92,7 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
               value={unit}
               onChange={(event) => setUnit(event.target.value)}
               placeholder="Unit (pcs, nos, set)"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700 placeholder:text-slate-400"
             />
             <input
               type="number"
@@ -100,7 +100,7 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
               value={stockQuantity}
               onChange={(event) => setStockQuantity(event.target.value)}
               placeholder="Stock quantity"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700 placeholder:text-slate-400"
             />
             <input
               type="number"
@@ -108,7 +108,7 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
               value={minStock}
               onChange={(event) => setMinStock(event.target.value)}
               placeholder="Min stock"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700 placeholder:text-slate-400"
             />
             <input
               type="number"
@@ -117,12 +117,12 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
               value={costPrice}
               onChange={(event) => setCostPrice(event.target.value)}
               placeholder="Cost price"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm md:col-span-2"
+              className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700 placeholder:text-slate-400 md:col-span-2"
             />
           </div>
 
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm sm:w-auto">
+            <button type="button" onClick={onClose} className="h-10 w-full rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto">
               Cancel
             </button>
             <LoadingButton
@@ -130,7 +130,7 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
               loading={loading}
               loadingLabel="Saving..."
               disabled={disabled}
-              className="w-full bg-violet-600 text-white sm:w-auto"
+              className="h-10 w-full bg-blue-600 text-white hover:bg-blue-700 sm:w-auto"
             >
               Add Spare
             </LoadingButton>

@@ -29,17 +29,17 @@ export default function AddComponentModal({ open, loading, spares, onClose, onSu
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-        <form onSubmit={handleSubmit} className="my-6 w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:p-5">
-          <h3 className="text-lg font-semibold text-gray-900">Add System Component</h3>
-          <p className="mt-1 text-sm text-gray-500">Select a spare and define required quantity.</p>
+        <form onSubmit={handleSubmit} className="my-6 w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-5">
+          <h3 className="text-lg font-semibold text-slate-900">Add System Component</h3>
+          <p className="mt-1 text-sm text-slate-600">Select a spare and define required quantity.</p>
 
           <div className="mt-4 space-y-3">
             <select
               value={spareId}
               onChange={(event) => setSpareId(event.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
               required
             >
               <option value="">Select spare</option>
@@ -55,19 +55,19 @@ export default function AddComponentModal({ open, loading, spares, onClose, onSu
               min={1}
               value={quantityRequired}
               onChange={(event) => setQuantityRequired(event.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
               required
             />
           </div>
 
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm sm:w-auto">
+            <button type="button" onClick={onClose} className="h-10 w-full rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto">
               Cancel
             </button>
             <button
               type="submit"
               disabled={disabled}
-              className="w-full rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60 sm:w-auto"
+              className="h-10 w-full rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 sm:w-auto"
             >
               {loading ? "Saving..." : "Add Component"}
             </button>

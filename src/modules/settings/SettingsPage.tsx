@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { getOrganizationSettings, updateOrganizationSettings } from "../../services/settingsService"
+import { supabase } from "@/lib/supabaseClient"
 
 type SettingsForm = {
   company_name: string
@@ -18,10 +20,15 @@ const defaultForm: SettingsForm = {
 }
 
 export default function SettingsPage() {
+  const router = useRouter()
   const [settingsId, setSettingsId] = useState<string | null>(null)
   const [form, setForm] = useState<SettingsForm>(defaultForm)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [checkingRole, setCheckingRole] = useState(true)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetMessage, setResetMessage] = useState("")
 
   useEffect(() => {
     let active = true
@@ -39,6 +46,31 @@ export default function SettingsPage() {
       })
     })()
 
+    void (async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser()
+        const userId = authData?.user?.id
+
+        if (!active || !userId) {
+          setCheckingRole(false)
+          return
+        }
+
+        const { data: userRow } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", userId)
+          .limit(1)
+          .maybeSingle()
+
+        if (!active) return
+
+        setIsAdmin(userRow?.role === "admin")
+      } finally {
+        if (active) setCheckingRole(false)
+      }
+    })()
+
     return () => {
       active = false
     }
@@ -50,6 +82,40 @@ export default function SettingsPage() {
     const { error } = await updateOrganizationSettings(form, settingsId)
     setLoading(false)
     setMessage(error ? error.message : "Settings saved successfully")
+  }
+
+  const handleResetInventoryTestData = async () => {
+    const confirmed = window.confirm(
+      "This will delete and reseed inventory test data for your organization. Continue?"
+    )
+
+    if (!confirmed) return
+
+    setResetLoading(true)
+    setResetMessage("")
+
+    try {
+      const response = await fetch("/api/admin/reset-inventory-test-data", {
+        method: "POST"
+      })
+
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setResetMessage(payload?.error?.message || "Failed to reset inventory test data")
+        return
+      }
+
+      setResetMessage("Inventory test data reset completed successfully. Refreshing data...")
+      router.refresh()
+      setTimeout(() => {
+        window.location.reload()
+      }, 500)
+    } catch {
+      setResetMessage("Failed to reset inventory test data")
+    } finally {
+      setResetLoading(false)
+    }
   }
 
   return (
@@ -104,6 +170,26 @@ export default function SettingsPage() {
           {loading ? "Saving..." : "Save Settings"}
         </button>
       </form>
+
+      {!checkingRole && isAdmin && (
+        <section className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900">Danger Zone</h3>
+          <p className="mt-1 text-sm text-gray-600">
+            Reset and reseed inventory test data for this organization (staging/demo use only).
+          </p>
+
+          {resetMessage && <p className="mt-3 text-sm text-gray-600">{resetMessage}</p>}
+
+          <button
+            type="button"
+            onClick={handleResetInventoryTestData}
+            disabled={resetLoading}
+            className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {resetLoading ? "Resetting..." : "Reset Inventory Test Data"}
+          </button>
+        </section>
+      )}
     </div>
   )
 }

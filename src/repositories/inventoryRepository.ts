@@ -2,6 +2,8 @@ import { supabase } from "../lib/supabaseClient"
 import type { Database } from "../types/database.types"
 import { handleRepositoryError } from "./repositoryUtils"
 
+const legacySupabase = supabase as any
+
 type StockTransactionInsert = Database["public"]["Tables"]["stock_transactions"]["Insert"]
 type InventoryMovementInsert = {
   organization_id: string
@@ -154,7 +156,7 @@ export async function queryStockTransactionsByReferences(organizationId: string,
 export async function queryInventoryMovementsByReferences(organizationId: string, references: string[]) {
   if (references.length === 0) return { data: [], error: null }
 
-  const response = await supabase
+  const response = await legacySupabase
     .from("inventory_movements")
     .select("id,reference,movement_type,quantity,spare_id,customer_id,system_id,created_at")
     .eq("organization_id", organizationId)
@@ -199,7 +201,7 @@ export async function insertInventoryMovements(
     metadata: row.metadata ?? {}
   }))
 
-  const response = await supabase
+  const response = await legacySupabase
     .from("inventory_movements")
     .insert(payload)
     .select("id,reference,movement_type,quantity,spare_id,customer_id,system_id,created_at")
@@ -212,7 +214,7 @@ export async function insertInventoryMovements(
 }
 
 export async function queryInventoryMovements(organizationId: string, limit = 5000) {
-  const response = await supabase
+  const response = await legacySupabase
     .from("inventory_movements")
     .select("id,spare_id,movement_type,quantity,reference,created_at")
     .eq("organization_id", organizationId)
@@ -234,7 +236,7 @@ export async function queryInventorySpareSummary(organizationId: string) {
       .eq("organization_id", organizationId)
       .order("name", { ascending: true })
       .limit(1000),
-    supabase
+    legacySupabase
       .from("inventory_movements")
       .select("id,spare_id,movement_type,quantity,reference,created_at")
       .eq("organization_id", organizationId)

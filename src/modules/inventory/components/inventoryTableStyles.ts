@@ -1,0 +1,8 @@
+export const inventoryPageContainerClass = "w-full space-y-6"
+export const inventorySectionCardClass = "rounded-lg bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
+export const inventoryTableWrapperClass = "overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
+export const inventoryTableClass = "w-full border-collapse text-sm text-slate-900"
+export const inventoryTableHeaderRowClass = "border-b border-slate-100 bg-white text-left text-[12px] font-semibold uppercase tracking-[0.04em] text-slate-500"
+export const inventoryTableHeaderCellClass = "px-4 py-3"
+export const inventoryTableRowClass = "border-b border-slate-100 text-[14px] text-slate-900 transition-colors duration-150 hover:bg-slate-50"
+export const inventoryTableCellClass = "px-4 py-3.5"

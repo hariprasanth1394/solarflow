@@ -1,27 +1,77 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { X } from "lucide-react"
 
 type ModalProps = {
   open: boolean
   title?: string
+  subtitle?: string
   children: ReactNode
   onClose: () => void
   footer?: ReactNode
+  showCloseButton?: boolean
+  panelClassName?: string
+  bodyClassName?: string
+  headerClassName?: string
+  footerClassName?: string
+  mobileFullscreen?: boolean
 }
 
-export default function Modal({ open, title, children, onClose, footer }: ModalProps) {
+export default function Modal({
+  open,
+  title,
+  subtitle,
+  children,
+  onClose,
+  footer,
+  showCloseButton = false,
+  panelClassName,
+  bodyClassName,
+  headerClassName,
+  footerClassName,
+  mobileFullscreen = false,
+}: ModalProps) {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button aria-label="Close modal" className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-xl border border-slate-200 bg-white shadow-lg">
-        <div className="border-b border-slate-100 px-4 py-3 md:px-6">
-          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-        </div>
-        <div className="max-h-[70vh] overflow-y-auto px-4 py-4 md:px-6">{children}</div>
-        {footer ? <div className="border-t border-slate-100 px-4 py-3 md:px-6">{footer}</div> : null}
+    <div className={`fixed inset-0 z-50 flex justify-center ${mobileFullscreen ? "items-end p-0 sm:items-center sm:p-4" : "items-center p-4"}`}>
+      <button aria-label="Close modal" className="modal-overlay-enter absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div
+        className={`modal-panel-enter relative z-10 w-full max-w-lg border border-slate-100 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)] ${
+          mobileFullscreen ? "max-h-[100dvh] min-h-[100dvh] rounded-none sm:max-h-[90vh] sm:min-h-0 sm:rounded-xl" : "rounded-xl"
+        } ${panelClassName ?? ""}`}
+      >
+        {title || subtitle || showCloseButton ? (
+          <div className={`border-b border-slate-100 px-5 py-4 md:px-6 ${headerClassName ?? ""}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                {title ? <h3 className="text-[18px] font-semibold leading-tight text-slate-900">{title}</h3> : null}
+                {subtitle ? <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{subtitle}</p> : null}
+              </div>
+              {showCloseButton ? (
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={onClose}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        <div className={`max-h-[70vh] overflow-y-auto px-5 py-5 md:px-6 ${bodyClassName ?? ""}`}>{children}</div>
+        {footer ? (
+          <div
+            className={`border-t border-slate-100 bg-white/95 px-5 py-4 backdrop-blur-sm md:px-6 ${
+              mobileFullscreen ? "sticky bottom-0" : ""
+            } ${footerClassName ?? ""}`}
+          >
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   )

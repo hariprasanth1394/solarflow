@@ -60,6 +60,7 @@ export async function evaluateCustomerWorkflow(
   options?: {
     triggerEvent?: string
     metadata?: Record<string, unknown>
+    minimumStage?: WorkflowStage
     organizationId?: string
     userId?: string
     forcePersistEntry?: boolean
@@ -107,7 +108,10 @@ export async function evaluateCustomerWorkflow(
       })
 
       const previousStage = projection.current_stage ?? "CREATED"
-      const currentStage = highestStage([previousStage, evaluatedStage])
+      const explicitMinimumStage = options?.minimumStage
+      const currentStage = highestStage(
+        [previousStage, evaluatedStage, explicitMinimumStage].filter(Boolean) as WorkflowStage[]
+      )
       const changed = previousStage !== currentStage
       const nextRequiredAction = NEXT_ACTIONS[currentStage]
 

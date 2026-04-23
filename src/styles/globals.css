@@ -14,3 +14,53 @@ body {
   transition-property: background-color, border-color, color, fill, stroke;
   transition-duration: 150ms;
 }
+
+@keyframes modal-overlay-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-overlay-enter {
+  animation: modal-overlay-enter 170ms ease-out;
+}
+
+.modal-panel-enter {
+  animation: modal-panel-enter 200ms ease-out;
+}
+
+@keyframes field-shake {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+  75% {
+    transform: translateX(-2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.field-shake {
+  animation: field-shake 180ms ease-out;
+}

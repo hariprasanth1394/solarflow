@@ -87,7 +87,9 @@ export async function getInventoryDashboardMetrics() {
         return sum + (row.available_systems ?? 0)
       }, 0)
 
-      const reserveTransactions = (await queryInventoryMovements(organizationId, 5000)).data ?? []
+      const reserveTransactions = ((await queryInventoryMovements(organizationId, 5000)).data ?? []) as Array<{
+        reference?: string | null
+      }>
       const activeReservedCustomers = new Set<string>()
       reserveTransactions.forEach((row) => {
         const reference = (row.reference ?? "").trim()
@@ -244,7 +246,13 @@ export async function getInventorySpareSummary() {
     try {
       const { sparesResponse, movementsResponse } = await queryInventorySpareSummary(organizationId)
 
-      const transactionRows = movementsResponse.data ?? []
+      const transactionRows = (movementsResponse.data ?? []) as Array<{
+        spare_id: string
+        movement_type?: string | null
+        quantity?: number | null
+        reference?: string | null
+        created_at: string
+      }>
       const perSpare = new Map<string, { reserved: number; consumed: number; lastUpdated: string | null }>()
 
       transactionRows.forEach((row) => {

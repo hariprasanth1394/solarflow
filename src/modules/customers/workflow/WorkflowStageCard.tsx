@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { Check, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
 import type { StageAction, StageDefinition, WorkflowBadgeTone } from "./types"
 
 type WorkflowStageCardProps = {
@@ -8,20 +8,16 @@ type WorkflowStageCardProps = {
   statusLabel: string
   statusTone: WorkflowBadgeTone
   onActionClick: (action: StageAction) => void
+  onToggle: () => void
   loadingActionKey: string | null
 }
 
-function toneClassName(tone: WorkflowBadgeTone) {
-  if (tone === "pending") return "bg-orange-50 text-orange-700 border-orange-100"
-  if (tone === "inProgress") return "bg-purple-50 text-purple-700 border-purple-100"
-  if (tone === "approved") return "bg-blue-50 text-blue-700 border-blue-100"
-  return "bg-emerald-50 text-emerald-700 border-emerald-100"
+function toneBadgeClass(tone: WorkflowBadgeTone) {
+  if (tone === "pending") return "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
+  if (tone === "inProgress") return "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200"
+  if (tone === "approved") return "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200"
+  return "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
 }
-
-const primaryButtonClass =
-  "rounded-lg bg-gradient-to-r from-purple-600 to-blue-500 px-4 py-2 text-sm font-medium text-white hover:from-purple-700 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-
-const secondaryButtonClass = "rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700"
 
 export default function WorkflowStageCard({
   stage,
@@ -30,49 +26,121 @@ export default function WorkflowStageCard({
   statusLabel,
   statusTone,
   onActionClick,
-  loadingActionKey
+  onToggle,
+  loadingActionKey,
 }: WorkflowStageCardProps) {
+  const isCompleted = statusTone === "completed" && !current
+  const isUpcoming = !current && !isCompleted
+  const primaryAction = stage.actions[0] ?? null
+  const secondaryActions = stage.actions.slice(1)
+
   return (
-    <article className="rounded-xl shadow-sm border border-gray-100 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Stage {stage.order}</p>
-          <h3 className="mt-1 text-base font-semibold text-gray-900">{stage.title}</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClassName(statusTone)}`}>{statusLabel}</span>
-          <span className="text-gray-400">{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
-        </div>
-      </div>
-
-      {expanded ? (
-        <div className="mt-4 space-y-3">
+    <div
+      className={`relative transition-all duration-200 ${
+        current
+          ? "shadow-[inset_3px_0_0_#2563eb]"
+          : isCompleted
+          ? "shadow-[inset_3px_0_0_#34d399]"
+          : "shadow-[inset_3px_0_0_#e2e8f0] opacity-55"
+      }`}
+    >
+      {/* Header */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`flex w-full items-center justify-between gap-3 py-4 pl-6 pr-5 text-left transition-colors ${
+          current ? "hover:bg-blue-50/30" : "hover:bg-slate-50"
+        }`}
+      >
+        <div className="flex items-center gap-3.5">
+          {/* Step circle */}
+          <div
+            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-200 ${
+              current
+                ? "bg-blue-600 text-white shadow-[0_0_0_4px_rgba(37,99,235,0.12)]"
+                : isCompleted
+                ? "bg-emerald-500 text-white"
+                : "bg-slate-100 text-slate-400"
+            }`}
+          >
+            {isCompleted ? <Check className="h-3.5 w-3.5" /> : stage.order}
+          </div>
           <div>
-            <p className="text-xs text-gray-500">Available statuses</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {stage.statuses.map((status) => (
-                <span key={status.value} className={`rounded-full border px-2.5 py-1 text-xs ${toneClassName(status.tone)}`}>
-                  {status.label}
-                </span>
-              ))}
-            </div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">Stage {stage.order}</p>
+            <h3
+              className={`font-semibold leading-tight transition-all ${
+                current
+                  ? "text-[15px] text-slate-900"
+                  : isCompleted
+                  ? "text-[13px] text-slate-600"
+                  : "text-[13px] text-slate-400"
+              }`}
+            >
+              {stage.title}
+            </h3>
           </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className={`inline-flex items-center rounded-[6px] px-2.5 py-1 text-[11px] font-semibold ${toneBadgeClass(statusTone)}`}>
+            {statusLabel}
+          </span>
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+          ) : (
+            <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+          )}
+        </div>
+      </button>
 
-          <div className="flex flex-wrap gap-2">
-            {stage.actions.map((action, index) => (
-              <button
-                key={action.key}
-                type="button"
-                onClick={() => onActionClick(action)}
-                className={index === 0 ? primaryButtonClass : secondaryButtonClass}
-                disabled={!current || loadingActionKey !== null}
-              >
-                {loadingActionKey === action.key ? "Saving..." : action.label}
-              </button>
-            ))}
-          </div>
+      {/* Expanded body */}
+      {expanded ? (
+        <div className="border-t border-slate-100 bg-slate-50/50 pl-6 pr-5 py-4">
+          {primaryAction ? (
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[12px] leading-snug text-slate-500">
+                  {current ? "Take the next step to advance this stage." : "This stage is not currently active."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onActionClick(primaryAction)}
+                  disabled={!current || loadingActionKey !== null}
+                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:from-blue-700 hover:to-violet-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loadingActionKey === primaryAction.key ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    primaryAction.label
+                  )}
+                </button>
+              </div>
+
+              {secondaryActions.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                  {secondaryActions.map((action) => (
+                    <button
+                      key={action.key}
+                      type="button"
+                      onClick={() => onActionClick(action)}
+                      disabled={!current || loadingActionKey !== null}
+                      className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {loadingActionKey === action.key ? "Saving…" : action.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-[13px] text-slate-400">
+              {isCompleted ? "This stage is complete ✓" : "No actions required at this time."}
+            </p>
+          )}
         </div>
       ) : null}
-    </article>
+    </div>
   )
 }

@@ -1,6 +1,15 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import {
+  inventorySectionCardClass,
+  inventoryTableCellClass,
+  inventoryTableClass,
+  inventoryTableHeaderCellClass,
+  inventoryTableHeaderRowClass,
+  inventoryTableRowClass,
+  inventoryTableWrapperClass,
+} from "@/modules/inventory/components/inventoryTableStyles"
 import Pagination from "../ui/Pagination"
 
 type Column<T> = {
@@ -87,9 +96,9 @@ export default function DataTable<T extends Record<string, unknown>>({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {enableSearch || columns.some((column) => column.filterable) ? (
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {enableSearch ? (
             <input
               value={search}
@@ -98,7 +107,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                 setPage(1)
               }}
               placeholder="Search..."
-              className="h-10 rounded-xl border border-slate-300 px-3 text-sm"
+              className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
           ) : (
             <div />
@@ -112,18 +121,19 @@ export default function DataTable<T extends Record<string, unknown>>({
                 value={columnFilter[String(column.key)] ?? ""}
                 onChange={(event) => setColumnFilter((prev) => ({ ...prev, [String(column.key)]: event.target.value }))}
                 placeholder={`Filter ${column.label ?? column.header ?? String(column.key)}`}
-                className="h-10 rounded-xl border border-slate-300 px-3 text-sm"
+                className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
               />
             ))}
         </div>
       ) : null}
 
-      <div className="w-full overflow-x-auto rounded-xl border border-slate-200">
-        <table className="min-w-[900px] text-left text-sm md:min-w-full">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
+      <div className={`hidden md:block ${inventoryTableWrapperClass}`}>
+        <div className="w-full overflow-x-auto">
+          <table className={`min-w-[900px] text-left md:min-w-full ${inventoryTableClass}`}>
+            <thead>
+              <tr className={inventoryTableHeaderRowClass}>
               {columns.map((column) => (
-                <th key={String(column.key)} className="px-4 py-3 font-medium whitespace-nowrap">
+                <th key={String(column.key)} className={`${inventoryTableHeaderCellClass} whitespace-nowrap`}>
                   <button
                     type="button"
                     disabled={!column.sortable}
@@ -143,35 +153,67 @@ export default function DataTable<T extends Record<string, unknown>>({
                   </button>
                 </th>
               ))}
-              {rowActions ? <th className="px-4 py-3 text-right font-medium">Actions</th> : null}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+              {rowActions ? <th className={`${inventoryTableHeaderCellClass} text-right`}>Actions</th> : null}
+              </tr>
+            </thead>
+            <tbody>
             {loading ? (
               <tr>
-                <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-4 py-10 text-center text-slate-500">
                   Loading...
                 </td>
               </tr>
             ) : paginatedRows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-4 py-6 text-center text-slate-500">
-                  {emptyLabel}
+                <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-4 py-10 text-center text-slate-500">
+                  <div className="space-y-1">
+                    <p className="font-medium text-slate-700">{emptyLabel}</p>
+                    <p className="text-xs text-slate-500">Try adjusting filters or add a new record to get started.</p>
+                  </div>
                 </td>
               </tr>
             ) : (
               paginatedRows.map((row, index) => (
-              <tr key={resolveRowKey(row, index)}>
+              <tr key={resolveRowKey(row, index)} className={inventoryTableRowClass}>
                 {columns.map((column) => (
-                  <td key={String(column.key)} className="px-4 py-3 whitespace-nowrap text-slate-700">
+                  <td key={String(column.key)} className={`${inventoryTableCellClass} whitespace-nowrap text-slate-900`}>
                     {column.render ? column.render(row) : String(row[String(column.key)] ?? "-")}
                   </td>
                 ))}
-                {rowActions ? <td className="px-4 py-3 text-right">{rowActions(row)}</td> : null}
+                {rowActions ? <td className={`${inventoryTableCellClass} text-right`}>{rowActions(row)}</td> : null}
               </tr>
             ))) }
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {loading ? (
+          <div className={`${inventorySectionCardClass} px-4 py-6 text-center text-sm text-slate-500`}>Loading...</div>
+        ) : paginatedRows.length === 0 ? (
+          <div className={`${inventorySectionCardClass} px-4 py-6 text-center`}>
+            <p className="text-sm font-medium text-slate-700">{emptyLabel}</p>
+            <p className="mt-1 text-xs text-slate-500">Try adjusting filters or add a new record to get started.</p>
+          </div>
+        ) : (
+          paginatedRows.map((row, index) => (
+            <div
+              key={resolveRowKey(row, index)}
+              className={inventorySectionCardClass}
+            >
+              <div className="space-y-2">
+                {columns.map((column) => (
+                  <div key={String(column.key)} className="flex items-start justify-between gap-3 text-sm">
+                    <span className="text-slate-500">{column.label ?? column.header ?? String(column.key)}</span>
+                    <span className="text-right text-slate-700">{column.render ? column.render(row) : String(row[String(column.key)] ?? "-")}</span>
+                  </div>
+                ))}
+              </div>
+              {rowActions ? <div className="mt-3 border-t border-slate-200 pt-3">{rowActions(row)}</div> : null}
+            </div>
+          ))
+        )}
       </div>
 
       <Pagination page={currentPage} totalPages={totalPages} onChange={setPage} />

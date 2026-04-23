@@ -13,9 +13,9 @@ export const supabase =
   globalThis.__solarflow_supabase__ ??
   createClient<Database>(supabaseUrl, supabaseKey, {
     auth: {
-      persistSession: isBrowser,
-      autoRefreshToken: false,
-      detectSessionInUrl: isBrowser
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
     }
   })
 

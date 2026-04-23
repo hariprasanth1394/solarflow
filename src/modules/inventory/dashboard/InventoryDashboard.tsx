@@ -7,6 +7,16 @@ import {
   type InventorySpareSummaryRow
 } from "../../../services/inventoryService"
 import { formatDateUTC } from "../../../utils/dateFormat"
+import InventoryPageShell from "../components/InventoryPageShell"
+import {
+  inventorySectionCardClass,
+  inventoryTableCellClass,
+  inventoryTableClass,
+  inventoryTableHeaderCellClass,
+  inventoryTableHeaderRowClass,
+  inventoryTableRowClass,
+  inventoryTableWrapperClass,
+} from "../components/inventoryTableStyles"
 
 type DashboardMetrics = {
   totalSpareParts: number
@@ -42,81 +52,102 @@ export default function InventoryDashboard() {
     void run()
   }, [])
 
+  const lowCoverageRows = [...rows]
+    .sort((a, b) => a.available - b.available)
+    .slice(0, 8)
+
+  const riskRate = metrics.totalSpareParts > 0
+    ? Math.round((metrics.lowStockItems / metrics.totalSpareParts) * 100)
+    : 0
+
   return (
-    <div className="space-y-4">
-      {loading ? <p className="text-sm text-gray-500">Loading dashboard...</p> : null}
+    <InventoryPageShell
+      title="Overview"
+      subtitle="Monitor inventory health, buildable systems, and the spare parts most likely to block upcoming work."
+    >
+      {loading ? <p className="text-sm text-slate-500">Loading dashboard...</p> : null}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl shadow-sm border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Total spare parts</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{metrics.totalSpareParts}</p>
+        <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
+          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Total spare parts</p>
+          <p className="text-2xl font-bold text-slate-900">{metrics.totalSpareParts}</p>
         </div>
-        <div className="rounded-xl shadow-sm border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Available systems</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{metrics.availableSystems}</p>
+        <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
+          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Buildable systems</p>
+          <p className="text-2xl font-bold text-slate-900">{metrics.availableSystems}</p>
         </div>
-        <div className="rounded-xl shadow-sm border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Reserved systems</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{metrics.reservedSystems}</p>
+        <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
+          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Low-stock items</p>
+          <p className="text-2xl font-bold text-slate-900">{metrics.lowStockItems}</p>
         </div>
-        <div className="rounded-xl shadow-sm border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Low stock items</p>
-          <p className="mt-2 text-2xl font-semibold text-gray-900">{metrics.lowStockItems}</p>
+        <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
+          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Low-stock risk</p>
+          <div>
+            <p className="text-2xl font-bold text-slate-900">{riskRate}%</p>
+            <p className="mt-1 text-[12px] text-slate-500">Reserved systems: {metrics.reservedSystems}</p>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-xl shadow-sm border border-gray-100 p-5">
-        <h3 className="text-base font-semibold text-gray-900">Inventory Summary</h3>
-        <div className="mt-4 hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-600">
-              <tr>
-                <th className="px-3 py-3 font-medium">Spare Name</th>
-                <th className="px-3 py-3 font-medium">Category</th>
-                <th className="px-3 py-3 font-medium">Available</th>
-                <th className="px-3 py-3 font-medium">Reserved</th>
-                <th className="px-3 py-3 font-medium">Consumed</th>
-                <th className="px-3 py-3 font-medium">Last Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
-                    No inventory data found.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-3 py-3 text-gray-700">{row.spareName}</td>
-                    <td className="px-3 py-3 text-gray-700">{row.category}</td>
-                    <td className="px-3 py-3 text-gray-700">{row.available}</td>
-                    <td className="px-3 py-3 text-gray-700">{row.reserved}</td>
-                    <td className="px-3 py-3 text-gray-700">{row.consumed}</td>
-                    <td className="px-3 py-3 text-gray-700">{formatDateUTC(row.lastUpdated)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Priority insights</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-600">Spares with the lowest available quantities appear first.</p>
         </div>
 
-        <div className="mt-3 space-y-3 md:hidden">
-          {rows.length === 0 ? <p className="text-sm text-gray-500">No inventory data found.</p> : null}
-          {rows.map((row) => (
-            <article key={row.id} className="rounded-xl border border-gray-100 p-4">
-              <p className="text-sm font-medium text-gray-900">{row.spareName}</p>
-              <p className="mt-1 text-xs text-gray-600">Category: {row.category}</p>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-700">
+        <div className={`hidden md:block ${inventoryTableWrapperClass}`}>
+          <div className="overflow-x-auto">
+            <table className={`${inventoryTableClass} text-left`}>
+              <thead>
+                <tr className={inventoryTableHeaderRowClass}>
+                  <th className={inventoryTableHeaderCellClass}>Spare Name</th>
+                  <th className={inventoryTableHeaderCellClass}>Category</th>
+                  <th className={`${inventoryTableHeaderCellClass} text-right`}>Available</th>
+                  <th className={`${inventoryTableHeaderCellClass} text-right`}>Reserved</th>
+                  <th className={`${inventoryTableHeaderCellClass} text-right`}>Consumed</th>
+                  <th className={inventoryTableHeaderCellClass}>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lowCoverageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                      No inventory data found.
+                    </td>
+                  </tr>
+                ) : (
+                  lowCoverageRows.map((row) => (
+                    <tr key={row.id} className={inventoryTableRowClass}>
+                      <td className={`${inventoryTableCellClass} font-medium text-slate-900`}>{row.spareName}</td>
+                      <td className={inventoryTableCellClass}>{row.category}</td>
+                      <td className={`${inventoryTableCellClass} text-right tabular-nums`}>{row.available}</td>
+                      <td className={`${inventoryTableCellClass} text-right tabular-nums`}>{row.reserved}</td>
+                      <td className={`${inventoryTableCellClass} text-right tabular-nums`}>{row.consumed}</td>
+                      <td className={inventoryTableCellClass}>{formatDateUTC(row.lastUpdated)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="space-y-3 md:hidden">
+          {lowCoverageRows.length === 0 ? <p className="text-sm text-slate-500">No inventory data found.</p> : null}
+          {lowCoverageRows.map((row) => (
+            <article key={row.id} className={inventorySectionCardClass}>
+              <p className="text-sm font-medium text-slate-900">{row.spareName}</p>
+              <p className="mt-1 text-xs text-slate-600">Category: {row.category}</p>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-700">
                 <span>Available: {row.available}</span>
                 <span>Reserved: {row.reserved}</span>
                 <span>Consumed: {row.consumed}</span>
               </div>
-              <p className="mt-2 text-xs text-gray-500">Updated: {formatDateUTC(row.lastUpdated)}</p>
+              <p className="mt-2 text-xs text-slate-500">Updated: {formatDateUTC(row.lastUpdated)}</p>
             </article>
           ))}
         </div>
-      </div>
-    </div>
+      </section>
+    </InventoryPageShell>
   )
 }
