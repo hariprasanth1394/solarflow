@@ -3,19 +3,50 @@
 import { Bell, ChevronDown, Menu, Moon, Sun } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { logout } from "../../services/authService"
 
 type HeaderProps = {
   onMenuClick?: () => void
+  dark?: boolean
+  onToggleTheme?: () => void
 }
 
-export default function Header({ onMenuClick }: HeaderProps) {
+export default function Header({ onMenuClick, dark: controlledDark, onToggleTheme }: HeaderProps) {
   const router = useRouter()
-  const [dark, setDark] = useState(false)
+  const [internalDark, setInternalDark] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [menuError, setMenuError] = useState("")
+
+  const dark = typeof controlledDark === "boolean" ? controlledDark : internalDark
+
+  useEffect(() => {
+    if (typeof controlledDark === "boolean") return
+    const savedTheme = window.localStorage.getItem("solarflow-theme")
+    if (savedTheme === "dark") {
+      setInternalDark(true)
+    }
+  }, [controlledDark])
+
+  const handleThemeToggle = () => {
+    if (onToggleTheme) {
+      onToggleTheme()
+      return
+    }
+
+    setInternalDark((prev) => {
+      const next = !prev
+      if (next) {
+        document.documentElement.classList.add("theme-dark")
+        window.localStorage.setItem("solarflow-theme", "dark")
+      } else {
+        document.documentElement.classList.remove("theme-dark")
+        window.localStorage.setItem("solarflow-theme", "light")
+      }
+      return next
+    })
+  }
 
   const handleLogout = async () => {
     if (isLoggingOut) return
@@ -35,9 +66,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
   }
 
   return (
-    <header className="border-b border-slate-200 bg-white px-4 py-3 md:px-6">
+    <header
+      data-app-header="true"
+      className={`border-b px-4 py-3 md:px-6 ${dark ? "border-slate-800 bg-slate-900 text-slate-100" : "border-slate-200 bg-white"}`}
+    >
       <div className="flex items-center gap-3">
-        <button type="button" onClick={onMenuClick} className="rounded-lg p-2 hover:bg-slate-100 lg:hidden" aria-label="Open sidebar">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className={`rounded-lg p-2 lg:hidden ${dark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
+          aria-label="Open sidebar"
+        >
           <Menu className="h-5 w-5" />
         </button>
 
@@ -53,37 +92,56 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="ml-auto flex items-center gap-2 md:gap-3">
-          <button type="button" className="relative rounded-lg p-2 hover:bg-slate-100" aria-label="Notifications">
-            <Bell className="h-5 w-5 text-slate-600" />
+          <button
+            type="button"
+            className={`relative rounded-lg p-2 ${dark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
+            aria-label="Notifications"
+          >
+            <Bell className={`h-5 w-5 ${dark ? "text-slate-300" : "text-slate-600"}`} />
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
           </button>
 
           <button
             type="button"
-            onClick={() => setDark((prev) => !prev)}
-            className="rounded-lg p-2 hover:bg-slate-100"
+            onClick={handleThemeToggle}
+            className={`rounded-lg p-2 ${dark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
             aria-label="Toggle theme"
             title="Theme toggle"
           >
-            {dark ? <Moon className="h-5 w-5 text-slate-600" /> : <Sun className="h-5 w-5 text-slate-600" />}
+            {dark ? <Moon className="h-5 w-5 text-slate-300" /> : <Sun className="h-5 w-5 text-slate-600" />}
           </button>
 
           <div className="relative">
-            <button type="button" onClick={() => setMenuOpen((prev) => !prev)} className="flex items-center gap-2 rounded-xl border border-slate-200 px-2 py-1.5 hover:bg-slate-50">
-              <div className="h-7 w-7 rounded-full bg-slate-300" />
+            <button
+              type="button"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              className={`flex items-center gap-2 rounded-xl border px-2 py-1.5 ${
+                dark ? "border-slate-700 hover:bg-slate-800" : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <div className={`h-7 w-7 rounded-full ${dark ? "bg-slate-600" : "bg-slate-300"}`} />
               <span className="hidden text-sm font-medium md:inline">Admin</span>
-              <ChevronDown className="h-4 w-4 text-slate-500" />
+              <ChevronDown className={`h-4 w-4 ${dark ? "text-slate-300" : "text-slate-500"}`} />
             </button>
             {menuOpen ? (
-              <div className="absolute right-0 top-11 z-20 min-w-40 rounded-xl border border-slate-200 bg-white p-1 shadow-md">
-                <button type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100">
+              <div
+                className={`absolute right-0 top-11 z-20 min-w-40 rounded-xl border p-1 shadow-md ${
+                  dark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white"
+                }`}
+              >
+                <button
+                  type="button"
+                  className={`block w-full rounded-lg px-3 py-2 text-left text-sm ${dark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
+                >
                   Profile
                 </button>
                 <button
                   type="button"
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`block w-full rounded-lg px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60 ${
+                    dark ? "hover:bg-slate-800" : "hover:bg-slate-100"
+                  }`}
                 >
                   {isLoggingOut ? "Logging out..." : "Logout"}
                 </button>

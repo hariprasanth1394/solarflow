@@ -1,13 +1,42 @@
 @import "tailwindcss";
 
+:root {
+  --sf-bg: #f8fafc;
+  --sf-text: #0f172a;
+  --sf-card-bg: #ffffff;
+  --sf-card-border: #e2e8f0;
+  --sf-muted-text: #64748b;
+  --sf-primary-start: #2563eb;
+  --sf-primary-end: #7c3aed;
+  --sf-primary-glow: rgba(59, 130, 246, 0.35);
+  --sf-table-head: #f8fafc;
+}
+
+html.theme-dark {
+  --sf-bg: #020617;
+  --sf-text: #e2e8f0;
+  --sf-card-bg: #0f172a;
+  --sf-card-border: #334155;
+  --sf-muted-text: #94a3b8;
+  --sf-primary-start: #3b82f6;
+  --sf-primary-end: #8b5cf6;
+  --sf-primary-glow: rgba(99, 102, 241, 0.45);
+  --sf-table-head: #111827;
+}
+
 html,
 body {
   overflow-x: hidden;
 }
 
 body {
-  background-color: #f9fafb;
-  color: #111827;
+  background-color: var(--sf-bg);
+  color: var(--sf-text);
+}
+
+html.theme-dark body {
+  background-color: var(--sf-bg);
+  color: var(--sf-text);
 }
 
 * {
@@ -63,4 +92,99 @@ body {
 
 .field-shake {
   animation: field-shake 180ms ease-out;
+}
+
+@keyframes stepper-flow {
+  from {
+    background-position: 0% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes stepper-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--sf-primary-glow);
+  }
+  70% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 10px rgba(37, 99, 235, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+.workflow-stepper-track {
+  z-index: 1;
+  background: color-mix(in srgb, var(--sf-card-border) 70%, transparent);
+}
+
+.workflow-stepper-progress {
+  z-index: 1;
+  overflow: hidden;
+  background: linear-gradient(90deg, var(--sf-primary-start), var(--sf-primary-end));
+  box-shadow: 0 0 18px var(--sf-primary-glow);
+  transition: width 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.workflow-stepper-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: stepper-flow 2s linear infinite;
+}
+
+.workflow-step-node {
+  z-index: 2;
+  transition: all 220ms ease;
+}
+
+.workflow-step-node-active {
+  background: linear-gradient(135deg, var(--sf-primary-start), var(--sf-primary-end));
+  color: #fff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--sf-primary-start) 18%, transparent), 0 10px 20px -8px var(--sf-primary-glow);
+  animation: stepper-pulse 1.9s ease-in-out infinite;
+}
+
+.sf-card {
+  border: 1px solid var(--sf-card-border);
+  background: var(--sf-card-bg);
+}
+
+.sf-btn-gradient {
+  background-image: linear-gradient(90deg, var(--sf-primary-start), var(--sf-primary-end));
+  box-shadow: 0 8px 20px -8px var(--sf-primary-glow);
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.sf-btn-gradient:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.sf-btn-secondary {
+  border: 1px solid var(--sf-card-border);
+  background: var(--sf-card-bg);
+  color: var(--sf-text);
+}
+
+.sf-modal-panel {
+  border-color: var(--sf-card-border);
+  background: var(--sf-card-bg);
+}
+
+.sf-modal-header,
+.sf-modal-footer {
+  border-color: var(--sf-card-border);
+  background: color-mix(in srgb, var(--sf-card-bg) 94%, transparent);
+}
+
+.sf-table thead {
+  background: var(--sf-table-head);
 }

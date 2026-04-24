@@ -21,10 +21,10 @@ type WorkflowActionModalProps = {
 }
 
 const primaryButtonClass =
-  "inline-flex h-12 items-center rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(59,130,246,0.28)] transition-all hover:-translate-y-[1px] hover:from-blue-700 hover:to-violet-700 hover:shadow-[0_10px_24px_rgba(79,70,229,0.3)] active:scale-[0.97] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-60"
+  "sf-btn-gradient inline-flex h-12 items-center rounded-lg px-4 text-sm font-semibold text-white active:scale-[0.97] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-60"
 
 const secondaryButtonClass =
-  "inline-flex h-12 items-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+  "sf-btn-secondary inline-flex h-12 items-center rounded-lg px-4 text-sm font-medium transition-all active:scale-[0.97]"
 
 export default function WorkflowActionModal({
   open,
@@ -64,7 +64,7 @@ export default function WorkflowActionModal({
         </div>
       }
     >
-      <div className="rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50/70 px-4 py-3.5 ring-1 ring-inset ring-blue-100">
+      <div className="sf-card rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50/70 px-4 py-3.5 ring-1 ring-inset ring-blue-100">
         <p className="text-xs font-semibold uppercase tracking-[0.04em] text-blue-600">Action Context</p>
         <p className="mt-1.5 text-sm text-slate-700">
           <span className="font-medium text-slate-900">Customer:</span> {customerName}

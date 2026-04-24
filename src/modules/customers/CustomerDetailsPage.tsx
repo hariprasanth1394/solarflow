@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Check, CircleCheck, Clock3, CreditCard, FileText, Loader2, Pencil, Plus, Upload, Zap } from "lucide-react"
+import { Check, CircleCheck, Clock3, CreditCard, FileText, Flag, Loader2, Pencil, Plus, Upload, UserRound, Zap } from "lucide-react"
 import { formatDateTimeUTC } from "@/utils/dateFormat"
 import { validateUUID } from "@/utils/validateUUID"
 import { getCustomerById, getCustomerProgress, updateCustomer } from "@/services/customerService"
@@ -89,6 +89,8 @@ type ModalState = {
   action: WorkflowActionKey | null
 }
 
+type StepVisualState = "completed" | "active" | "upcoming" | "blocked"
+
 const stageDefinitions: StageDefinition[] = [
   {
     key: "CREATED",
@@ -136,6 +138,13 @@ const stageDefinitions: StageDefinition[] = [
     actions: [{ key: "CLOSE_PROJECT", label: "Close & Archive", stage: "CLOSURE" }]
   }
 ]
+
+function iconForStage(stageKey: WorkflowStageKey) {
+  if (stageKey === "CREATED") return UserRound
+  if (stageKey === "GOVERNMENT_APPROVAL") return FileText
+  if (stageKey === "INSTALLATION") return Zap
+  return Flag
+}
 
 function normalizeStageKey(input: string | null | undefined): WorkflowStageKey {
   const value = (input ?? "").toUpperCase().trim()
@@ -467,6 +476,11 @@ export default function CustomerDetailsPage() {
   }, [customer?.system_id, systems])
 
   const progressIndex = useMemo(() => stageDefinitions.findIndex((stage) => stage.key === currentStage), [currentStage])
+  const stageProgressPercent = useMemo(() => {
+    if (stageDefinitions.length <= 1) return 0
+    const cappedIndex = Math.min(Math.max(progressIndex, 0), stageDefinitions.length - 1)
+    return (cappedIndex / (stageDefinitions.length - 1)) * 100
+  }, [progressIndex])
 
   useEffect(() => {
     if (!loading) setExpandedStageKey(currentStage)
@@ -975,43 +989,89 @@ export default function CustomerDetailsPage() {
           {/* ══════════════════════════════════════════
                WORKFLOW PROGRESS
           ══════════════════════════════════════════ */}
-          <div className="rounded-lg bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+          <div className="sf-card rounded-lg bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
             <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Workflow Progress</p>
 
             {/* Horizontal stepper */}
-            <div className="mt-5 flex items-start">
-              {stageDefinitions.map((stage, index) => {
-                const isDone = index < progressIndex
-                const isActive = index === progressIndex
-                const isLast = index === stageDefinitions.length - 1
-                return (
-                  <div key={stage.key} className="flex flex-1 flex-col items-center">
-                    <div className="flex w-full items-center">
-                      <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-                          isDone
-                            ? "bg-emerald-500 text-white"
-                            : isActive
-                            ? "bg-blue-600 text-white ring-4 ring-blue-100"
-                            : "bg-slate-100 text-slate-400"
-                        }`}
-                      >
-                        {isDone ? <Check className="h-3.5 w-3.5" /> : isActive ? <Zap className="h-3.5 w-3.5" /> : "○"}
+            <div className="mt-5">
+              <div className="relative px-2 sm:px-4">
+                <div className="workflow-stepper-track absolute left-[calc(12.5%+0.5rem)] right-[calc(12.5%+0.5rem)] top-5 h-0.5" />
+                <div
+                  className="workflow-stepper-progress absolute left-[calc(12.5%+0.5rem)] top-5 h-0.5"
+                  style={{ width: `calc((100% - 2rem) * ${stageProgressPercent / 100})` }}
+                />
+                <div
+                  className="relative z-[2] grid"
+                  style={{ gridTemplateColumns: `repeat(${stageDefinitions.length}, minmax(0, 1fr))` }}
+                >
+                  {stageDefinitions.map((stage, index) => {
+                    const isDone = index < progressIndex
+                    const isActive = index === progressIndex
+                    const isBlocked =
+                      !isDone &&
+                      !isActive &&
+                      stage.key === "CLOSURE" &&
+                      currentWorkflowStage === "INSTALLATION" &&
+                      !allowedActionModel.closureEnabled
+                    const visualState: StepVisualState = isDone
+                      ? "completed"
+                      : isActive
+                      ? "active"
+                      : isBlocked
+                      ? "blocked"
+                      : "upcoming"
+                    const Icon = iconForStage(stage.key)
+                    return (
+                      <div key={stage.key} className="flex justify-center">
+                        <div
+                          className={`workflow-step-node flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-all ${
+                            visualState === "completed"
+                              ? "border-emerald-500 bg-emerald-500 text-white"
+                              : visualState === "active"
+                              ? "workflow-step-node-active border-transparent"
+                              : visualState === "blocked"
+                              ? "border-dashed border-amber-400 bg-amber-50 text-amber-600"
+                              : "border-slate-200 bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          {visualState === "completed" ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                        </div>
                       </div>
-                      {!isLast ? (
-                        <div className={`h-0.5 flex-1 transition-colors ${index < progressIndex ? "bg-emerald-400" : "bg-slate-100"}`} />
-                      ) : null}
-                    </div>
+                    )
+                  })}
+                </div>
+              </div>
+              <div
+                className="mt-2 grid gap-1"
+                style={{ gridTemplateColumns: `repeat(${stageDefinitions.length}, minmax(0, 1fr))` }}
+              >
+                {stageDefinitions.map((stage, index) => {
+                  const isDone = index < progressIndex
+                  const isActive = index === progressIndex
+                  const isBlocked =
+                    !isDone &&
+                    !isActive &&
+                    stage.key === "CLOSURE" &&
+                    currentWorkflowStage === "INSTALLATION" &&
+                    !allowedActionModel.closureEnabled
+                  return (
                     <p
-                      className={`mt-2 text-center text-[11px] font-medium leading-tight ${
-                        isActive ? "text-slate-900" : isDone ? "text-emerald-600" : "text-slate-400"
+                      key={`${stage.key}-label`}
+                      className={`px-1 text-center text-[11px] font-medium leading-tight ${
+                        isActive
+                          ? "text-slate-900"
+                          : isDone
+                          ? "text-emerald-600"
+                          : isBlocked
+                          ? "text-amber-600"
+                          : "text-slate-400"
                       }`}
                     >
                       {stage.title}
                     </p>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
 
             {/* Next action required — dominant CTA */}
@@ -1029,7 +1089,7 @@ export default function CustomerDetailsPage() {
                     <button
                       type="button"
                       onClick={() => openActionModal(nextActionInfo.key)}
-                      className="inline-flex min-h-12 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.97]"
+                      className="sf-btn-gradient inline-flex min-h-12 shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-white active:scale-[0.97]"
                     >
                       {nextActionInfo.label}
                     </button>
@@ -1057,7 +1117,7 @@ export default function CustomerDetailsPage() {
                     key={action}
                     type="button"
                     onClick={() => openActionModal(action)}
-                    className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+                    className="sf-btn-secondary inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-all active:scale-[0.97]"
                   >
                     {action === "START_INSTALLATION" ? <Plus className="h-4 w-4 text-slate-400" /> : null}
                     {action === "SUBMIT_APPROVAL_DOCUMENTS" ? <Upload className="h-4 w-4 text-slate-400" /> : null}
@@ -1121,7 +1181,7 @@ export default function CustomerDetailsPage() {
                   ) : null}
                 </div>
                 <div className="hidden md:block">
-                  <table className="w-full border-collapse text-sm">
+                  <table className="sf-table w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-white text-left text-[12px] font-semibold uppercase tracking-[0.04em] text-slate-500">
                       <th className="px-5 py-3">File name</th>
