@@ -21,10 +21,46 @@ type CustomerUpdate = Database["public"]["Tables"]["customers"]["Update"]
 
 const CUSTOMER_LIST_CACHE_TTL_MS = 15_000
 const WORKFLOW_STAGE_ORDER: WorkflowStage[] = ["CREATED", "SUBMITTED", "APPROVED", "INSTALLATION", "CLOSED"]
+const ALLOWED_STAGE_TRANSITIONS: Record<WorkflowStage, WorkflowStage[]> = {
+  CREATED: ["SUBMITTED"],
+  SUBMITTED: ["APPROVED"],
+  APPROVED: ["INSTALLATION"],
+  INSTALLATION: ["CLOSED"],
+  CLOSED: []
+}
+
+type PaymentSnapshot = {
+  total: number
+  paid: number
+  remaining: number
+  status: "Pending" | "Partial" | "Paid"
+}
+
+function parseLatestAmount(notes: string | null | undefined, key: string) {
+  const matches = Array.from((notes ?? "").matchAll(new RegExp(`${key}:\\s*([0-9]+(?:\\.[0-9]+)?)`, "gi")))
+  const last = matches[matches.length - 1]?.[1]
+  return last ? Number(last) : 0
+}
 
 function extractPaymentStatus(notes: string | null | undefined) {
   const match = (notes ?? "").match(/Payment Status:\s*([^\n]+)/i)
   return match?.[1]?.trim() ?? ""
+}
+
+function derivePaymentSnapshot(notes: string | null | undefined): PaymentSnapshot {
+  const total = parseLatestAmount(notes, "Total Amount")
+  const paid = parseLatestAmount(notes, "Paid Amount")
+  const remaining = Math.max(total - paid, 0)
+  const normalizedStatus = extractPaymentStatus(notes).toLowerCase()
+
+  if (total > 0) {
+    if (paid >= total) return { total, paid, remaining: 0, status: "Paid" }
+    if (paid > 0) return { total, paid, remaining, status: "Partial" }
+  }
+
+  if (normalizedStatus === "paid") return { total, paid, remaining, status: "Paid" }
+  if (normalizedStatus.includes("partial")) return { total, paid, remaining, status: "Partial" }
+  return { total, paid, remaining, status: "Pending" }
 }
 
 async function resolveActorName(organizationId: string, userId: string) {
@@ -44,16 +80,30 @@ function validateWorkflowTransition(currentStage: WorkflowStage | undefined, nex
   const fromIndex = WORKFLOW_STAGE_ORDER.indexOf(source)
   const toIndex = WORKFLOW_STAGE_ORDER.indexOf(nextStage)
 
-  if (toIndex < fromIndex) {
-    throw new Error("Invalid workflow transition: cannot move backward")
-  }
-
-  if (toIndex > fromIndex + 1) {
-    throw new Error("Invalid workflow transition: cannot skip stages")
+  if (fromIndex === -1 || toIndex === -1) {
+    throw new Error("Invalid workflow transition: unknown stage")
   }
 
   if (source !== "CREATED" && nextStage === "CREATED") {
     throw new Error("Invalid workflow transition: cannot reset to Created")
+  }
+
+  if (source === nextStage) {
+    if (nextStage === "CLOSED") {
+      const payment = derivePaymentSnapshot(payload.notes)
+      if (payment.status !== "Paid") {
+        throw new Error("Invalid workflow transition: cannot move to Closure without full payment")
+      }
+    }
+    return
+  }
+
+  if (toIndex < fromIndex) {
+    throw new Error("Invalid workflow transition: cannot move backward")
+  }
+
+  if (!ALLOWED_STAGE_TRANSITIONS[source].includes(nextStage)) {
+    throw new Error(`Invalid workflow transition: ${source} -> ${nextStage} is not allowed`)
   }
 
   if (nextStage === "INSTALLATION") {
@@ -61,18 +111,38 @@ function validateWorkflowTransition(currentStage: WorkflowStage | undefined, nex
     const hasApprovalStatus = status.includes("approved")
     const notes = String(payload.notes ?? "")
     const hasApprovalEvidence = /approval no:|reference:/i.test(notes)
+    if (source !== "APPROVED") {
+      throw new Error("Invalid workflow transition: installation must start from Approved")
+    }
     if (!hasApprovalStatus && !status.includes("progress") && !status.includes("pending")) {
       throw new Error("Invalid workflow transition: installation requires approved status")
     }
-    if (source !== "INSTALLATION" && !hasApprovalEvidence) {
+    if (!hasApprovalEvidence) {
+      throw new Error("Invalid workflow transition: approval document reference is required")
+    }
+  }
+
+  if (nextStage === "APPROVED") {
+    const status = String(payload.status ?? "").toLowerCase()
+    const notes = String(payload.notes ?? "")
+    const hasApprovalEvidence = /approval no:|reference:/i.test(notes)
+    if (source !== "SUBMITTED") {
+      throw new Error("Invalid workflow transition: approval must follow submission")
+    }
+    if (!status.includes("approved")) {
+      throw new Error("Invalid workflow transition: approved stage requires approved status")
+    }
+    if (!hasApprovalEvidence) {
       throw new Error("Invalid workflow transition: approval document reference is required")
     }
   }
 
   if (nextStage === "CLOSED") {
-    const status = String(payload.status ?? "").toLowerCase()
-    const paymentStatus = extractPaymentStatus(payload.notes)
-    if (!status.includes("completed") && paymentStatus.toLowerCase() !== "paid") {
+    const payment = derivePaymentSnapshot(payload.notes)
+    if (source !== "INSTALLATION") {
+      throw new Error("Invalid workflow transition: closure must follow installation")
+    }
+    if (payment.status !== "Paid") {
       throw new Error("Invalid workflow transition: cannot move to Closure without full payment")
     }
   }
@@ -215,12 +285,16 @@ export async function updateCustomer(id: string, payload: CustomerUpdate) {
         typeof previousRecord.current_stage === "string" ? previousRecord.current_stage : previousStatus
       const previousStage = toWorkflowStage(previousStageRaw) ?? "CREATED"
       validateWorkflowTransition(previousStage, minimumStage, payload)
+      const transitionTimestamp = new Date().toISOString()
+      const paymentSnapshot = derivePaymentSnapshot(payload.notes)
+      const stageChanged = Boolean(minimumStage && minimumStage !== previousStage)
 
       const data = await updateCustomerById(id, organizationId, payload)
       invalidateQueryCacheByPrefix(`customers:list:${organizationId}:`)
-      await logActivity("Customer updated", "customer", id, {
-        action_type: "workflow-update",
+      await logActivity(stageChanged ? "Customer stage transitioned" : "Customer updated", "customer", id, {
+        action_type: stageChanged ? "workflow-transition" : "workflow-update",
         actor: await resolveActorName(organizationId, userId),
+        timestamp: transitionTimestamp,
         previous_state: {
           stage: previousStage,
           status: previousStatus
@@ -229,6 +303,7 @@ export async function updateCustomer(id: string, payload: CustomerUpdate) {
           stage: minimumStage ?? previousStage,
           status: payload.status ?? previousStatus
         },
+        payment: paymentSnapshot,
         changed_fields: Object.keys(payload)
       })
       try {

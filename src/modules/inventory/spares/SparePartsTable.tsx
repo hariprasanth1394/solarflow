@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useEffect, useMemo, useRef, useState } from "react"
-import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Pencil, Plus, RefreshCw } from "lucide-react"
+import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
 import {
   inventoryTableCellClass,
   inventoryTableClass,
@@ -32,6 +32,7 @@ type SparePartsTableProps = {
   onEdit: (row: SpareRow) => void
   onUpdateStock: (row: SpareRow) => void
   onViewDetails: (row: SpareRow) => void
+  onDelete: (row: SpareRow) => void
   onAddSpare: () => void
 }
 
@@ -93,6 +94,7 @@ function SparePartsTable({
   onEdit,
   onUpdateStock,
   onViewDetails,
+  onDelete,
   onAddSpare
 }: SparePartsTableProps) {
   const [openActionRowId, setOpenActionRowId] = useState<string | null>(null)
@@ -127,7 +129,7 @@ function SparePartsTable({
 
   return (
     <div className={inventoryTableWrapperClass}>
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto md:block">
         <table className={`min-w-full ${inventoryTableClass}`}>
           <thead>
             <tr className={inventoryTableHeaderRowClass}>
@@ -171,7 +173,7 @@ function SparePartsTable({
                 </td>
               </tr>
             ) : (
-              rows.map((row, index) => (
+              rows.map((row) => (
                 <tr
                   key={row.id}
                   className={`group ${inventoryTableRowClass}`}
@@ -238,6 +240,17 @@ function SparePartsTable({
                             <Eye className="h-4 w-4" />
                             View details
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onDelete(row)
+                              setOpenActionRowId(null)
+                            }}
+                            className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-rose-600 transition-colors duration-150 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </button>
                         </div>
                       ) : null}
                     </div>
@@ -247,6 +260,100 @@ function SparePartsTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="space-y-3 p-3 md:hidden">
+        {loading ? (
+          Array.from({ length: 5 }).map((_, index) => (
+            <div key={`mobile-skeleton-${index}`} className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="h-4 w-1/2 animate-pulse rounded bg-slate-100" />
+              <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-slate-100" />
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="h-12 animate-pulse rounded bg-slate-100" />
+                <div className="h-12 animate-pulse rounded bg-slate-100" />
+              </div>
+            </div>
+          ))
+        ) : rows.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center">
+            <p className="text-base font-semibold text-slate-900">No spare parts found</p>
+            <p className="mt-2 text-sm text-slate-500">Try changing your filters or add a new spare to get started.</p>
+            <button
+              type="button"
+              onClick={onAddSpare}
+              className="mx-auto mt-4 inline-flex min-h-12 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add spare
+            </button>
+          </div>
+        ) : (
+          rows.map((row) => {
+            const stock = getStockStatus(row)
+            return (
+              <article key={row.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-base font-bold text-slate-900">{row.name}</h3>
+                    <p className="mt-1 text-sm text-slate-500">{row.category || "Uncategorized"} • {row.unit || "Unit n/a"}</p>
+                  </div>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold ${stock.tone}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${stock.dot}`} />
+                    {stock.label}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm">
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Stock</p>
+                    <p className="mt-1 font-semibold text-slate-900">{row.stock_quantity}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Min</p>
+                    <p className="mt-1 font-semibold text-slate-900">{row.min_stock}</p>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onUpdateStock(row)}
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Add Stock
+                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onViewDetails(row)}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700"
+                    >
+                      <Eye className="h-4 w-4" />
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onEdit(row)}
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(row)}
+                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-rose-200 px-3 text-sm font-medium text-rose-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                </div>
+              </article>
+            )
+          })
+        )}
       </div>
 
       <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">

@@ -21,11 +21,13 @@ const stageOptions = [
   { value: "CREATED", label: "Created" },
   { value: "GOVERNMENT_APPROVAL", label: "Government Approval" },
   { value: "INSTALLATION", label: "Installation" },
+  { value: "INSTALLATION_COMPLETED_PARTIAL_PAYMENT", label: "Installation Completed - Partial Payment" },
   { value: "CLOSED", label: "Completed" },
 ]
 
 export default function CustomersPage() {
   const [rows, setRows] = useState<CustomerRow[]>([])
+  const [dashboardCounts, setDashboardCounts] = useState({ total: 0, created: 0, governmentApproval: 0, installation: 0, closed: 0 })
   const [salesReps, setSalesReps] = useState<SalesRep[]>([])
   const [availableSystems, setAvailableSystems] = useState<AvailableSolarSystem[]>([])
   const [systemsLoading, setSystemsLoading] = useState(false)
@@ -45,9 +47,10 @@ export default function CustomersPage() {
     setLoading(true)
     setErrorMessage("")
     try {
-      const { data, count } = await getCustomers({ search, page, pageSize, status: statusFilter })
+      const { data, count, counts } = await getCustomers({ search, page, pageSize, status: statusFilter })
       setRows((data ?? []) as unknown as CustomerRow[])
       setTotalCount(count ?? 0)
+      setDashboardCounts(counts ?? { total: 0, created: 0, governmentApproval: 0, installation: 0, closed: 0 })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Operation failed")
     } finally {
@@ -80,26 +83,6 @@ export default function CustomersPage() {
   useEffect(() => { void fetchSalesReps() }, [fetchSalesReps])
   useEffect(() => { void fetchAvailableSystems() }, [fetchAvailableSystems])
 
-  // Derive stats from current rows (all pages combined via totalCount)
-  const stats = useMemo(() => {
-    const activeProjects = rows.filter((r) => {
-      const s = (r.current_stage ?? r.status ?? "").toLowerCase()
-      return s.includes("install")
-    }).length
-
-    const pendingApprovals = rows.filter((r) => {
-      const s = (r.current_stage ?? r.status ?? "").toLowerCase()
-      return s.includes("gov") || s.includes("approval") || s.includes("submit")
-    }).length
-
-    const completed = rows.filter((r) => {
-      const s = (r.current_stage ?? r.status ?? "").toLowerCase()
-      return s.includes("closed") || s.includes("inactive") || s.includes("completed")
-    }).length
-
-    return { activeProjects, pendingApprovals, completed }
-  }, [rows])
-
   function openAddModal() {
     setEditing(null)
     setModalOpen(true)
@@ -128,19 +111,19 @@ export default function CustomersPage() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className={inventorySectionCardClass}>
           <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Total Customers</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{totalCount}</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{dashboardCounts.total}</p>
         </div>
         <div className={inventorySectionCardClass}>
           <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Active Projects</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{stats.activeProjects}</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{dashboardCounts.installation}</p>
         </div>
         <div className={inventorySectionCardClass}>
           <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Pending Approvals</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{stats.pendingApprovals}</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{dashboardCounts.governmentApproval}</p>
         </div>
         <div className={inventorySectionCardClass}>
           <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Completed Installations</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{stats.completed}</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{dashboardCounts.closed}</p>
         </div>
       </div>
 

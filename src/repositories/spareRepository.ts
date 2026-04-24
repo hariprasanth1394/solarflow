@@ -107,6 +107,23 @@ export async function updateSpareStockById(id: string, organizationId: string, s
   return response
 }
 
+export async function deleteSpareById(id: string, organizationId: string) {
+  assertValidUUID(id, "spareId")
+  assertValidUUID(organizationId, "organizationId")
+
+  const response = await supabase
+    .from("spares")
+    .delete()
+    .eq("id", id)
+    .eq("organization_id", organizationId)
+
+  if (response.error) {
+    handleRepositoryError("spareRepository", "deleteSpareById", response.error)
+  }
+
+  return response
+}
+
 export async function querySuppliers(organizationId: string) {
   const response = await supabase
     .from("suppliers")

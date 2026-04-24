@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Search, SlidersHorizontal, X } from "lucide-react"
+import { Plus, Search, SlidersHorizontal, X } from "lucide-react"
 import AddSpareModal from "./AddSpareModal"
 import EditStockModal from "./EditStockModal"
 import SparePartsTable from "./SparePartsTable"
-import { createSpare, getSpares, getSuppliers, updateSpare, updateSpareStock } from "../../../services/spareService"
+import { createSpare, deleteSpare, getSpares, getSuppliers, updateSpare, updateSpareStock } from "../../../services/spareService"
 import LoadingButton from "../../../components/ui/LoadingButton"
 import InventoryPageShell from "../components/InventoryPageShell"
 import { inventorySectionCardClass } from "../components/inventoryTableStyles"
@@ -59,6 +59,7 @@ export default function SparePartsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [updatingStockId, setUpdatingStockId] = useState<string | null>(null)
   const [editingSpareId, setEditingSpareId] = useState<string | null>(null)
+  const [deletingSpareId, setDeletingSpareId] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editStockModalOpen, setEditStockModalOpen] = useState(false)
   const [editDetailsModalOpen, setEditDetailsModalOpen] = useState(false)
@@ -71,6 +72,8 @@ export default function SparePartsPage() {
   const [editMinStock, setEditMinStock] = useState("0")
   const [editCostPrice, setEditCostPrice] = useState("0")
   const [filterOpen, setFilterOpen] = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("all")
   const [supplierFilter, setSupplierFilter] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("")
@@ -186,6 +189,26 @@ export default function SparePartsPage() {
     setEditDetailsModalOpen(true)
   }
 
+  const handleDeleteSpare = async (row: SpareRow) => {
+    if (deletingSpareId) return
+    const shouldDelete = window.confirm(`Delete ${row.name}? This action cannot be undone.`)
+    if (!shouldDelete) return
+
+    setDeletingSpareId(row.id)
+    try {
+      const { error } = await deleteSpare(row.id)
+      if (error) {
+        throw new Error("Operation failed")
+      }
+      setMessage("Spare deleted successfully")
+      await loadSpares()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Operation failed")
+    } finally {
+      setDeletingSpareId(null)
+    }
+  }
+
   const handleSaveEditDetails = async () => {
     if (!selectedSpareForEdit) return
 
@@ -231,7 +254,7 @@ export default function SparePartsPage() {
         <LoadingButton
           type="button"
           onClick={() => setModalOpen(true)}
-          className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition duration-200 hover:bg-blue-700"
+          className="hidden h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition duration-200 hover:bg-blue-700 md:inline-flex"
         >
           Add Spare
         </LoadingButton>
@@ -243,7 +266,168 @@ export default function SparePartsPage() {
         </div>
       ) : null}
 
-      <section className={`${inventorySectionCardClass} flex flex-wrap items-center justify-between gap-3`}>
+      <section className={`${inventorySectionCardClass} flex items-center gap-2 md:hidden`}>
+        <button
+          type="button"
+          onClick={() => setMobileSearchOpen((previous) => !previous)}
+          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
+        >
+          <Search className="h-4 w-4" />
+          Search
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileFiltersOpen((previous) => !previous)}
+          className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium ${
+            activeFilterCount > 0 ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"
+          }`}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+          {activeFilterCount > 0 ? (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-semibold text-white">
+              {activeFilterCount}
+            </span>
+          ) : null}
+        </button>
+      </section>
+
+      {mobileSearchOpen ? (
+        <section className={`${inventorySectionCardClass} space-y-2 md:hidden`}>
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={searchInput}
+              onChange={(event) => {
+                setSearchInput(event.target.value)
+                setPage(1)
+              }}
+              placeholder="Search by spare name, category, supplier..."
+              aria-label="Search spare parts"
+              className="h-12 w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-slate-700 placeholder:text-slate-400 transition duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+            {searchInput ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput("")
+                  setDebouncedSearch("")
+                  setPage(1)
+                }}
+                className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </label>
+        </section>
+      ) : null}
+
+      {mobileFiltersOpen ? (
+        <section className={`${inventorySectionCardClass} space-y-3 md:hidden`}>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Availability</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[
+                { key: "all", label: "All" },
+                { key: "in_stock", label: "In stock" },
+                { key: "out_of_stock", label: "Out of stock" }
+              ].map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => {
+                    setAvailabilityFilter(option.key as AvailabilityFilter)
+                    setPage(1)
+                  }}
+                  className={`h-10 rounded-lg border px-3 text-sm font-medium ${
+                    availabilityFilter === option.key
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-slate-300 text-slate-700"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Supplier</label>
+            <select
+              value={supplierFilter}
+              onChange={(event) => {
+                setSupplierFilter(event.target.value)
+                setPage(1)
+              }}
+              className="mt-1.5 h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="">All suppliers</option>
+              {suppliers.map((supplier) => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Category</label>
+            <input
+              value={categoryFilter}
+              onChange={(event) => {
+                setCategoryFilter(event.target.value)
+                setPage(1)
+              }}
+              placeholder="Filter by category"
+              className="mt-1.5 h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Rows per page</label>
+            <select
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value))
+                setPage(1)
+              }}
+              className="mt-1.5 h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
+              {ROW_SIZE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option} rows
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => {
+                setAvailabilityFilter("all")
+                setSupplierFilter("")
+                setCategoryFilter("")
+                setPage(1)
+              }}
+              className="text-sm font-medium text-slate-500"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white"
+            >
+              Apply
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      <section className={`${inventorySectionCardClass} hidden flex-wrap items-center justify-between gap-3 md:flex`}>
         <div className="min-w-0 flex-[1_1_42%]">
           <label className="relative block">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -403,27 +587,39 @@ export default function SparePartsPage() {
         </div>
       </section>
 
-      <SparePartsTable
-        rows={rows}
-        loading={loading}
-        page={page}
-        pageSize={pageSize}
-        totalCount={totalCount}
-        onPageChange={handlePageChange}
-        onEdit={(row) => {
-          handleOpenEditDetails(row)
-        }}
-        onUpdateStock={async (row) => {
-          if (updatingStockId) return
-          setSelectedSpareForStockEdit(row)
-          setEditStockModalOpen(true)
-        }}
-        onViewDetails={(row) => {
-          setSelectedSpareForDetails(row)
-          setDetailsModalOpen(true)
-        }}
-        onAddSpare={() => setModalOpen(true)}
-      />
+      <div className="pb-24 md:pb-0">
+        <SparePartsTable
+          rows={rows}
+          loading={loading}
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={handlePageChange}
+          onEdit={(row) => {
+            handleOpenEditDetails(row)
+          }}
+          onUpdateStock={async (row) => {
+            if (updatingStockId) return
+            setSelectedSpareForStockEdit(row)
+            setEditStockModalOpen(true)
+          }}
+          onViewDetails={(row) => {
+            setSelectedSpareForDetails(row)
+            setDetailsModalOpen(true)
+          }}
+          onDelete={handleDeleteSpare}
+          onAddSpare={() => setModalOpen(true)}
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setModalOpen(true)}
+        className="fixed bottom-5 right-5 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(79,70,229,0.35)] md:hidden"
+      >
+        <Plus className="h-4 w-4" />
+        Add Spare
+      </button>
 
       <AddSpareModal
         open={modalOpen}

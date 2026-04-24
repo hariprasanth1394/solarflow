@@ -150,7 +150,7 @@ function CustomerTable({
 
   return (
     <div className={inventoryTableWrapperClass}>
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto md:block">
         <table className={`min-w-[900px] ${inventoryTableClass}`}>
           <thead>
             <tr className={inventoryTableHeaderRowClass}>
@@ -297,6 +297,114 @@ function CustomerTable({
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="divide-y divide-slate-100 md:hidden">
+        {loading ? (
+          Array.from({ length: 6 }).map((_, index) => (
+            <div key={`mobile-skeleton-${index}`} className="space-y-3 px-4 py-4">
+              <div className="h-4 w-2/5 animate-pulse rounded-sm bg-slate-100" />
+              <div className="h-3 w-4/5 animate-pulse rounded-sm bg-slate-100" />
+              <div className="h-10 w-full animate-pulse rounded-lg bg-slate-100" />
+            </div>
+          ))
+        ) : rows.length === 0 ? (
+          <div className="px-4 py-12 text-center">
+            <p className="text-base font-semibold text-slate-900">No customers found</p>
+            <p className="mt-2 text-sm text-slate-500">Try adjusting your search or filters, or add a new customer.</p>
+            {onAddCustomer ? (
+              <button
+                type="button"
+                onClick={onAddCustomer}
+                className="mx-auto mt-4 inline-flex h-12 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              >
+                <UserPlus className="h-4 w-4" />
+                Add customer
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          rows.map((row) => {
+            const stage = row.current_stage ? normalizeStageLabel(row.current_stage) : toWorkflowStage(row.status)
+            const initials = getInitials(row.name || "?")
+            const avatarCls = avatarColor(row.name || "")
+
+            return (
+              <div key={row.id} className="px-4 py-4">
+                <div
+                  onClick={() => router.push(`/customers/${row.id}`)}
+                  className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarCls}`}>
+                      {initials}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{row.name}</p>
+                          <p className="mt-1 text-xs text-slate-500">{row.phone || row.email || row.company || "-"}</p>
+                        </div>
+                        <span className={`inline-flex min-h-8 items-center rounded-[6px] px-2.5 py-1 text-[12px] font-medium ${stageBadgeStyle(stage)}`}>
+                          {stage}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Location</p>
+                      <p className="mt-1 text-slate-700">{deriveLocation(row)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Capacity</p>
+                      <p className="mt-1 text-slate-700">{deriveSystemCapacity(row)}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Updated</p>
+                      <p className="mt-1 text-slate-700">{formatDateTimeUTC(row.created_at)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        router.push(`/customers/${row.id}`)
+                      }}
+                      className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      View details
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void onEdit(row)
+                      }}
+                      className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deletingId === row.id}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void onDelete(row.id)
+                      }}
+                      className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-rose-200 px-4 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingId === row.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* Pagination */}

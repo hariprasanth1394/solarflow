@@ -61,6 +61,22 @@ type ProgressRow = {
   stage_history: Array<{ current_stage: string; created_at: string }>
 }
 
+type WorkflowStageValue = "CREATED" | "SUBMITTED" | "APPROVED" | "INSTALLATION" | "CLOSED"
+
+type PaymentModel = {
+  total: number
+  paid: number
+  remaining: number
+  status: "Pending" | "Partial" | "Paid"
+}
+
+type AllowedActionModel = {
+  allowedActions: WorkflowActionKey[]
+  primaryAction: WorkflowActionKey | null
+  guidance: string
+  closureEnabled: boolean
+}
+
 type SystemAvailabilityRow = {
   system_id?: string | null
   capacity_kw?: number | null
@@ -124,10 +140,19 @@ const stageDefinitions: StageDefinition[] = [
 function normalizeStageKey(input: string | null | undefined): WorkflowStageKey {
   const value = (input ?? "").toUpperCase().trim()
   if (value.includes("CLOSED") || value.includes("CLOSURE")) return "CLOSURE"
-  if (value.includes("INSTALLATION")) return "INSTALLATION"
-  if (value.includes("SUBMITTED") || value.includes("APPROVED") || value.includes("GOV") || value.includes("APPROVAL")) {
+  if (value.includes("INSTALLATION") || value.includes("APPROVED")) return "INSTALLATION"
+  if (value.includes("SUBMITTED") || value.includes("GOV") || value.includes("APPROVAL")) {
     return "GOVERNMENT_APPROVAL"
   }
+  return "CREATED"
+}
+
+function normalizeWorkflowStage(input: string | null | undefined): WorkflowStageValue {
+  const value = (input ?? "").toUpperCase().trim()
+  if (value.includes("CLOSED") || value.includes("CLOSURE")) return "CLOSED"
+  if (value.includes("INSTALLATION")) return "INSTALLATION"
+  if (value.includes("APPROVED")) return "APPROVED"
+  if (value.includes("SUBMITTED") || value.includes("GOV") || value.includes("APPROVAL")) return "SUBMITTED"
   return "CREATED"
 }
 
@@ -151,10 +176,12 @@ function installationStatus(status: string) {
 
 function closureStatus(status: string) {
   const normalized = status.toLowerCase()
+  if (normalized.includes("completed_payment_pending") || normalized.includes("payment pending") || normalized.includes("partial")) {
+    return { label: "Payment Pending", tone: "pending" as WorkflowBadgeTone }
+  }
   if (normalized.includes("completed") || normalized.includes("closed") || normalized.includes("paid")) {
     return { label: "Completed", tone: "completed" as WorkflowBadgeTone }
   }
-  if (normalized.includes("partial")) return { label: "Partial Payment", tone: "pending" as WorkflowBadgeTone }
   return { label: "Payment Pending", tone: "pending" as WorkflowBadgeTone }
 }
 
@@ -180,7 +207,146 @@ function parseAmountFromNotes(notes: string | null | undefined, key: string) {
 function parsePaymentStatusFromNotes(notes: string | null | undefined) {
   const matches = Array.from((notes ?? "").matchAll(/Payment Status:\s*([^\n]+)/gi))
   const last = matches[matches.length - 1]?.[1]
-  return last?.trim() ?? "Pending"
+  const normalized = last?.trim().toLowerCase() ?? "pending"
+  if (normalized === "paid") return "Paid"
+  if (normalized.includes("partial")) return "Partial"
+  return "Pending"
+}
+
+function normalizeWorkflowStatus(status: string | null | undefined) {
+  const value = (status ?? "").toLowerCase().trim()
+  if (!value) return "NOT_STARTED"
+  if (value.includes("approval submitted")) return "APPROVAL_SUBMITTED"
+  if (value.includes("approved")) return "APPROVED"
+  if (value.includes("in progress")) return "IN_PROGRESS"
+  if (value.includes("completed_payment_pending") || value.includes("payment pending") || value.includes("partial")) {
+    return "COMPLETED_PAYMENT_PENDING"
+  }
+  if (value.includes("completed") || value.includes("closed")) return "COMPLETED"
+  if (value.includes("not started")) return "NOT_STARTED"
+  return "NOT_STARTED"
+}
+
+function actionMeta(action: WorkflowActionKey) {
+  if (action === "SUBMIT_APPROVAL_DOCUMENTS") {
+    return {
+      label: "Submit for Approval",
+      description: "Upload government submission documents to move this customer forward."
+    }
+  }
+  if (action === "MARK_GOVERNMENT_APPROVED") {
+    return {
+      label: "Approve & Continue",
+      description: "Approval evidence is ready. Confirm approval to unlock installation."
+    }
+  }
+  if (action === "START_INSTALLATION") {
+    return {
+      label: "Start Installation",
+      description: "Assign the installation team and start execution."
+    }
+  }
+  if (action === "MARK_INSTALLATION_COMPLETED") {
+    return {
+      label: "Mark Installation Done",
+      description: "Capture completion and payment totals to determine closure readiness."
+    }
+  }
+  return {
+    label: "Update Payment",
+    description: "Finalize payment and close the project once dues are cleared."
+  }
+}
+
+function getAllowedActions(stage: WorkflowStageValue, status: string, payment: PaymentModel): AllowedActionModel {
+  const normalizedStatus = normalizeWorkflowStatus(status)
+  const closureEnabled = payment.remaining <= 0 && payment.total > 0
+
+  if (stage === "CREATED") {
+    return {
+      allowedActions: ["SUBMIT_APPROVAL_DOCUMENTS"],
+      primaryAction: "SUBMIT_APPROVAL_DOCUMENTS",
+      guidance: "Upload submission documents to begin government approval.",
+      closureEnabled: false
+    }
+  }
+
+  if (stage === "SUBMITTED") {
+    const action = normalizedStatus === "APPROVAL_SUBMITTED" ? "MARK_GOVERNMENT_APPROVED" : "SUBMIT_APPROVAL_DOCUMENTS"
+    return {
+      allowedActions: [action],
+      primaryAction: action,
+      guidance:
+        action === "MARK_GOVERNMENT_APPROVED"
+          ? "Documents are submitted. Approve to move into installation."
+          : "Submission details are incomplete. Re-submit approval package.",
+      closureEnabled: false
+    }
+  }
+
+  if (stage === "APPROVED") {
+    if (normalizedStatus !== "NOT_STARTED" && normalizedStatus !== "APPROVED") {
+      return {
+        allowedActions: [],
+        primaryAction: null,
+        guidance: "Installation can be started only when status is Not Started or Approved.",
+        closureEnabled: false
+      }
+    }
+    return {
+      allowedActions: ["START_INSTALLATION"],
+      primaryAction: "START_INSTALLATION",
+      guidance: "Customer is approved. Start installation to continue the workflow.",
+      closureEnabled: false
+    }
+  }
+
+  if (stage === "INSTALLATION") {
+    if (normalizedStatus === "NOT_STARTED" || normalizedStatus === "APPROVED") {
+      return {
+        allowedActions: ["START_INSTALLATION"],
+        primaryAction: "START_INSTALLATION",
+        guidance: "Installation has not started yet.",
+        closureEnabled: false
+      }
+    }
+
+    if (normalizedStatus === "IN_PROGRESS") {
+      return {
+        allowedActions: ["MARK_INSTALLATION_COMPLETED"],
+        primaryAction: "MARK_INSTALLATION_COMPLETED",
+        guidance: "Installation is in progress. Mark it done when field work is complete.",
+        closureEnabled: false
+      }
+    }
+
+    if (normalizedStatus === "COMPLETED_PAYMENT_PENDING") {
+      return {
+        allowedActions: ["CLOSE_PROJECT"],
+        primaryAction: null,
+        guidance: `Rs ${payment.remaining.toFixed(2)} remaining to complete project closure.`,
+        closureEnabled: false
+      }
+    }
+
+    if (normalizedStatus === "COMPLETED") {
+      return {
+        allowedActions: closureEnabled ? ["CLOSE_PROJECT"] : [],
+        primaryAction: closureEnabled ? "CLOSE_PROJECT" : null,
+        guidance: closureEnabled
+          ? "Payment complete. Use Update Payment to finalize closure."
+          : `Rs ${payment.remaining.toFixed(2)} remaining to complete project closure.`,
+        closureEnabled
+      }
+    }
+  }
+
+  return {
+    allowedActions: [],
+    primaryAction: null,
+    guidance: "Project is closed and no further actions are required.",
+    closureEnabled: true
+  }
 }
 
 export default function CustomerDetailsPage() {
@@ -205,6 +371,7 @@ export default function CustomerDetailsPage() {
   const [viewingDocumentId, setViewingDocumentId] = useState<string | null>(null)
   const [modalState, setModalState] = useState<ModalState>({ action: null })
   const [modalError, setModalError] = useState("")
+  const [modalRetryable, setModalRetryable] = useState(false)
   const [modalAttempted, setModalAttempted] = useState(false)
   const [statusToast, setStatusToast] = useState("")
   const [statusChipPulse, setStatusChipPulse] = useState(false)
@@ -282,9 +449,13 @@ export default function CustomerDetailsPage() {
     void loadDetail()
   }, [loadDetail])
 
-  const currentStage = useMemo(() => {
-    return normalizeStageKey(progress?.current_stage ?? customer?.current_stage ?? "CREATED")
+  const currentWorkflowStage = useMemo(() => {
+    return normalizeWorkflowStage(progress?.current_stage ?? customer?.current_stage ?? "CREATED")
   }, [progress?.current_stage, customer?.current_stage])
+
+  const currentStage = useMemo(() => {
+    return normalizeStageKey(currentWorkflowStage)
+  }, [currentWorkflowStage])
 
   const orderedStages = stageDefinitions
 
@@ -296,36 +467,6 @@ export default function CustomerDetailsPage() {
   }, [customer?.system_id, systems])
 
   const progressIndex = useMemo(() => stageDefinitions.findIndex((stage) => stage.key === currentStage), [currentStage])
-
-  const nextActionInfo = useMemo(() => {
-    if (!customer) return null
-    const status = customer.status?.toLowerCase() ?? ""
-    if (currentStage === "GOVERNMENT_APPROVAL") {
-      if (status.includes("submitted")) {
-        return { key: "MARK_GOVERNMENT_APPROVED" as WorkflowActionKey, label: "Approve & Continue", description: "Documents submitted — approve to advance to Installation" }
-      }
-      return { key: "SUBMIT_APPROVAL_DOCUMENTS" as WorkflowActionKey, label: "Submit for Approval", description: "Upload government approval documents to proceed" }
-    }
-    if (currentStage === "INSTALLATION") {
-      if (status.includes("payment pending") || status.includes("partial")) {
-        return { key: "CLOSE_PROJECT" as WorkflowActionKey, label: "Update Payment", description: "Record final payment to complete and close this project" }
-      }
-      if (status.includes("progress")) {
-        return { key: "MARK_INSTALLATION_COMPLETED" as WorkflowActionKey, label: "Complete Installation", description: "Mark installation complete to advance to project closure" }
-      }
-      return { key: "START_INSTALLATION" as WorkflowActionKey, label: "Start Installation", description: "Assign team and begin the installation process" }
-    }
-    if (currentStage === "CLOSURE") {
-      if (status.includes("closed") || status.includes("completed")) return null
-      return { key: "CLOSE_PROJECT" as WorkflowActionKey, label: "Close & Archive", description: "Finalize payment and close this project" }
-    }
-    return { key: "SUBMIT_APPROVAL_DOCUMENTS" as WorkflowActionKey, label: "Submit for Approval", description: "Start the government approval process to advance this project" }
-  }, [currentStage, customer])
-
-  const canUploadApprovalDocs = currentStage === "GOVERNMENT_APPROVAL"
-  const canAddInstallationTask = currentStage === "INSTALLATION" && !customer?.status.toLowerCase().includes("completed")
-  const canUpdatePayment =
-    currentStage === "CLOSURE" || (currentStage === "INSTALLATION" && customer?.status.toLowerCase().includes("payment pending"))
 
   useEffect(() => {
     if (!loading) setExpandedStageKey(currentStage)
@@ -351,17 +492,10 @@ export default function CustomerDetailsPage() {
     return "bg-slate-100 text-slate-600"
   }
 
-  function statusBadgeClass(status: string) {
-    const normalized = status.toLowerCase()
-    if (normalized.includes("completed") || normalized.includes("paid")) return "bg-emerald-50 text-emerald-700"
-    if (normalized.includes("in progress") || normalized.includes("approved")) return "bg-blue-50 text-blue-700"
-    if (normalized.includes("partial") || normalized.includes("payment pending")) return "bg-amber-50 text-amber-700"
-    return "bg-slate-100 text-slate-600"
-  }
-
   const closeModal = () => {
     setModalState({ action: null })
     setModalError("")
+    setModalRetryable(false)
     setModalAttempted(false)
     setActionProgressMessage("")
     setSubmissionDoc(null)
@@ -385,7 +519,16 @@ export default function CustomerDetailsPage() {
 
   const openActionModal = (action: WorkflowActionKey) => {
     setModalError("")
+    setModalRetryable(false)
     setModalAttempted(false)
+
+    if (action === "CLOSE_PROJECT") {
+      const capturedTotal = parseAmountFromNotes(customer?.notes, "Total Amount")
+      const capturedPaid = parseAmountFromNotes(customer?.notes, "Paid Amount")
+      setTotalAmount(capturedTotal > 0 ? capturedTotal.toFixed(2) : "")
+      setPaidAmount(capturedPaid > 0 ? capturedPaid.toFixed(2) : "0.00")
+    }
+
     setModalState({ action })
   }
 
@@ -412,6 +555,10 @@ export default function CustomerDetailsPage() {
       : "Paid"
 
   const approvalDateValid = !approvalDate.trim() || !Number.isNaN(new Date(approvalDate).getTime())
+  const approvalNumberPattern = /^[A-Za-z0-9/-]{4,40}$/
+  const approvalNumberValid = !approvalNumber.trim() || approvalNumberPattern.test(approvalNumber.trim())
+  const submissionReferencePattern = /^[A-Za-z0-9/-]{4,40}$/
+  const submissionReferenceValid = !submissionRefNumber.trim() || submissionReferencePattern.test(submissionRefNumber.trim())
   const paymentAmountValid = !Number.isNaN(totalAmountValue) && !Number.isNaN(paidAmountValue) && paidAmountValue <= totalAmountValue
   const installationTotalAmountValue = Number(installationTotalAmount || 0)
   const installationPaidAmountValue = Number(installationPaidAmount || 0)
@@ -427,10 +574,79 @@ export default function CustomerDetailsPage() {
   const persistedPaymentStatus = parsePaymentStatusFromNotes(customer?.notes)
   const paymentProgressPct = persistedTotalAmount > 0 ? Math.min(100, (persistedPaidAmount / persistedTotalAmount) * 100) : 0
 
+  const paymentModel = useMemo<PaymentModel>(() => {
+    return {
+      total: persistedTotalAmount,
+      paid: persistedPaidAmount,
+      remaining: persistedRemainingAmount,
+      status: persistedPaymentStatus === "Paid" ? "Paid" : persistedPaymentStatus === "Partial" ? "Partial" : "Pending"
+    }
+  }, [persistedTotalAmount, persistedPaidAmount, persistedRemainingAmount, persistedPaymentStatus])
+
+  const allowedActionModel = useMemo(() => {
+    return getAllowedActions(currentWorkflowStage, customer?.status ?? "", paymentModel)
+  }, [currentWorkflowStage, customer?.status, paymentModel])
+
+  const nextActionInfo = useMemo(() => {
+    if (!allowedActionModel.primaryAction) return null
+    const meta = actionMeta(allowedActionModel.primaryAction)
+    return { key: allowedActionModel.primaryAction, label: meta.label, description: meta.description }
+  }, [allowedActionModel])
+
+  const canUpdatePayment = allowedActionModel.allowedActions.includes("CLOSE_PROJECT")
+
   const appendNotes = (base: string | null | undefined, sectionTitle: string, lines: string[]) => {
     const nextSection = [`${sectionTitle}:`, ...lines.filter(Boolean)].join("\n")
     if (!base?.trim()) return nextSection
     return `${base}\n\n${nextSection}`
+  }
+
+  const isRetryableError = (message: string) => {
+    const normalized = message.toLowerCase()
+    return (
+      normalized.includes("network") ||
+      normalized.includes("fetch") ||
+      normalized.includes("timeout") ||
+      normalized.includes("tempor") ||
+      normalized.includes("failed to") ||
+      normalized.includes("operation failed")
+    )
+  }
+
+  const normalizeActionError = (message: string) => {
+    const normalized = message.toLowerCase()
+    if (normalized.includes("approved stage requires approved status")) {
+      return "Status must be Government Approved before moving to the Approved stage."
+    }
+    if (normalized.includes("approval document reference is required")) {
+      return "Add a valid Approval number or Submission reference before continuing."
+    }
+    if (normalized.includes("cannot move to closure without full payment")) {
+      return "Full payment is required before closure. Update payment details and retry."
+    }
+    if (normalized.includes("cannot move backward")) {
+      return "This action would move the workflow backward. Check current stage and retry."
+    }
+    if (normalized.includes("is not allowed") || normalized.includes("invalid workflow transition")) {
+      return "This stage transition is not allowed right now. Refresh and complete the current required action first."
+    }
+    return message
+  }
+
+  const runWithRetry = async <T,>(operation: () => Promise<T>) => {
+    let lastError: unknown
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        return await operation()
+      } catch (error) {
+        lastError = error
+        const message = error instanceof Error ? error.message : "Operation failed"
+        if (!isRetryableError(message) || attempt === 1) {
+          throw error
+        }
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error("Operation failed")
   }
 
   const runAction = async () => {
@@ -442,8 +658,23 @@ export default function CustomerDetailsPage() {
       return
     }
 
-    if (modalState.action === "CLOSE_PROJECT" && (!paymentAmountValid || totalAmountValue <= 0)) {
-      setModalError("Enter valid payment amounts")
+    if (modalState.action === "MARK_GOVERNMENT_APPROVED" && !approvalNumberValid) {
+      setModalError("Approval number format is invalid. Use 4-40 characters (letters, numbers, / or -).")
+      return
+    }
+
+    if (modalState.action === "SUBMIT_APPROVAL_DOCUMENTS" && !submissionReferenceValid) {
+      setModalError("Reference number format is invalid. Use 4-40 characters (letters, numbers, / or -).")
+      return
+    }
+
+    if (modalState.action === "CLOSE_PROJECT" && totalAmountValue <= 0) {
+      setModalError("Total amount is required to update payment.")
+      return
+    }
+
+    if (modalState.action === "CLOSE_PROJECT" && !paymentAmountValid) {
+      setModalError("Paid amount cannot be greater than total amount.")
       return
     }
 
@@ -455,6 +686,7 @@ export default function CustomerDetailsPage() {
     setActionLoading(modalState.action)
     setError("")
     setModalError("")
+    setModalRetryable(false)
 
     const applyLocalStage = (status: string, stage: string) => {
       setCustomer((prev) => (prev ? { ...prev, status, current_stage: stage } : prev))
@@ -476,16 +708,18 @@ export default function CustomerDetailsPage() {
         }
 
         setActionProgressMessage("Uploading document...")
-        await uploadDocument(submissionDoc, "government-approval-submission", customer.id)
+        await runWithRetry(() => uploadDocument(submissionDoc, "government-approval-submission", customer.id))
         setActionProgressMessage("Validating data...")
-        await updateCustomer(customer.id, {
-          status: "Approval Submitted",
-          current_stage: "SUBMITTED",
-          notes: appendNotes(customer.notes, "Government Approval Submission", [
-            `Reference: ${submissionRefNumber}`,
-            submissionNotes ? `Notes: ${submissionNotes}` : ""
-          ])
-        })
+        await runWithRetry(() =>
+          updateCustomer(customer.id, {
+            status: "Approval Submitted",
+            current_stage: "SUBMITTED",
+            notes: appendNotes(customer.notes, "Government Approval Submission", [
+              `Reference: ${submissionRefNumber}`,
+              submissionNotes ? `Notes: ${submissionNotes}` : ""
+            ])
+          })
+        )
         setActionProgressMessage("Updating workflow...")
         applyLocalStage("Approval Submitted", "SUBMITTED")
         setStatusToast("Approval submitted successfully")
@@ -497,15 +731,17 @@ export default function CustomerDetailsPage() {
         }
 
         setActionProgressMessage("Uploading document...")
-        await uploadDocument(approvalDoc, "government-approved", customer.id)
+        await runWithRetry(() => uploadDocument(approvalDoc, "government-approved", customer.id))
         setActionProgressMessage("Validating data...")
-        await updateCustomer(customer.id, {
-          status: "Approved",
-          current_stage: "INSTALLATION",
-          notes: appendNotes(customer.notes, "Government Approval", [`Approval No: ${approvalNumber}`, `Date: ${approvalDate}`])
-        })
+        await runWithRetry(() =>
+          updateCustomer(customer.id, {
+            status: "Government Approved",
+            current_stage: "APPROVED",
+            notes: appendNotes(customer.notes, "Government Approval", [`Approval No: ${approvalNumber}`, `Date: ${approvalDate}`])
+          })
+        )
         setActionProgressMessage("Updating workflow...")
-        applyLocalStage("Approved", "INSTALLATION")
+        applyLocalStage("Government Approved", "APPROVED")
         setStatusToast("Status updated successfully")
       }
 
@@ -518,27 +754,31 @@ export default function CustomerDetailsPage() {
         dueDate.setDate(dueDate.getDate() + Number(estimatedDays || 0))
 
         setActionProgressMessage("Validating data...")
-        await createTask({
-          title: `Installation - ${customer.name}`,
-          description: `Assigned Team: ${assignedTeam}${installationNotes ? `\nNotes: ${installationNotes}` : ""}`,
-          related_customer_id: customer.id,
-          status: "in_progress",
-          priority: "high",
-          due_date: dueDate.toISOString(),
-          assigned_to: assignedTeam
-        })
+        await runWithRetry(() =>
+          createTask({
+            title: `Installation - ${customer.name}`,
+            description: `Assigned Team: ${assignedTeam}${installationNotes ? `\nNotes: ${installationNotes}` : ""}`,
+            related_customer_id: customer.id,
+            status: "in_progress",
+            priority: "high",
+            due_date: dueDate.toISOString(),
+            assigned_to: assignedTeam
+          })
+        )
 
         setActionProgressMessage("Updating workflow...")
-        await updateCustomer(customer.id, {
-          status: "In Progress",
-          current_stage: "INSTALLATION",
-          notes: appendNotes(customer.notes, "Installation Started", [
-            `Start Date: ${startDate}`,
-            `Estimated Days: ${estimatedDays}`,
-            `Assigned Team: ${assignedTeam}`,
-            installationNotes ? `Notes: ${installationNotes}` : ""
-          ])
-        })
+        await runWithRetry(() =>
+          updateCustomer(customer.id, {
+            status: "In Progress",
+            current_stage: "INSTALLATION",
+            notes: appendNotes(customer.notes, "Installation Started", [
+              `Start Date: ${startDate}`,
+              `Estimated Days: ${estimatedDays}`,
+              `Assigned Team: ${assignedTeam}`,
+              installationNotes ? `Notes: ${installationNotes}` : ""
+            ])
+          })
+        )
         applyLocalStage("In Progress", "INSTALLATION")
         setStatusToast("Status updated successfully")
 
@@ -558,56 +798,60 @@ export default function CustomerDetailsPage() {
           installationPaidAmountValue <= 0
             ? "Pending"
             : installationPaidAmountValue < installationTotalAmountValue
-            ? "Partial Payment"
+            ? "Partial"
             : "Paid"
 
         const nextStage = installationPaidAmountValue >= installationTotalAmountValue ? "CLOSED" : "INSTALLATION"
         const nextStatus =
           installationPaidAmountValue >= installationTotalAmountValue
             ? "Completed"
-            : "Installation Completed - Payment Pending"
+            : "Completed_Payment_Pending"
 
-        await updateCustomer(customer.id, {
-          status: nextStatus,
-          current_stage: nextStage,
-          notes: appendNotes(customer.notes, "Installation Completed", [
-            installCompleteNotes || "Marked as completed",
-            `Total Amount: ${installationTotalAmountValue.toFixed(2)}`,
-            `Paid Amount: ${installationPaidAmountValue.toFixed(2)}`,
-            `Remaining Amount: ${(installationTotalAmountValue - installationPaidAmountValue).toFixed(2)}`,
-            `Payment Status: ${installationPaymentStatus}`,
-          ])
-        })
+        await runWithRetry(() =>
+          updateCustomer(customer.id, {
+            status: nextStatus,
+            current_stage: nextStage,
+            notes: appendNotes(customer.notes, "Installation Completed", [
+              installCompleteNotes || "Marked as completed",
+              `Total Amount: ${installationTotalAmountValue.toFixed(2)}`,
+              `Paid Amount: ${installationPaidAmountValue.toFixed(2)}`,
+              `Remaining Amount: ${(installationTotalAmountValue - installationPaidAmountValue).toFixed(2)}`,
+              `Payment Status: ${installationPaymentStatus}`,
+            ])
+          })
+        )
         applyLocalStage(nextStatus, nextStage)
         setStatusToast("Status updated successfully")
       }
 
       if (modalState.action === "CLOSE_PROJECT") {
         if (!completionNotes.trim()) {
-          throw new Error("Please provide completion notes")
+          throw new Error("Please provide completion notes before updating payment.")
         }
 
         if (paidAmountValue < totalAmountValue) {
-          throw new Error("Cannot move to Closure without full payment")
+          throw new Error(`Cannot close project: Rs ${remainingAmountValue.toFixed(2)} is still pending.`)
         }
 
         if (invoiceDoc) {
           setActionProgressMessage("Uploading document...")
-          await uploadDocument(invoiceDoc, "project-closure-invoice", customer.id)
+          await runWithRetry(() => uploadDocument(invoiceDoc, "project-closure-invoice", customer.id))
         }
 
         setActionProgressMessage("Validating data...")
-        await updateCustomer(customer.id, {
-          status: "Completed",
-          current_stage: "CLOSED",
-          notes: appendNotes(customer.notes, "Project Closure", [
-            `Payment Status: ${autoPaymentStatus}`,
-            `Total Amount: ${totalAmountValue.toFixed(2)}`,
-            `Paid Amount: ${paidAmountValue.toFixed(2)}`,
-            `Remaining Amount: ${remainingAmountValue.toFixed(2)}`,
-            `Completion Notes: ${completionNotes}`
-          ])
-        })
+        await runWithRetry(() =>
+          updateCustomer(customer.id, {
+            status: "Completed",
+            current_stage: "CLOSED",
+            notes: appendNotes(customer.notes, "Project Closure", [
+              `Payment Status: ${autoPaymentStatus}`,
+              `Total Amount: ${totalAmountValue.toFixed(2)}`,
+              `Paid Amount: ${paidAmountValue.toFixed(2)}`,
+              `Remaining Amount: ${remainingAmountValue.toFixed(2)}`,
+              `Completion Notes: ${completionNotes}`
+            ])
+          })
+        )
         setActionProgressMessage("Updating workflow...")
         applyLocalStage("Completed", "CLOSED")
         setStatusToast("Status updated successfully")
@@ -617,8 +861,11 @@ export default function CustomerDetailsPage() {
       await loadDetail()
     } catch (actionError) {
       const message = actionError instanceof Error ? actionError.message : "Operation failed"
-      setModalError(message)
-      setError(message)
+      setModalError(normalizeActionError(message))
+      setModalRetryable(isRetryableError(message))
+      queueMicrotask(() => {
+        void loadDetail()
+      })
     } finally {
       setActionLoading(null)
       setActionProgressMessage("")
@@ -683,16 +930,13 @@ export default function CustomerDetailsPage() {
                   {customerLocation ? <span>{customerLocation}</span> : null}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <div className="flex shrink-0 flex-col items-end gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                 <span className={`inline-flex items-center rounded-[6px] px-2.5 py-1 text-[12px] font-medium transition-all duration-200 ${headerStageBadge(currentStage)} ${statusChipPulse ? "scale-[1.04] shadow-[0_0_0_4px_rgba(59,130,246,0.12)]" : "scale-100"}`}>
                   {stageDefinitions.find((s) => s.key === currentStage)?.title ?? customer.status}
                 </span>
-                <span className={`inline-flex items-center rounded-[6px] px-2.5 py-1 text-[12px] font-medium ${statusBadgeClass(customer.status)}`}>
-                  {customer.status}
-                </span>
                 <Link
                   href={`/customers/${customer.id}/edit`}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+                  className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Edit
@@ -701,7 +945,7 @@ export default function CustomerDetailsPage() {
                   type="button"
                   onClick={() => openActionModal("CLOSE_PROJECT")}
                   disabled={!canUpdatePayment}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-violet-700 active:scale-[0.97]"
+                  className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-violet-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <CreditCard className="h-3.5 w-3.5" />
                   Update Payment
@@ -710,18 +954,18 @@ export default function CustomerDetailsPage() {
             </div>
 
             {/* Row 2: Summary strip */}
-            <div className="mt-4 flex flex-wrap items-start border-t border-slate-100 pt-4">
-              <div className="pr-6">
+            <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3 sm:gap-0">
+              <div className="sm:pr-6">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">System Capacity</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{systemCapacity}</p>
               </div>
-              <div className="border-l border-slate-100 px-6">
+              <div className="sm:border-l sm:border-slate-100 sm:px-6">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Current Stage</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">
                   {stageDefinitions.find((s) => s.key === currentStage)?.title ?? customer.status}
                 </p>
               </div>
-              <div className="border-l border-slate-100 px-6">
+              <div className="sm:border-l sm:border-slate-100 sm:px-6">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Created</p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTimeUTC(customer.created_at)}</p>
               </div>
@@ -771,23 +1015,25 @@ export default function CustomerDetailsPage() {
             </div>
 
             {/* Next action required — dominant CTA */}
-            {nextActionInfo ? (
+            {currentWorkflowStage !== "CLOSED" ? (
               <div className="mt-5 overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-violet-50/40">
-                <div className="flex items-center gap-4 px-5 py-4">
+                <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600/10">
                     <Zap className="h-5 w-5 text-blue-600" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-blue-600">Next Action Required</p>
-                    <p className="mt-0.5 text-[15px] font-semibold leading-snug text-slate-900">{nextActionInfo.description}</p>
+                    <p className="mt-0.5 text-[15px] font-semibold leading-snug text-slate-900">{allowedActionModel.guidance}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => openActionModal(nextActionInfo.key)}
-                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.97]"
-                  >
-                    {nextActionInfo.label}
-                  </button>
+                  {nextActionInfo && nextActionInfo.key !== "CLOSE_PROJECT" ? (
+                    <button
+                      type="button"
+                      onClick={() => openActionModal(nextActionInfo.key)}
+                      className="inline-flex min-h-12 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-[0.97]"
+                    >
+                      {nextActionInfo.label}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             ) : (
@@ -801,34 +1047,24 @@ export default function CustomerDetailsPage() {
           {/* ══════════════════════════════════════════
                ACTION BAR
           ══════════════════════════════════════════ */}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => openActionModal("START_INSTALLATION")}
-              disabled={!canAddInstallationTask}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4 text-slate-400" />
-              Add Task
-            </button>
-            <button
-              type="button"
-              onClick={() => openActionModal("SUBMIT_APPROVAL_DOCUMENTS")}
-              disabled={!canUploadApprovalDocs}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Upload className="h-4 w-4 text-slate-400" />
-              Upload Document
-            </button>
-            <button
-              type="button"
-              onClick={() => openActionModal("CLOSE_PROJECT")}
-              disabled={!canUpdatePayment}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-violet-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <CreditCard className="h-4 w-4" />
-              Update Payment
-            </button>
+          <div className="flex justify-end gap-3">
+            {allowedActionModel.allowedActions
+              .filter((action) => action !== "CLOSE_PROJECT")
+              .map((action) => {
+                const meta = actionMeta(action)
+                return (
+                  <button
+                    key={action}
+                    type="button"
+                    onClick={() => openActionModal(action)}
+                    className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+                  >
+                    {action === "START_INSTALLATION" ? <Plus className="h-4 w-4 text-slate-400" /> : null}
+                    {action === "SUBMIT_APPROVAL_DOCUMENTS" ? <Upload className="h-4 w-4 text-slate-400" /> : null}
+                    {meta.label}
+                  </button>
+                )
+              })}
           </div>
 
           {/* ══════════════════════════════════════════
@@ -848,15 +1084,10 @@ export default function CustomerDetailsPage() {
                     const badge = stageBadge(stage.key, customer.status)
                     const isCurrent = stage.key === currentStage
                     const isExpanded = expandedStageKey === stage.key
-                    const dynamicActions = stage.actions.filter((action) => {
-                      if (stage.key !== currentStage) return false
-                      if (action.key === "SUBMIT_APPROVAL_DOCUMENTS") return !customer.status.toLowerCase().includes("approved")
-                      if (action.key === "MARK_GOVERNMENT_APPROVED") return true
-                      if (action.key === "START_INSTALLATION") return !customer.status.toLowerCase().includes("in progress")
-                      if (action.key === "MARK_INSTALLATION_COMPLETED") return !customer.status.toLowerCase().includes("completed")
-                      if (action.key === "CLOSE_PROJECT") return customer.status.toLowerCase().includes("completed")
-                      return false
-                    })
+                    const dynamicActions =
+                      stage.key === currentStage
+                        ? stage.actions.filter((action) => allowedActionModel.allowedActions.includes(action.key))
+                        : []
                     return (
                       <WorkflowStageCard
                         key={stage.key}
@@ -878,16 +1109,19 @@ export default function CustomerDetailsPage() {
               <div className="overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                 <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
                   <h2 className="text-sm font-semibold text-slate-900">Documents</h2>
-                  <button
-                    type="button"
-                    onClick={() => openActionModal("SUBMIT_APPROVAL_DOCUMENTS")}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
-                  >
-                    <Upload className="h-3.5 w-3.5" />
-                    Upload Document
-                  </button>
+                  {allowedActionModel.allowedActions.includes("SUBMIT_APPROVAL_DOCUMENTS") ? (
+                    <button
+                      type="button"
+                      onClick={() => openActionModal("SUBMIT_APPROVAL_DOCUMENTS")}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Upload Document
+                    </button>
+                  ) : null}
                 </div>
-                <table className="w-full border-collapse text-sm">
+                <div className="hidden md:block">
+                  <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-white text-left text-[12px] font-semibold uppercase tracking-[0.04em] text-slate-500">
                       <th className="px-5 py-3">File name</th>
@@ -939,19 +1173,56 @@ export default function CustomerDetailsPage() {
                       ))
                     )}
                   </tbody>
-                </table>
+                  </table>
+                </div>
+                <div className="divide-y divide-slate-100 md:hidden">
+                  {documents.length === 0 ? (
+                    <div className="px-5 py-10 text-center text-sm text-slate-400">No documents uploaded yet.</div>
+                  ) : (
+                    documents.map((doc) => (
+                      <div key={doc.id} className="space-y-3 px-5 py-4">
+                        <div className="flex items-start gap-2.5">
+                          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-slate-800">{doc.name}</p>
+                            <p className="mt-1 text-xs text-slate-500">{formatBytes(doc.file_size)} • {formatDateTimeUTC(doc.created_at)}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={viewingDocumentId === doc.id}
+                          onClick={async () => {
+                            setViewingDocumentId(doc.id)
+                            try {
+                              const { data } = await downloadDocument(doc.file_url)
+                              if (!data) return
+                              const url = URL.createObjectURL(data)
+                              window.open(url, "_blank", "noopener,noreferrer")
+                              setTimeout(() => URL.revokeObjectURL(url), 30000)
+                            } finally {
+                              setViewingDocumentId(null)
+                            }
+                          }}
+                          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          {viewingDocumentId === doc.id ? "Opening…" : "View document"}
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
 
             {/* ── RIGHT: Tasks + Activity ── */}
             <div className="space-y-5">
 
-              <div className="overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <div className={`overflow-hidden rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${persistedRemainingAmount > 0 ? "border border-amber-200 bg-amber-50/40" : "bg-white"}`}>
                 <div className="border-b border-slate-100 px-4 py-3.5">
                   <h2 className="text-sm font-semibold text-slate-900">Payment Overview</h2>
                 </div>
                 <div className="space-y-3 px-4 py-3.5">
-                  <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="grid gap-3 text-sm sm:grid-cols-3">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Total</p>
                       <p className="mt-1 font-semibold text-slate-900">{persistedTotalAmount.toFixed(2)}</p>
@@ -971,7 +1242,7 @@ export default function CustomerDetailsPage() {
                     </div>
                     <div className="mt-1.5 flex items-center justify-between text-xs">
                       <span className="text-slate-500">{paymentProgressPct.toFixed(0)}% paid</span>
-                      <span className={`font-semibold ${persistedPaymentStatus.toLowerCase().includes("paid") ? "text-emerald-600" : "text-amber-600"}`}>
+                      <span className={`font-semibold ${persistedPaymentStatus.toLowerCase() === "paid" ? "text-emerald-600" : "text-amber-600"}`}>
                         {persistedPaymentStatus}
                       </span>
                     </div>
@@ -988,15 +1259,16 @@ export default function CustomerDetailsPage() {
               <div className="overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
                   <h2 className="text-sm font-semibold text-slate-900">Tasks</h2>
-                  <button
-                    type="button"
-                    onClick={() => openActionModal("START_INSTALLATION")}
-                    disabled={!canAddInstallationTask}
-                    className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2 text-xs font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Add Task
-                  </button>
+                  {allowedActionModel.allowedActions.includes("START_INSTALLATION") ? (
+                    <button
+                      type="button"
+                      onClick={() => openActionModal("START_INSTALLATION")}
+                      className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2 text-xs font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add Task
+                    </button>
+                  ) : null}
                 </div>
                 {tasks.length === 0 ? (
                   <div className="px-4 py-8 text-center">
@@ -1008,7 +1280,7 @@ export default function CustomerDetailsPage() {
                     {tasks.map((task) => (
                       <div key={task.id} className="cursor-default px-4 py-3.5 transition-colors hover:bg-slate-50">
                         <p className="text-sm font-medium text-slate-900">{task.title}</p>
-                        <div className="mt-1.5 flex items-center justify-between gap-2">
+                        <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <span className="text-[12px] text-slate-400">
                             {task.due_date ? formatDateTimeUTC(task.due_date) : "No due date"}
                           </span>
@@ -1054,6 +1326,9 @@ export default function CustomerDetailsPage() {
                               {"actor" in (activity.details as Record<string, unknown>) ? (
                                 <p>By: {String((activity.details as Record<string, unknown>).actor)}</p>
                               ) : null}
+                              {"timestamp" in (activity.details as Record<string, unknown>) ? (
+                                <p>At: {formatDateTimeUTC(String((activity.details as Record<string, unknown>).timestamp))}</p>
+                              ) : null}
                               {"previous_state" in (activity.details as Record<string, unknown>) &&
                               "new_state" in (activity.details as Record<string, unknown>) ? (
                                 <p>
@@ -1084,10 +1359,12 @@ export default function CustomerDetailsPage() {
         submitLabel="Submit for Approval"
         loading={actionLoading === "SUBMIT_APPROVAL_DOCUMENTS"}
         loadingMessage={actionProgressMessage}
-        submitDisabled={!submissionDoc || !submissionRefNumber.trim()}
+        submitDisabled={!submissionDoc || !submissionRefNumber.trim() || !submissionReferenceValid}
         errorMessage={modalError}
+        showRetry={modalRetryable}
         onClose={closeModal}
         onSubmit={() => void runAction()}
+        onRetry={() => void runAction()}
       >
         <div className="space-y-4">
           <FileDropInput
@@ -1104,13 +1381,17 @@ export default function CustomerDetailsPage() {
               value={submissionRefNumber}
               onChange={(event) => setSubmissionRefNumber(event.target.value)}
               className={`${textFieldClass} ${
-                modalAttempted && !submissionRefNumber.trim()
+                modalAttempted && (!submissionRefNumber.trim() || !submissionReferenceValid)
                   ? "field-shake border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100"
                   : ""
               }`}
-              placeholder="Enter authority reference"
+              placeholder="e.g. TN-EB/2026-1001"
             />
+            <p className="text-xs text-slate-500">Format: 4-40 characters. Allowed: letters, numbers, / and -</p>
             {modalAttempted && !submissionRefNumber.trim() ? <p className="text-xs text-rose-600">Reference number is required.</p> : null}
+            {modalAttempted && submissionRefNumber.trim() && !submissionReferenceValid ? (
+              <p className="text-xs text-rose-600">Use only letters, numbers, / and - (4-40 characters).</p>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
@@ -1135,10 +1416,12 @@ export default function CustomerDetailsPage() {
         submitLabel="Approve & Continue"
         loading={actionLoading === "MARK_GOVERNMENT_APPROVED"}
         loadingMessage={actionProgressMessage}
-        submitDisabled={!approvalDoc || !approvalNumber.trim() || !approvalDate.trim()}
+        submitDisabled={!approvalDoc || !approvalNumber.trim() || !approvalDate.trim() || !approvalNumberValid || !approvalDateValid}
         errorMessage={modalError}
+        showRetry={modalRetryable}
         onClose={closeModal}
         onSubmit={() => void runAction()}
+        onRetry={() => void runAction()}
       >
         <div className="space-y-4">
           <FileDropInput
@@ -1156,13 +1439,17 @@ export default function CustomerDetailsPage() {
                 value={approvalNumber}
                 onChange={(event) => setApprovalNumber(event.target.value)}
                 className={`${textFieldClass} ${
-                  modalAttempted && !approvalNumber.trim()
+                  modalAttempted && (!approvalNumber.trim() || !approvalNumberValid)
                     ? "field-shake border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100"
                     : ""
                 }`}
-                placeholder="Approval ID"
+                placeholder="e.g. GOV/APP-45821"
               />
+              <p className="text-xs text-slate-500">Format: 4-40 characters. Allowed: letters, numbers, / and -</p>
               {modalAttempted && !approvalNumber.trim() ? <p className="text-xs text-rose-600">Approval number is required.</p> : null}
+              {modalAttempted && approvalNumber.trim() && !approvalNumberValid ? (
+                <p className="text-xs text-rose-600">Use only letters, numbers, / and - (4-40 characters).</p>
+              ) : null}
             </div>
 
             <div className="space-y-1.5">
@@ -1177,6 +1464,7 @@ export default function CustomerDetailsPage() {
                     : ""
                 }`}
               />
+              <p className="text-xs text-slate-500">Use calendar date format YYYY-MM-DD.</p>
               {modalAttempted && !approvalDate.trim() ? <p className="text-xs text-rose-600">Approval date is required.</p> : null}
               {modalAttempted && approvalDate.trim() && !approvalDateValid ? <p className="text-xs text-rose-600">Enter valid date</p> : null}
             </div>
@@ -1195,8 +1483,10 @@ export default function CustomerDetailsPage() {
         loadingMessage={actionProgressMessage}
         submitDisabled={!startDate.trim() || !estimatedDays.trim() || !assignedTeam.trim()}
         errorMessage={modalError}
+        showRetry={modalRetryable}
         onClose={closeModal}
         onSubmit={() => void runAction()}
+        onRetry={() => void runAction()}
       >
         <div className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
@@ -1274,8 +1564,10 @@ export default function CustomerDetailsPage() {
         loadingMessage={actionProgressMessage}
         submitDisabled={!installationPaymentValid}
         errorMessage={modalError}
+        showRetry={modalRetryable}
         onClose={closeModal}
         onSubmit={() => void runAction()}
+        onRetry={() => void runAction()}
       >
         <div className="space-y-4">
           <div className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-emerald-800">
@@ -1343,8 +1635,10 @@ export default function CustomerDetailsPage() {
         loadingMessage={actionProgressMessage}
         submitDisabled={!completionNotes.trim() || totalAmountValue <= 0 || !paymentAmountValid}
         errorMessage={modalError}
+        showRetry={modalRetryable}
         onClose={closeModal}
         onSubmit={() => void runAction()}
+        onRetry={() => void runAction()}
       >
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -1360,7 +1654,7 @@ export default function CustomerDetailsPage() {
               }`}
               placeholder="0.00"
             />
-            {modalAttempted && totalAmountValue <= 0 ? <p className="text-xs text-rose-600">Enter total amount</p> : null}
+            {modalAttempted && totalAmountValue <= 0 ? <p className="text-xs text-rose-600">Total amount is required to continue.</p> : null}
           </div>
 
           <div className="space-y-1.5">
@@ -1378,7 +1672,7 @@ export default function CustomerDetailsPage() {
               }`}
               placeholder="0.00"
             />
-            {modalAttempted && !paymentAmountValid ? <p className="text-xs text-rose-600">Paid amount cannot exceed total amount</p> : null}
+            {modalAttempted && !paymentAmountValid ? <p className="text-xs text-rose-600">Paid amount cannot be greater than total amount.</p> : null}
           </div>
 
           <div className="grid grid-cols-1 gap-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-3">
@@ -1394,6 +1688,10 @@ export default function CustomerDetailsPage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Paid</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">{paidAmountValue.toFixed(2)}</p>
             </div>
+          </div>
+
+          <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-800">
+            Original total: Rs {persistedTotalAmount.toFixed(2)}. Remaining balance: Rs {Math.max(persistedTotalAmount - paidAmountValue, 0).toFixed(2)}.
           </div>
 
           <FileDropInput
@@ -1418,7 +1716,7 @@ export default function CustomerDetailsPage() {
           </div>
 
           <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-800">
-            <Clock3 size={16} className="text-blue-600" /> Project will be marked as closed.
+            <Clock3 size={16} className="text-blue-600" /> Project will be marked as closed only after full payment is recorded.
           </div>
         </div>
       </WorkflowActionModal>

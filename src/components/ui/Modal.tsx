@@ -38,7 +38,7 @@ export default function Modal({
     <div className={`fixed inset-0 z-50 flex justify-center ${mobileFullscreen ? "items-end p-0 sm:items-center sm:p-4" : "items-center p-4"}`}>
       <button aria-label="Close modal" className="modal-overlay-enter absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div
-        className={`modal-panel-enter relative z-10 w-full max-w-lg border border-slate-100 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)] ${
+        className={`modal-panel-enter relative z-10 flex w-full max-w-lg flex-col border border-slate-100 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.16)] ${
           mobileFullscreen ? "max-h-[100dvh] min-h-[100dvh] rounded-none sm:max-h-[90vh] sm:min-h-0 sm:rounded-xl" : "rounded-xl"
         } ${panelClassName ?? ""}`}
       >
@@ -62,7 +62,7 @@ export default function Modal({
             </div>
           </div>
         ) : null}
-        <div className={`max-h-[70vh] overflow-y-auto px-5 py-5 md:px-6 ${bodyClassName ?? ""}`}>{children}</div>
+        <div className={`min-h-0 flex-1 overflow-y-auto px-5 py-5 md:px-6 ${mobileFullscreen ? "pb-24" : ""} ${bodyClassName ?? ""}`}>{children}</div>
         {footer ? (
           <div
             className={`border-t border-slate-100 bg-white/95 px-5 py-4 backdrop-blur-sm md:px-6 ${

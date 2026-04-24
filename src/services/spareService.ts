@@ -1,4 +1,4 @@
-import { insertSpare, querySpares, querySuppliers, updateSpareById, updateSpareStockById } from "../repositories/spareRepository"
+import { deleteSpareById, insertSpare, querySpares, querySuppliers, updateSpareById, updateSpareStockById } from "../repositories/spareRepository"
 import { Database } from "../types/database.types"
 import { logError, logInfo } from "../utils/logger"
 import { withOrganizationContext } from "../utils/withOrganizationContext"
@@ -110,6 +110,24 @@ export async function updateSpareStock(id: string, stockQuantity: number) {
       return { data, error }
     } catch (error) {
       logError("Spare stock update failed", error, { service: "spareService", organizationId, spareId: id })
+      throw new Error("Operation failed")
+    }
+  })
+}
+
+export async function deleteSpare(id: string) {
+  assertValidUUID(id, "spareId")
+
+  return withOrganizationContext(async (organizationId) => {
+    try {
+      const { error } = await deleteSpareById(id, organizationId)
+      if (!error) {
+        await logActivity("Inventory updated", "spare", id, { action: "delete" })
+      }
+      logInfo("Spare deleted", { service: "spareService", organizationId, spareId: id })
+      return { error }
+    } catch (error) {
+      logError("Spare delete failed", error, { service: "spareService", organizationId, spareId: id })
       throw new Error("Operation failed")
     }
   })

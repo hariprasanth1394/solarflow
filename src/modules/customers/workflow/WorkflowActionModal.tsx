@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import { AlertTriangle } from "lucide-react"
 import Modal from "@/components/ui/Modal"
 
 type WorkflowActionModalProps = {
@@ -12,9 +13,11 @@ type WorkflowActionModalProps = {
   loadingMessage?: string
   submitDisabled?: boolean
   errorMessage?: string
+  showRetry?: boolean
   children: ReactNode
   onClose: () => void
   onSubmit: () => void
+  onRetry?: () => void
 }
 
 const primaryButtonClass =
@@ -34,9 +37,11 @@ export default function WorkflowActionModal({
   loadingMessage,
   submitDisabled = false,
   errorMessage,
+  showRetry = false,
   children,
   onClose,
   onSubmit,
+  onRetry,
 }: WorkflowActionModalProps) {
   return (
     <Modal
@@ -73,7 +78,26 @@ export default function WorkflowActionModal({
 
       {loading && loadingMessage ? <p className="text-xs font-medium text-blue-600">{loadingMessage}</p> : null}
 
-      {errorMessage ? <p className="text-sm text-rose-600">{errorMessage}</p> : null}
+      {errorMessage ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700" role="alert" aria-live="assertive">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <p>{errorMessage}</p>
+              {showRetry && onRetry ? (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  disabled={loading || submitDisabled}
+                  className="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Retry
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </Modal>
   )
 }
