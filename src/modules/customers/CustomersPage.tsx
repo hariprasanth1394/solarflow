@@ -131,14 +131,14 @@ export default function CustomersPage() {
       {/* ── Toolbar (Spare-style card controls) ── */}
       <section className={`${inventorySectionCardClass} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
         {/* Search */}
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <div className="search-input-wrapper flex-1">
+          <Search className="search-input-icon" />
           <input
             type="search"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Search customers, phone, location, system…"
-            className="input pl-9 pr-3"
+            className="search-input"
           />
         </div>
 

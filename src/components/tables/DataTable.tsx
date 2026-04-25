@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { Search } from "lucide-react"
 import {
   inventorySectionCardClass,
   inventoryTableCellClass,
@@ -100,15 +101,18 @@ export default function DataTable<T extends Record<string, unknown>>({
       {enableSearch || columns.some((column) => column.filterable) ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           {enableSearch ? (
-            <input
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-              }}
-              placeholder="Search..."
-              className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
+            <div className="search-input-wrapper">
+              <Search className="search-input-icon" />
+              <input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value)
+                  setPage(1)
+                }}
+                placeholder="Search..."
+                className="search-input"
+              />
+            </div>
           ) : (
             <div />
           )}
@@ -121,7 +125,7 @@ export default function DataTable<T extends Record<string, unknown>>({
                 value={columnFilter[String(column.key)] ?? ""}
                 onChange={(event) => setColumnFilter((prev) => ({ ...prev, [String(column.key)]: event.target.value }))}
                 placeholder={`Filter ${column.label ?? column.header ?? String(column.key)}`}
-                className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                className="input"
               />
             ))}
         </div>

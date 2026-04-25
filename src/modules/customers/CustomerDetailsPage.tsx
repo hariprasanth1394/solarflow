@@ -91,6 +91,13 @@ type ModalState = {
 
 type StepVisualState = "completed" | "active" | "upcoming" | "blocked"
 
+type StageStatusEntry = {
+  label: string
+  tone: WorkflowBadgeTone
+}
+
+type StageStatusMap = Record<WorkflowStageKey, StageStatusEntry>
+
 const stageDefinitions: StageDefinition[] = [
   {
     key: "CREATED",
@@ -165,6 +172,13 @@ function normalizeWorkflowStage(input: string | null | undefined): WorkflowStage
   return "CREATED"
 }
 
+function shortStageLabel(stageKey: WorkflowStageKey) {
+  if (stageKey === "GOVERNMENT_APPROVAL") return "Approval"
+  if (stageKey === "INSTALLATION") return "Install"
+  if (stageKey === "CLOSURE") return "Closure"
+  return "Created"
+}
+
 function governmentStatus(status: string) {
   const normalized = status.toLowerCase()
   if (normalized.includes("approved")) return { label: "Approved", tone: "approved" as WorkflowBadgeTone }
@@ -234,6 +248,57 @@ function normalizeWorkflowStatus(status: string | null | undefined) {
   if (value.includes("completed") || value.includes("closed")) return "COMPLETED"
   if (value.includes("not started")) return "NOT_STARTED"
   return "NOT_STARTED"
+}
+
+function buildStageStatusMap({
+  status,
+  payment,
+  stageHistory,
+  currentWorkflowStage,
+}: {
+  status: string
+  payment: PaymentModel
+  stageHistory: Array<{ current_stage: string; created_at: string }>
+  currentWorkflowStage: WorkflowStageValue
+}): StageStatusMap {
+  const normalizedStatus = normalizeWorkflowStatus(status)
+  const normalizedStageHistory = new Set(
+    stageHistory.map((entry) => normalizeWorkflowStage(entry.current_stage))
+  )
+  const normalizedStatusText = status.toLowerCase()
+
+  const approvalCompleted =
+    normalizedStageHistory.has("APPROVED") ||
+    normalizedStatusText.includes("government approved")
+  const approvalSubmitted =
+    normalizedStageHistory.has("SUBMITTED") ||
+    normalizedStatus === "APPROVAL_SUBMITTED"
+
+  const installationCompleted =
+    normalizedStatus === "COMPLETED" || normalizedStatus === "COMPLETED_PAYMENT_PENDING"
+  const installationInProgress = normalizedStatus === "IN_PROGRESS"
+
+  const closureCompleted = currentWorkflowStage === "CLOSED"
+  const closurePaymentPending = !closureCompleted && payment.total > 0 && payment.remaining > 0
+
+  return {
+    CREATED: { label: "Completed", tone: "completed" },
+    GOVERNMENT_APPROVAL: approvalCompleted
+      ? { label: "Completed", tone: "completed" }
+      : approvalSubmitted
+      ? { label: "Submitted", tone: "inProgress" }
+      : { label: "Pending", tone: "pending" },
+    INSTALLATION: installationCompleted
+      ? { label: "Completed", tone: "completed" }
+      : installationInProgress
+      ? { label: "In Progress", tone: "inProgress" }
+      : { label: "Pending", tone: "pending" },
+    CLOSURE: closureCompleted
+      ? { label: "Completed", tone: "completed" }
+      : closurePaymentPending
+      ? { label: "Payment Pending", tone: "pending" }
+      : { label: "Pending", tone: "pending" },
+  }
 }
 
 function actionMeta(action: WorkflowActionKey) {
@@ -475,12 +540,12 @@ export default function CustomerDetailsPage() {
     return `${matched.capacity_kw} kW`
   }, [customer?.system_id, systems])
 
-  const progressIndex = useMemo(() => stageDefinitions.findIndex((stage) => stage.key === currentStage), [currentStage])
+  const currentStageIndex = useMemo(() => stageDefinitions.findIndex((stage) => stage.key === currentStage), [currentStage])
   const stageProgressPercent = useMemo(() => {
     if (stageDefinitions.length <= 1) return 0
-    const cappedIndex = Math.min(Math.max(progressIndex, 0), stageDefinitions.length - 1)
+    const cappedIndex = Math.min(Math.max(currentStageIndex, 0), stageDefinitions.length - 1)
     return (cappedIndex / (stageDefinitions.length - 1)) * 100
-  }, [progressIndex])
+  }, [currentStageIndex])
 
   useEffect(() => {
     if (!loading) setExpandedStageKey(currentStage)
@@ -594,6 +659,15 @@ export default function CustomerDetailsPage() {
       status: persistedPaymentStatus === "Paid" ? "Paid" : persistedPaymentStatus === "Partial" ? "Partial" : "Pending"
     }
   }, [persistedTotalAmount, persistedPaidAmount, persistedRemainingAmount, persistedPaymentStatus])
+
+  const stageStatusMap = useMemo(() => {
+    return buildStageStatusMap({
+      status: customer?.status ?? "",
+      payment: paymentModel,
+      stageHistory: progress?.stage_history ?? [],
+      currentWorkflowStage,
+    })
+  }, [customer?.status, paymentModel, progress?.stage_history, currentWorkflowStage])
 
   const allowedActionModel = useMemo(() => {
     return getAllowedActions(currentWorkflowStage, customer?.status ?? "", paymentModel)
@@ -1007,8 +1081,9 @@ export default function CustomerDetailsPage() {
                 />
                 <div className="workflow-container relative z-[2]">
                   {stageDefinitions.map((stage, index) => {
-                    const isDone = index < progressIndex
-                    const isActive = index === progressIndex
+                    const stageStatus = stageStatusMap[stage.key]
+                    const isDone = stageStatus.tone === "completed"
+                    const isActive = stage.key === currentStage && stageStatus.tone !== "completed"
                     const isBlocked =
                       !isDone &&
                       !isActive &&
@@ -1045,8 +1120,9 @@ export default function CustomerDetailsPage() {
               </div>
               <div className="workflow-container mt-2 gap-1">
                 {stageDefinitions.map((stage, index) => {
-                  const isDone = index < progressIndex
-                  const isActive = index === progressIndex
+                  const stageStatus = stageStatusMap[stage.key]
+                  const isDone = stageStatus.tone === "completed"
+                  const isActive = stage.key === currentStage && stageStatus.tone !== "completed"
                   const isBlocked =
                     !isDone &&
                     !isActive &&
@@ -1056,17 +1132,12 @@ export default function CustomerDetailsPage() {
                   return (
                     <p
                       key={`${stage.key}-label`}
-                      className={`workflow-label px-1 leading-tight ${
-                        isActive
-                          ? "current-stage"
-                          : isDone
-                          ? "completed-stage"
-                          : isBlocked
-                          ? "text-amber-600"
-                          : ""
-                      }`}
+                      className={`workflow-step-label ${
+                        isActive ? "current" : isDone ? "completed" : "pending"
+                      } ${isActive ? "workflow-step-label-mobile-visible" : "workflow-step-label-mobile-hidden"}`}
                     >
-                      {stage.title}
+                      <span className="workflow-step-label-full">{stage.title}</span>
+                      <span className="workflow-step-label-short">{shortStageLabel(stage.key)}</span>
                     </p>
                   )
                 })}
@@ -1117,7 +1188,7 @@ export default function CustomerDetailsPage() {
                 </div>
                 <div className="divide-y divide-slate-100">
                   {orderedStages.map((stage) => {
-                    const badge = stageBadge(stage.key, customer.status)
+                    const badge = stageStatusMap[stage.key]
                     const isCurrent = stage.key === currentStage
                     const isExpanded = expandedStageKey === stage.key
                     const dynamicActions =

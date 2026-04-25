@@ -73,7 +73,6 @@ export default function SparePartsPage() {
   const [editMinStock, setEditMinStock] = useState("0")
   const [editCostPrice, setEditCostPrice] = useState("0")
   const [filterOpen, setFilterOpen] = useState(false)
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("all")
   const [supplierFilter, setSupplierFilter] = useState("")
@@ -289,59 +288,35 @@ export default function SparePartsPage() {
         </div>
       ) : null}
 
-      <section className={`${inventorySectionCardClass} flex flex-col items-stretch gap-3 md:hidden`}>
-        <button type="button" onClick={() => setMobileSearchOpen((previous) => !previous)} className="btn btn-secondary w-full justify-center">
-          <Search className="h-4 w-4" />
-          Search
-        </button>
-        <button
-          type="button"
-          onClick={() => setMobileFiltersOpen((previous) => !previous)}
-          className={`btn w-full justify-center ${
-            activeFilterCount > 0 ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"
-          }`}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filters
-          {activeFilterCount > 0 ? (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-semibold text-white">
-              {activeFilterCount}
-            </span>
-          ) : null}
-        </button>
-      </section>
-
-      {mobileSearchOpen ? (
-        <section className={`${inventorySectionCardClass} space-y-2 md:hidden`}>
-          <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              value={searchInput}
-              onChange={(event) => {
-                setSearchInput(event.target.value)
+      <section className={`${inventorySectionCardClass} space-y-2 md:hidden`}>
+        <label className="search-input-wrapper">
+          <Search className="search-input-icon" />
+          <input
+            value={searchInput}
+            onChange={(event) => {
+              setSearchInput(event.target.value)
+              setPage(1)
+            }}
+            placeholder="Search by spare name, category, supplier..."
+            aria-label="Search spare parts"
+            className="search-input pr-9"
+          />
+          {searchInput ? (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchInput("")
+                setDebouncedSearch("")
                 setPage(1)
               }}
-              placeholder="Search by spare name, category, supplier..."
-              aria-label="Search spare parts"
-              className="input h-12 pl-9 pr-9"
-            />
-            {searchInput ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchInput("")
-                  setDebouncedSearch("")
-                  setPage(1)
-                }}
-                className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                aria-label="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            ) : null}
-          </label>
-        </section>
-      ) : null}
+              className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
+        </label>
+      </section>
 
       {mobileFiltersOpen ? (
         <section className={`${inventorySectionCardClass} space-y-3 md:hidden`}>
@@ -448,8 +423,8 @@ export default function SparePartsPage() {
 
       <section className={`${inventorySectionCardClass} hidden flex-wrap items-center justify-between gap-3 md:flex`}>
         <div className="min-w-0 flex-[1_1_42%]">
-          <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <label className="search-input-wrapper">
+            <Search className="search-input-icon" />
             <input
               value={searchInput}
               onChange={(event) => {
@@ -458,7 +433,7 @@ export default function SparePartsPage() {
               }}
               placeholder="Search by spare name, category, supplier..."
               aria-label="Search spare parts"
-              className="input pl-9 pr-9"
+              className="search-input pr-9"
             />
             {searchInput ? (
               <button

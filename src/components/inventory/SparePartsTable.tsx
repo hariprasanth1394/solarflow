@@ -62,7 +62,7 @@ export default function SparePartsTable() {
             <Plus size={16} />
             Add Spare
           </Button>
-          <Input placeholder="Search spare parts..." className="sm:w-64" />
+          <Input placeholder="Search spare parts..." className="search-input sm:w-64" />
           <select className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none sm:w-48">
             <option>All Categories</option>
             <option>Electrical</option>
