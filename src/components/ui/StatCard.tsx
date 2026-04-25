@@ -8,10 +8,10 @@ type StatCardProps = {
 
 function StatCardComponent({ title, value, hint }: StatCardProps) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+    <article className="card p-4 md:p-5">
       <p className="text-xs uppercase tracking-wide text-slate-500">{title}</p>
-      <p className="mt-2 text-2xl font-semibold text-slate-900">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
+      <p className="mt-3 text-[28px] font-semibold leading-[1.2] text-slate-900">{value}</p>
+      {hint ? <p className="mt-2 text-sm text-slate-500">{hint}</p> : null}
     </article>
   )
 }

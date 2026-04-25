@@ -8,8 +8,13 @@ import {
   inventoryTableClass,
   inventoryTableHeaderCellClass,
   inventoryTableHeaderRowClass,
+  inventoryTableStickyHeaderCellClass,
   inventoryTableRowClass,
   inventoryTableWrapperClass,
+  inventoryMobileCardClass,
+  inventoryInlineMenuClass,
+  inventoryPagerButtonActiveClass,
+  inventoryPagerButtonClass,
 } from "../inventory/components/inventoryTableStyles"
 import { formatDateTimeUTC } from "../../utils/dateFormat"
 
@@ -154,13 +159,13 @@ function CustomerTable({
         <table className={`min-w-[900px] ${inventoryTableClass}`}>
           <thead>
             <tr className={inventoryTableHeaderRowClass}>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[24%] bg-white`}>Customer</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[13%] bg-white`}>Contact</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[18%] bg-white`}>Location</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[10%] bg-white`}>Capacity</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[13%] bg-white`}>Stage</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[14%] bg-white`}>Last Updated</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[8%] bg-white text-right`}>Actions</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[24%]`}>Customer</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[13%]`}>Contact</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[18%]`}>Location</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[10%]`}>Capacity</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[13%]`}>Stage</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[14%]`}>Last Updated</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[8%] text-right`}>Actions</th>
             </tr>
           </thead>
 
@@ -183,7 +188,7 @@ function CustomerTable({
                       <button
                         type="button"
                         onClick={onAddCustomer}
-                        className="mx-auto inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                        className="btn btn-primary mx-auto"
                       >
                         <UserPlus className="h-4 w-4" />
                         Add customer
@@ -251,14 +256,14 @@ function CustomerTable({
                         </button>
 
                         {openActionRowId === row.id ? (
-                          <div className="absolute right-0 z-20 mt-1.5 w-44 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                          <div className={inventoryInlineMenuClass}>
                             <button
                               type="button"
                               onClick={() => {
                                 setOpenActionRowId(null)
                                 router.push(`/customers/${row.id}`)
                               }}
-                              className="flex w-full items-center gap-2.5 rounded px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                              className="dropdown-item flex items-center gap-2.5"
                             >
                               <Eye className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                               View details
@@ -269,7 +274,7 @@ function CustomerTable({
                                 setOpenActionRowId(null)
                                 void onEdit(row)
                               }}
-                              className="flex w-full items-center gap-2.5 rounded px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                              className="dropdown-item flex items-center gap-2.5"
                             >
                               <Pencil className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                               Edit customer
@@ -282,7 +287,7 @@ function CustomerTable({
                                 setOpenActionRowId(null)
                                 void onDelete(row.id)
                               }}
-                              className="flex w-full items-center gap-2.5 rounded px-3 py-2 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="dropdown-item flex items-center gap-2.5 text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               <Trash2 className="h-3.5 w-3.5 shrink-0" />
                               {deletingId === row.id ? "Deleting…" : "Delete"}
@@ -313,11 +318,7 @@ function CustomerTable({
             <p className="text-base font-semibold text-slate-900">No customers found</p>
             <p className="mt-2 text-sm text-slate-500">Try adjusting your search or filters, or add a new customer.</p>
             {onAddCustomer ? (
-              <button
-                type="button"
-                onClick={onAddCustomer}
-                className="mx-auto mt-4 inline-flex h-12 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-              >
+              <button type="button" onClick={onAddCustomer} className="btn btn-primary mx-auto mt-4">
                 <UserPlus className="h-4 w-4" />
                 Add customer
               </button>
@@ -331,10 +332,7 @@ function CustomerTable({
 
             return (
               <div key={row.id} className="px-4 py-4">
-                <div
-                  onClick={() => router.push(`/customers/${row.id}`)}
-                  className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
+                <div onClick={() => router.push(`/customers/${row.id}`)} className={`space-y-4 ${inventoryMobileCardClass}`}>
                   <div className="flex items-start gap-3">
                     <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarCls}`}>
                       {initials}
@@ -374,7 +372,7 @@ function CustomerTable({
                         event.stopPropagation()
                         router.push(`/customers/${row.id}`)
                       }}
-                      className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                      className="btn btn-secondary flex-1"
                     >
                       View details
                     </button>
@@ -384,7 +382,7 @@ function CustomerTable({
                         event.stopPropagation()
                         void onEdit(row)
                       }}
-                      className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                      className="btn btn-secondary flex-1"
                     >
                       Edit
                     </button>
@@ -395,7 +393,7 @@ function CustomerTable({
                         event.stopPropagation()
                         void onDelete(row.id)
                       }}
-                      className="inline-flex min-h-12 flex-1 items-center justify-center rounded-lg border border-rose-200 px-4 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="btn btn-secondary flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {deletingId === row.id ? "Deleting…" : "Delete"}
                     </button>
@@ -418,7 +416,7 @@ function CustomerTable({
             type="button"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={!canGoPrevious}
-            className="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className={inventoryPagerButtonClass}
           >
             <ChevronLeft className="h-4 w-4" />
             Prev
@@ -432,11 +430,7 @@ function CustomerTable({
                 key={pageNumber}
                 type="button"
                 onClick={() => onPageChange(pageNumber)}
-                className={`h-8 min-w-8 rounded border px-2 text-sm font-medium transition-colors ${
-                  pageNumber === currentPage
-                    ? "border-blue-600 bg-blue-600 text-white shadow-sm"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                }`}
+                className={pageNumber === currentPage ? inventoryPagerButtonActiveClass : inventoryPagerButtonClass}
                 aria-current={pageNumber === currentPage ? "page" : undefined}
               >
                 {pageNumber}
@@ -448,7 +442,7 @@ function CustomerTable({
             type="button"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={!canGoNext}
-            className="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className={inventoryPagerButtonClass}
           >
             Next
             <ChevronRight className="h-4 w-4" />

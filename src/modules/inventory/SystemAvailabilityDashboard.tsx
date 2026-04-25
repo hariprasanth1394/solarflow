@@ -148,7 +148,7 @@ export default function SystemAvailabilityDashboard() {
         </div>
 
         {systems.length === 0 && !loading && (
-          <div className="rounded-lg border border-dashed border-slate-300 p-12 text-center">
+          <div className="card border-dashed p-12 text-center">
             <p className="text-slate-500">No systems found. Create systems first.</p>
           </div>
         )}
@@ -199,10 +199,10 @@ export default function SystemAvailabilityDashboard() {
         <div className="space-y-3">
           <h2 className="text-lg font-semibold text-slate-900">Shortages by Item</h2>
           
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full">
+          <div className="table-shell overflow-x-auto">
+            <table className="table w-full">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
+                <tr className="border-b border-slate-200">
                   <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Item</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-900">Required</th>
                   <th className="px-4 py-3 text-right text-sm font-semibold text-slate-900">Available</th>
@@ -211,7 +211,7 @@ export default function SystemAvailabilityDashboard() {
               </thead>
               <tbody>
                 {shortages.map((shortage, idx) => (
-                  <tr key={idx} className="border-b border-slate-200 hover:bg-slate-50">
+                  <tr key={idx} className="border-b border-slate-200">
                     <td className="px-4 py-3 font-medium text-slate-900">{shortage.spareName}</td>
                     <td className="px-4 py-3 text-right text-slate-600">{shortage.requiredQty}</td>
                     <td className="px-4 py-3 text-right text-slate-600">{shortage.availableQty}</td>
@@ -230,7 +230,7 @@ export default function SystemAvailabilityDashboard() {
 
       {/* EMPTY STATE */}
       {systems.length === 0 && shortages.length === 0 && !loading && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-8 text-center">
+        <div className="card border-green-200 bg-green-50 p-8 text-center">
           <CheckCircle className="mx-auto h-12 w-12 text-green-600" />
           <h3 className="mt-2 text-lg font-semibold text-green-900">All Systems Available</h3>
           <p className="mt-1 text-green-700">No shortages detected. You can build all configured systems.</p>

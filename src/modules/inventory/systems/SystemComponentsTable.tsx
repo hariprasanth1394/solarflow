@@ -97,7 +97,7 @@ function QuantityCell({ value, rowId }: { value: number; rowId: string }) {
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           autoFocus
-          className="h-9 w-16 rounded-lg border border-blue-300 bg-white px-2 text-right text-sm font-medium text-slate-800 transition-colors duration-150 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+          className="input h-9 w-16 px-2 text-right font-medium"
         />
         <button
           type="button"
@@ -183,7 +183,7 @@ function SystemComponentsTable({ rows, loading, systemName, onAddComponent, onRe
                     <button
                       type="button"
                       onClick={onAddComponent}
-                      className="mx-auto inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                      className="btn btn-primary mx-auto"
                     >
                       <Plus className="h-4 w-4" />
                       Add component

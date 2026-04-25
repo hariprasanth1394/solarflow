@@ -1,6 +1,6 @@
 "use client"
 
-import { BarChart3, ChevronLeft, ClipboardList, FileText, LayoutDashboard, Settings, Users, Warehouse } from "lucide-react"
+import { BarChart3, ChevronLeft, ClipboardList, FileText, LayoutDashboard, Settings, Users, Warehouse, X } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -44,13 +44,14 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
 
   return (
     <>
-      {mobileOpen ? <button aria-label="Close sidebar" className="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" onClick={onCloseMobile} /> : null}
+      {mobileOpen ? <button aria-label="Close sidebar" className="sf-layer-sidebar-backdrop fixed inset-0 bg-slate-900/50 backdrop-blur-sm lg:hidden" onClick={onCloseMobile} /> : null}
 
       <aside
         data-sidebar="true"
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-slate-800 bg-slate-900 text-slate-100 transition-transform lg:static lg:translate-x-0 ${desktopWidth} ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        className={`sf-mobile-drawer sf-layer-sidebar fixed inset-0 left-0 flex h-[100dvh] w-full flex-col border-r transition-transform duration-300 ease-out lg:static lg:h-screen lg:w-auto lg:translate-x-0 ${desktopWidth} ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}
+        style={{ backgroundColor: "var(--sf-sidebar-bg)", borderColor: "var(--sf-sidebar-border)", color: "var(--sf-sidebar-text)" }}
       >
-        <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3.5">
+        <div className="flex items-center justify-between border-b px-4 py-3.5" style={{ borderColor: "var(--sf-sidebar-border)" }}>
           <div className="flex min-w-0 flex-1 items-center pr-2">
             <div className={`flex h-8 w-full items-center transition-all duration-300 ${collapsed ? "justify-center" : "justify-start"}`}>
               {collapsed ? (
@@ -62,6 +63,14 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
           </div>
           <button
             type="button"
+            onClick={onCloseMobile}
+            className="inline-flex rounded-lg p-1.5 text-slate-300 hover:bg-slate-800 lg:hidden"
+            aria-label="Close menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => setCollapsed((prev) => !prev)}
             className="hidden rounded-lg p-1.5 text-slate-300 hover:bg-slate-800 lg:inline-flex"
             aria-label="Toggle sidebar"
@@ -70,7 +79,7 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
           </button>
         </div>
 
-        <nav className="flex-1 space-y-3 overflow-y-auto p-3">
+        <nav className="flex-1 space-y-3 overflow-y-auto scroll-smooth p-3 pb-8">
           {navSections.map((section) => (
             <div key={section.id} className="space-y-1">
               {!collapsed ? (

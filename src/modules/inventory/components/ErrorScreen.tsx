@@ -65,7 +65,7 @@ export default function ErrorScreen({
   return (
     <div className="space-y-6 p-6">
       {/* ERROR CARD */}
-      <div className="rounded-lg border border-red-200 bg-gradient-to-br from-red-50 to-rose-50 p-8">
+      <div className="card border-red-200 bg-gradient-to-br from-red-50 to-rose-50 p-8">
         <div className="flex gap-4">
           <div className="flex-shrink-0">
             <AlertCircle className="h-12 w-12 text-red-600" />
@@ -98,7 +98,7 @@ export default function ErrorScreen({
 
       {/* ERRORS SECTION */}
       {errors.length > 0 && (
-        <div className="rounded-lg border border-red-200 bg-white">
+        <div className="card border-red-200 bg-white">
           <button
             onClick={() => toggleSection('errors')}
             className="flex w-full items-center justify-between border-b border-red-200 px-6 py-4 hover:bg-red-50"
@@ -153,7 +153,7 @@ export default function ErrorScreen({
 
       {/* WARNINGS SECTION */}
       {warnings.length > 0 && (
-        <div className="rounded-lg border border-yellow-200 bg-white">
+        <div className="card border-yellow-200 bg-white">
           <button
             onClick={() => toggleSection('warnings')}
             className="flex w-full items-center justify-between border-b border-yellow-200 px-6 py-4 hover:bg-yellow-50"
@@ -203,7 +203,7 @@ export default function ErrorScreen({
 
       {/* DUPLICATES SECTION */}
       {duplicates.length > 0 && (
-        <div className="rounded-lg border border-orange-200 bg-white">
+        <div className="card border-orange-200 bg-white">
           <button
             onClick={() => toggleSection('duplicates')}
             className="flex w-full items-center justify-between border-b border-orange-200 px-6 py-4 hover:bg-orange-50"
@@ -243,34 +243,22 @@ export default function ErrorScreen({
       {/* ACTION BUTTONS */}
       <div className="flex flex-wrap gap-3">
         {onEdit && (
-          <button
-            onClick={onEdit}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
-          >
+          <button onClick={onEdit} className="btn btn-secondary">
             Edit Data
           </button>
         )}
         {onRetry && (
-          <button
-            onClick={onRetry}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
-          >
+          <button onClick={onRetry} className="btn btn-secondary">
             Upload Different File
           </button>
         )}
         {onContinue && canContinue && (
-          <button
-            onClick={onContinue}
-            className="ml-auto rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-          >
+          <button onClick={onContinue} className="btn btn-primary ml-auto">
             Continue with Warnings
           </button>
         )}
         {!canContinue && onRetry && (
-          <button
-            onClick={onRetry}
-            className="ml-auto rounded-lg bg-red-600 px-6 py-2 text-white hover:bg-red-700"
-          >
+          <button onClick={onRetry} className="btn btn-danger ml-auto">
             Fix and Retry
           </button>
         )}

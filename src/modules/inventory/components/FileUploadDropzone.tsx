@@ -29,7 +29,7 @@ export default function FileUploadDropzone({ uploading, fileName, onFileSelect }
         const file = event.dataTransfer.files?.[0] || null
         onFileSelect(file)
       }}
-      className={`rounded-2xl border-2 border-dashed p-8 text-center transition ${dragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50'}`}
+      className={`card border-2 border-dashed p-8 text-center transition ${dragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300'}`}
     >
       <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
         <UploadCloud className="h-6 w-6 text-blue-600" />
@@ -38,11 +38,7 @@ export default function FileUploadDropzone({ uploading, fileName, onFileSelect }
       <p className="text-sm font-medium text-slate-900">Drag & drop your Excel file here</p>
       <p className="mt-1 text-xs text-slate-600">Supported format: .xlsx</p>
 
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-      >
+      <button type="button" onClick={() => inputRef.current?.click()} className="btn btn-primary mt-4">
         Browse file
       </button>
 
@@ -55,7 +51,7 @@ export default function FileUploadDropzone({ uploading, fileName, onFileSelect }
       />
 
       {fileName && (
-        <div className="mx-auto mt-4 flex max-w-md items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+        <div className="card mx-auto mt-4 flex max-w-md items-center justify-center gap-2 px-3 py-2 text-sm text-slate-700">
           <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
           <span className="truncate">{fileName}</span>
         </div>

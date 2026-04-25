@@ -146,7 +146,7 @@ export default function SystemBuilderPage() {
           type="button"
           disabled={!selectedSystem || componentSubmitting}
           onClick={() => setComponentModalOpen(true)}
-          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
           Add Component
@@ -178,7 +178,7 @@ export default function SystemBuilderPage() {
               type="button"
               onClick={() => setDropdownOpen((prev) => !prev)}
               disabled={systemsLoading}
-              className="flex h-10 w-[220px] items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 transition duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 hover:bg-slate-50 disabled:opacity-60"
+              className="dropdown inline-flex w-[220px] items-center justify-between gap-2 disabled:opacity-60"
             >
               <span className={selectedSystem ? "truncate font-medium text-slate-800" : "text-slate-400"}>
                 {systemsLoading
@@ -191,7 +191,7 @@ export default function SystemBuilderPage() {
             </button>
 
             {dropdownOpen && (
-              <div className="absolute left-0 top-full z-30 mt-1 w-[220px] overflow-hidden rounded-lg bg-white shadow-[0_12px_32px_rgba(15,23,42,0.14)]">
+              <div className="dropdown-menu absolute left-0 top-full z-30 mt-1 w-[220px] p-1">
                 {systems.length === 0 ? (
                   <div className="px-3 py-3 text-sm text-slate-400">No systems yet</div>
                 ) : (
@@ -200,7 +200,7 @@ export default function SystemBuilderPage() {
                       key={system.id}
                       type="button"
                       onClick={() => handleSelectSystem(system)}
-                      className={`flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors duration-100 hover:bg-slate-50 ${
+                      className={`dropdown-item flex items-center justify-between ${
                         selectedSystem?.id === system.id ? "bg-blue-50 text-blue-700" : "text-slate-700"
                       }`}
                     >
@@ -216,7 +216,7 @@ export default function SystemBuilderPage() {
           <button
             type="button"
             onClick={() => setSystemModalOpen(true)}
-            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-600 transition duration-200 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="btn btn-secondary"
           >
             <Plus className="h-3.5 w-3.5" />
             New System
@@ -234,7 +234,7 @@ export default function SystemBuilderPage() {
           <button
             type="button"
             onClick={() => setSystemModalOpen(true)}
-            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition duration-200 hover:bg-slate-50"
+            className="btn btn-secondary"
           >
             <Plus className="h-4 w-4" />
             New System

@@ -7,8 +7,13 @@ import {
   inventoryTableClass,
   inventoryTableHeaderCellClass,
   inventoryTableHeaderRowClass,
+  inventoryTableStickyHeaderCellClass,
   inventoryTableRowClass,
   inventoryTableWrapperClass,
+  inventoryMobileCardClass,
+  inventoryInlineMenuClass,
+  inventoryPagerButtonActiveClass,
+  inventoryPagerButtonClass,
 } from "../components/inventoryTableStyles"
 
 type SpareRow = {
@@ -133,16 +138,16 @@ function SparePartsTable({
         <table className={`min-w-full ${inventoryTableClass}`}>
           <thead>
             <tr className={inventoryTableHeaderRowClass}>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[20%] bg-white`}>Spare</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[12%] bg-white`}>Category</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[15%] bg-white`}>Supplier</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[8%] bg-white`}>Unit</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[9%] bg-white text-right`}>Stock</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[9%] bg-white text-right`}>Min</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[10%] bg-white`}>Status</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[9%] bg-white text-right`}>Cost</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[12%] bg-white text-right`}>Value</th>
-              <th className={`${inventoryTableHeaderCellClass} sticky top-0 z-10 w-[6%] bg-white text-right`}>Actions</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[20%]`}>Spare</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[12%]`}>Category</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[15%]`}>Supplier</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[8%]`}>Unit</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[9%] text-right`}>Stock</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[9%] text-right`}>Min</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[10%]`}>Status</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[9%] text-right`}>Cost</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[12%] text-right`}>Value</th>
+              <th className={`${inventoryTableHeaderCellClass} ${inventoryTableStickyHeaderCellClass} w-[6%] text-right`}>Actions</th>
             </tr>
           </thead>
 
@@ -164,7 +169,7 @@ function SparePartsTable({
                     <button
                       type="button"
                       onClick={onAddSpare}
-                      className="mx-auto inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-3.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                      className="btn btn-primary mx-auto"
                     >
                       <Plus className="h-4 w-4" />
                       Add spare
@@ -206,14 +211,14 @@ function SparePartsTable({
                       </button>
 
                       {openActionRowId === row.id ? (
-                        <div className="absolute right-0 z-20 mt-1.5 w-44 rounded border border-slate-200 bg-white p-1.5 shadow-lg">
+                        <div className={inventoryInlineMenuClass}>
                           <button
                             type="button"
                             onClick={() => {
                               onEdit(row)
                               setOpenActionRowId(null)
                             }}
-                            className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-slate-700 transition-colors duration-150 hover:bg-slate-100"
+                            className="dropdown-item flex items-center gap-2"
                           >
                             <Pencil className="h-4 w-4" />
                             Edit
@@ -224,7 +229,7 @@ function SparePartsTable({
                               onUpdateStock(row)
                               setOpenActionRowId(null)
                             }}
-                            className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-slate-700 transition-colors duration-150 hover:bg-slate-100"
+                            className="dropdown-item flex items-center gap-2"
                           >
                             <RefreshCw className="h-4 w-4" />
                             Update stock
@@ -235,7 +240,7 @@ function SparePartsTable({
                               onViewDetails(row)
                               setOpenActionRowId(null)
                             }}
-                            className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-slate-700 transition-colors duration-150 hover:bg-slate-100"
+                            className="dropdown-item flex items-center gap-2"
                           >
                             <Eye className="h-4 w-4" />
                             View details
@@ -246,7 +251,7 @@ function SparePartsTable({
                               onDelete(row)
                               setOpenActionRowId(null)
                             }}
-                            className="flex w-full items-center gap-2 rounded px-2.5 py-2 text-left text-sm text-rose-600 transition-colors duration-150 hover:bg-rose-50"
+                            className="dropdown-item flex items-center gap-2 text-rose-600 hover:bg-rose-50"
                           >
                             <Trash2 className="h-4 w-4" />
                             Delete
@@ -265,7 +270,7 @@ function SparePartsTable({
       <div className="space-y-3 p-3 md:hidden">
         {loading ? (
           Array.from({ length: 5 }).map((_, index) => (
-            <div key={`mobile-skeleton-${index}`} className="rounded-xl border border-slate-200 bg-white p-4">
+            <div key={`mobile-skeleton-${index}`} className={inventoryMobileCardClass}>
               <div className="h-4 w-1/2 animate-pulse rounded bg-slate-100" />
               <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-slate-100" />
               <div className="mt-4 grid grid-cols-2 gap-2">
@@ -275,13 +280,13 @@ function SparePartsTable({
             </div>
           ))
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center">
+          <div className={`${inventoryMobileCardClass} px-4 py-10 text-center`}>
             <p className="text-base font-semibold text-slate-900">No spare parts found</p>
             <p className="mt-2 text-sm text-slate-500">Try changing your filters or add a new spare to get started.</p>
             <button
               type="button"
               onClick={onAddSpare}
-              className="mx-auto mt-4 inline-flex min-h-12 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+              className="btn btn-primary mx-auto mt-4"
             >
               <Plus className="h-4 w-4" />
               Add spare
@@ -290,12 +295,19 @@ function SparePartsTable({
         ) : (
           rows.map((row) => {
             const stock = getStockStatus(row)
+            const statusLeftBorder =
+              stock.label === "Out of stock"
+                ? "border-l-rose-500"
+                : stock.label === "Low"
+                ? "border-l-amber-500"
+                : "border-l-emerald-500"
             return (
-              <article key={row.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <article key={row.id} className={`${inventoryMobileCardClass} border-l-4 ${statusLeftBorder}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-base font-bold text-slate-900">{row.name}</h3>
                     <p className="mt-1 text-sm text-slate-500">{row.category || "Uncategorized"} • {row.unit || "Unit n/a"}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">Supplier: {row.supplierName || "-"}</p>
                   </div>
                   <span className={`inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold ${stock.tone}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${stock.dot}`} />
@@ -303,12 +315,12 @@ function SparePartsTable({
                   </span>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3 text-sm">
-                  <div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <p className="text-xs font-medium text-slate-500">Stock</p>
                     <p className="mt-1 font-semibold text-slate-900">{row.stock_quantity}</p>
                   </div>
-                  <div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <p className="text-xs font-medium text-slate-500">Min</p>
                     <p className="mt-1 font-semibold text-slate-900">{row.min_stock}</p>
                   </div>
@@ -318,7 +330,7 @@ function SparePartsTable({
                   <button
                     type="button"
                     onClick={() => onUpdateStock(row)}
-                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm"
+                    className="btn btn-primary w-full"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Add Stock
@@ -327,7 +339,7 @@ function SparePartsTable({
                     <button
                       type="button"
                       onClick={() => onViewDetails(row)}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700"
+                      className="btn btn-secondary w-full"
                     >
                       <Eye className="h-4 w-4" />
                       View
@@ -335,7 +347,7 @@ function SparePartsTable({
                     <button
                       type="button"
                       onClick={() => onEdit(row)}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700"
+                      className="btn btn-secondary w-full"
                     >
                       <Pencil className="h-4 w-4" />
                       Edit
@@ -344,7 +356,7 @@ function SparePartsTable({
                   <button
                     type="button"
                     onClick={() => onDelete(row)}
-                    className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-rose-200 px-3 text-sm font-medium text-rose-600"
+                    className="btn btn-secondary w-full border-rose-200 text-rose-600 hover:bg-rose-50"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete
@@ -366,7 +378,7 @@ function SparePartsTable({
             type="button"
             onClick={() => onPageChange(currentPage - 1)}
             disabled={!canGoPrevious}
-            className="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className={inventoryPagerButtonClass}
           >
             <ChevronLeft className="h-4 w-4" />
             Prev
@@ -382,11 +394,7 @@ function SparePartsTable({
                 key={pageNumber}
                 type="button"
                 onClick={() => onPageChange(pageNumber)}
-                className={`h-8 min-w-8 rounded border px-2 text-sm font-medium transition-colors ${
-                  pageNumber === currentPage
-                    ? "border-blue-600 bg-blue-600 text-white shadow-sm"
-                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                }`}
+                className={pageNumber === currentPage ? inventoryPagerButtonActiveClass : inventoryPagerButtonClass}
                 aria-current={pageNumber === currentPage ? "page" : undefined}
               >
                 {pageNumber}
@@ -398,7 +406,7 @@ function SparePartsTable({
             type="button"
             onClick={() => onPageChange(currentPage + 1)}
             disabled={!canGoNext}
-            className="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className={inventoryPagerButtonClass}
           >
             Next
             <ChevronRight className="h-4 w-4" />

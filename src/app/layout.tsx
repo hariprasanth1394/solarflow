@@ -29,7 +29,15 @@ type RootLayoutProps = {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
+      <head>
+        <meta name="color-scheme" content="light dark" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var key='solarflow-theme';var saved=localStorage.getItem(key);var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var isDark=saved?saved==='dark':prefersDark;var root=document.documentElement;if(isDark){root.classList.add('theme-dark');root.classList.add('dark');}else{root.classList.remove('theme-dark');root.classList.remove('dark');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className={inter.className}>
         <AuthSessionSync />
         {children}

@@ -374,7 +374,7 @@ export default function InventoryImportExportPage() {
               setError('')
               setMessage('')
             }}
-            className={`h-10 rounded-lg px-4 text-sm font-medium ${workflow === 'export' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-slate-50'}`}
+            className={workflow === 'export' ? 'btn btn-primary' : 'btn btn-secondary'}
           >
             Export workflow
           </button>
@@ -385,15 +385,15 @@ export default function InventoryImportExportPage() {
               setError('')
               setMessage('')
             }}
-            className={`h-10 rounded-lg px-4 text-sm font-medium ${workflow === 'import' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-slate-50'}`}
+            className={workflow === 'import' ? 'btn btn-primary' : 'btn btn-secondary'}
           >
             Import workflow
           </button>
         </>
       }
     >
-      {message && <p className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">{message}</p>}
-      {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">{error}</p>}
+      {message && <p className="card bg-green-50 px-4 py-3 text-sm text-green-700">{message}</p>}
+      {error && <p className="card bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
       <section className={inventorySectionCardClass}>
         <div className="flex flex-wrap items-center gap-2">
@@ -458,13 +458,13 @@ export default function InventoryImportExportPage() {
           </div>
 
           {!hasFilterData && (
-            <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="card bg-amber-50 px-4 py-3 text-sm text-amber-800">
               No exportable inventory rows found. Add stock rows linked to items and systems, then retry export.
             </div>
           )}
 
           {hasFilterData && (
-            <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div className="card px-4 py-3 text-sm text-slate-700">
               <p className="font-medium text-slate-800">Available combinations (sample):</p>
               {visibleCombinations.length > 0 ? (
                 <p className="mt-1 text-slate-600">
@@ -477,12 +477,7 @@ export default function InventoryImportExportPage() {
           )}
 
           <div className="flex items-center justify-end">
-            <button
-              type="button"
-              onClick={exportTemplate}
-              disabled={exporting || !hasFilterData || noDataForSelection}
-              className="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-            >
+            <button type="button" onClick={exportTemplate} disabled={exporting || !hasFilterData || noDataForSelection} className="btn btn-primary disabled:cursor-not-allowed disabled:opacity-70">
               {exporting ? 'Exporting...' : 'Step 3: Download Excel'}
             </button>
           </div>
@@ -504,12 +499,7 @@ export default function InventoryImportExportPage() {
             />
 
             <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => void validateFile()}
-                disabled={!selectedFile || uploading}
-                className="h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
-              >
+              <button type="button" onClick={() => void validateFile()} disabled={!selectedFile || uploading} className="btn btn-primary disabled:opacity-40">
                 {uploading ? 'Validating...' : 'Validate File'}
               </button>
             </div>
@@ -526,11 +516,11 @@ export default function InventoryImportExportPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-700">Total: <span className="font-semibold text-slate-900">{summary.totalRows}</span></div>
-                <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-700">New: <span className="font-semibold text-blue-900">{summary.newRows}</span></div>
-                <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-700">Updated: <span className="font-semibold text-amber-900">{summary.updatedRows}</span></div>
-                <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">Unchanged: <span className="font-semibold text-emerald-900">{summary.unchangedRows}</span></div>
-                <div className="rounded-lg bg-rose-50 p-4 text-sm text-rose-700">Errors: <span className="font-semibold text-rose-900">{summary.errorRows}</span></div>
+                <div className="card p-4 text-sm text-slate-700">Total: <span className="font-semibold text-slate-900">{summary.totalRows}</span></div>
+                <div className="card bg-blue-50 p-4 text-sm text-blue-700">New: <span className="font-semibold text-blue-900">{summary.newRows}</span></div>
+                <div className="card bg-amber-50 p-4 text-sm text-amber-700">Updated: <span className="font-semibold text-amber-900">{summary.updatedRows}</span></div>
+                <div className="card bg-emerald-50 p-4 text-sm text-emerald-700">Unchanged: <span className="font-semibold text-emerald-900">{summary.unchangedRows}</span></div>
+                <div className="card bg-rose-50 p-4 text-sm text-rose-700">Errors: <span className="font-semibold text-rose-900">{summary.errorRows}</span></div>
               </div>
 
               <PreviewTable
@@ -548,18 +538,10 @@ export default function InventoryImportExportPage() {
               />
 
               <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={downloadErrorRows}
-                  disabled={!rows.some((row) => row.status === 'ERROR')}
-                  className="h-10 rounded-lg bg-white px-4 text-sm font-medium text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:bg-slate-50 disabled:opacity-40"
-                >
+                <button onClick={downloadErrorRows} disabled={!rows.some((row) => row.status === 'ERROR')} className="btn btn-secondary disabled:opacity-40">
                   Download Error CSV
                 </button>
-                <button
-                  onClick={() => void confirmImport()}
-                  disabled={confirming || rows.some((row) => row.status === 'ERROR')}
-                  className="ml-auto h-10 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
-                >
+                <button onClick={() => void confirmImport()} disabled={confirming || rows.some((row) => row.status === 'ERROR')} className="btn btn-primary ml-auto disabled:opacity-40">
                   {confirming ? 'Applying...' : 'Confirm & Apply'}
                 </button>
               </div>

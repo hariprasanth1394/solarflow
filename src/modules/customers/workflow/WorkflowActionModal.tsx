@@ -21,10 +21,10 @@ type WorkflowActionModalProps = {
 }
 
 const primaryButtonClass =
-  "sf-btn-gradient inline-flex h-12 items-center rounded-lg px-4 text-sm font-semibold text-white active:scale-[0.97] disabled:cursor-not-allowed disabled:shadow-none disabled:opacity-60"
+  "btn btn-primary"
 
 const secondaryButtonClass =
-  "sf-btn-secondary inline-flex h-12 items-center rounded-lg px-4 text-sm font-medium transition-all active:scale-[0.97]"
+  "btn btn-secondary"
 
 export default function WorkflowActionModal({
   open,
@@ -64,13 +64,13 @@ export default function WorkflowActionModal({
         </div>
       }
     >
-      <div className="sf-card rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50/70 px-4 py-3.5 ring-1 ring-inset ring-blue-100">
-        <p className="text-xs font-semibold uppercase tracking-[0.04em] text-blue-600">Action Context</p>
-        <p className="mt-1.5 text-sm text-slate-700">
-          <span className="font-medium text-slate-900">Customer:</span> {customerName}
+      <div className="modal-action-context">
+        <p className="context-tag">Action Context</p>
+        <p className="context-line">
+          <strong>Customer:</strong> {customerName}
         </p>
-        <p className="text-sm text-slate-700">
-          <span className="font-medium text-slate-900">Stage:</span> {stageLabel}
+        <p className="context-line">
+          <strong>Stage:</strong> {stageLabel}
         </p>
       </div>
 
@@ -89,7 +89,7 @@ export default function WorkflowActionModal({
                   type="button"
                   onClick={onRetry}
                   disabled={loading || submitDisabled}
-                  className="inline-flex h-9 items-center rounded-lg border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn btn-secondary btn-compact h-9 border-rose-300 text-rose-700 hover:bg-rose-100"
                 >
                   Retry
                 </button>

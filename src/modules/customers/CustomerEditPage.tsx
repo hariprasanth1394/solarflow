@@ -18,7 +18,7 @@ type CustomerEditModel = {
 }
 
 const primaryButtonClass =
-  "rounded-lg bg-gradient-to-r from-purple-600 to-blue-500 px-4 py-2 text-sm font-medium text-white hover:from-purple-700 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+  "btn btn-primary"
 
 export default function CustomerEditPage() {
   const router = useRouter()
@@ -82,12 +82,12 @@ export default function CustomerEditPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="card p-5">
         <h1 className="text-2xl font-semibold text-gray-900">Edit Customer</h1>
         <p className="mt-1 text-sm text-gray-600">Update customer information and save changes.</p>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="card p-5">
         {loading ? <p className="text-sm text-gray-500">Loading customer data...</p> : null}
         {error ? <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
 
@@ -124,7 +124,7 @@ export default function CustomerEditPage() {
               <input
                 value={form.name}
                 onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="input"
                 required
               />
             </label>
@@ -134,7 +134,7 @@ export default function CustomerEditPage() {
                 type="email"
                 value={form.email}
                 onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="input"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -142,7 +142,7 @@ export default function CustomerEditPage() {
               <input
                 value={form.phone}
                 onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="input"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -150,7 +150,7 @@ export default function CustomerEditPage() {
               <select
                 value={form.status}
                 onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="dropdown"
               >
                 <option value="Created">Created</option>
                 <option value="Govt Approval Pending">Govt Approval Pending</option>
@@ -166,7 +166,7 @@ export default function CustomerEditPage() {
               <input
                 value={form.address}
                 onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="input"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -174,7 +174,7 @@ export default function CustomerEditPage() {
               <input
                 value={form.city}
                 onChange={(event) => setForm((prev) => ({ ...prev, city: event.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="input"
               />
             </label>
             <label className="flex flex-col gap-1">
@@ -182,7 +182,7 @@ export default function CustomerEditPage() {
               <input
                 value={form.state}
                 onChange={(event) => setForm((prev) => ({ ...prev, state: event.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="input"
               />
             </label>
             <label className="flex flex-col gap-1 md:col-span-2">
@@ -191,12 +191,12 @@ export default function CustomerEditPage() {
                 rows={4}
                 value={form.notes}
                 onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="textarea"
               />
             </label>
 
             <div className="md:col-span-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
-              <button type="button" onClick={() => router.push(`/customers/${customerId}`)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700">
+              <button type="button" onClick={() => router.push(`/customers/${customerId}`)} className="btn btn-secondary">
                 Cancel
               </button>
               <button type="submit" disabled={saving || !form.name.trim()} className={primaryButtonClass}>

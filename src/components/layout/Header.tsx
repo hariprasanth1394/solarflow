@@ -68,7 +68,7 @@ export default function Header({ onMenuClick, dark: controlledDark, onToggleThem
   return (
     <header
       data-app-header="true"
-      className={`border-b px-4 py-3 md:px-6 ${dark ? "border-slate-800 bg-slate-900 text-slate-100" : "border-slate-200 bg-white"}`}
+      className={`sf-sticky-header border-b px-4 py-3 md:px-6 ${dark ? "border-slate-800 bg-slate-900/90 text-slate-100" : "border-slate-200 bg-white/90"}`}
     >
       <div className="flex items-center gap-3">
         <button
@@ -124,14 +124,10 @@ export default function Header({ onMenuClick, dark: controlledDark, onToggleThem
               <ChevronDown className={`h-4 w-4 ${dark ? "text-slate-300" : "text-slate-500"}`} />
             </button>
             {menuOpen ? (
-              <div
-                className={`absolute right-0 top-11 z-20 min-w-40 rounded-xl border p-1 shadow-md ${
-                  dark ? "border-slate-700 bg-slate-900" : "border-slate-200 bg-white"
-                }`}
-              >
+              <div className="dropdown-menu absolute right-0 top-11 z-20 min-w-40">
                 <button
                   type="button"
-                  className={`block w-full rounded-lg px-3 py-2 text-left text-sm ${dark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
+                  className="dropdown-item"
                 >
                   Profile
                 </button>
@@ -139,9 +135,7 @@ export default function Header({ onMenuClick, dark: controlledDark, onToggleThem
                   type="button"
                   onClick={handleLogout}
                   disabled={isLoggingOut}
-                  className={`block w-full rounded-lg px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60 ${
-                    dark ? "hover:bg-slate-800" : "hover:bg-slate-100"
-                  }`}
+                  className="dropdown-item disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isLoggingOut ? "Logging out..." : "Logout"}
                 </button>

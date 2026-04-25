@@ -31,7 +31,7 @@ export default function AddComponentModal({ open, loading, spares, onClose, onSu
     <>
       <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-        <form onSubmit={handleSubmit} className="my-6 w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl sm:p-5">
+        <form onSubmit={handleSubmit} className="card my-6 w-full max-w-lg p-4 shadow-2xl sm:p-5">
           <h3 className="text-lg font-semibold text-slate-900">Add System Component</h3>
           <p className="mt-1 text-sm text-slate-600">Select a spare and define required quantity.</p>
 
@@ -39,7 +39,7 @@ export default function AddComponentModal({ open, loading, spares, onClose, onSu
             <select
               value={spareId}
               onChange={(event) => setSpareId(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
+              className="dropdown"
               required
             >
               <option value="">Select spare</option>
@@ -55,19 +55,19 @@ export default function AddComponentModal({ open, loading, spares, onClose, onSu
               min={1}
               value={quantityRequired}
               onChange={(event) => setQuantityRequired(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
+              className="input"
               required
             />
           </div>
 
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} className="h-10 w-full rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:w-auto">
+            <button type="button" onClick={onClose} className="btn btn-secondary w-full sm:w-auto">
               Cancel
             </button>
             <button
               type="submit"
               disabled={disabled}
-              className="h-10 w-full rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 sm:w-auto"
+              className="btn btn-primary w-full sm:w-auto disabled:opacity-60"
             >
               {loading ? "Saving..." : "Add Component"}
             </button>

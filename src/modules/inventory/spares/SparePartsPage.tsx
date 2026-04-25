@@ -37,6 +37,7 @@ type SpareRow = {
 }
 
 type AvailabilityFilter = "all" | "in_stock" | "out_of_stock"
+type SortOption = "recent" | "name_asc" | "stock_desc" | "stock_asc"
 
 const ROW_SIZE_OPTIONS = [25, 50, 100, 200] as const
 
@@ -77,6 +78,7 @@ export default function SparePartsPage() {
   const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("all")
   const [supplierFilter, setSupplierFilter] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("")
+  const [sortBy, setSortBy] = useState<SortOption>("recent")
   const [message, setMessage] = useState("")
   const importSuccess = searchParams.get('import') === 'success'
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pageSize)), [pageSize, totalCount])
@@ -87,6 +89,27 @@ export default function SparePartsPage() {
     if (categoryFilter.trim()) count += 1
     return count
   }, [availabilityFilter, categoryFilter, supplierFilter])
+
+  const sortedRows = useMemo(() => {
+    const copy = [...rows]
+    if (sortBy === "name_asc") {
+      copy.sort((a, b) => a.name.localeCompare(b.name))
+    } else if (sortBy === "stock_desc") {
+      copy.sort((a, b) => b.stock_quantity - a.stock_quantity)
+    } else if (sortBy === "stock_asc") {
+      copy.sort((a, b) => a.stock_quantity - b.stock_quantity)
+    }
+    return copy
+  }, [rows, sortBy])
+
+  const cycleSort = () => {
+    setSortBy((prev) => {
+      if (prev === "recent") return "name_asc"
+      if (prev === "name_asc") return "stock_desc"
+      if (prev === "stock_desc") return "stock_asc"
+      return "recent"
+    })
+  }
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -254,7 +277,7 @@ export default function SparePartsPage() {
         <LoadingButton
           type="button"
           onClick={() => setModalOpen(true)}
-          className="hidden h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition duration-200 hover:bg-blue-700 md:inline-flex"
+          className="btn btn-primary hidden md:inline-flex"
         >
           Add Spare
         </LoadingButton>
@@ -266,19 +289,15 @@ export default function SparePartsPage() {
         </div>
       ) : null}
 
-      <section className={`${inventorySectionCardClass} flex items-center gap-2 md:hidden`}>
-        <button
-          type="button"
-          onClick={() => setMobileSearchOpen((previous) => !previous)}
-          className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700"
-        >
+      <section className={`${inventorySectionCardClass} flex flex-col items-stretch gap-3 md:hidden`}>
+        <button type="button" onClick={() => setMobileSearchOpen((previous) => !previous)} className="btn btn-secondary w-full justify-center">
           <Search className="h-4 w-4" />
           Search
         </button>
         <button
           type="button"
           onClick={() => setMobileFiltersOpen((previous) => !previous)}
-          className={`inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium ${
+          className={`btn w-full justify-center ${
             activeFilterCount > 0 ? "border-blue-300 bg-blue-50 text-blue-700" : "border-slate-300 bg-white text-slate-700"
           }`}
         >
@@ -304,7 +323,7 @@ export default function SparePartsPage() {
               }}
               placeholder="Search by spare name, category, supplier..."
               aria-label="Search spare parts"
-              className="h-12 w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-slate-700 placeholder:text-slate-400 transition duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="input h-12 pl-9 pr-9"
             />
             {searchInput ? (
               <button
@@ -341,7 +360,7 @@ export default function SparePartsPage() {
                     setAvailabilityFilter(option.key as AvailabilityFilter)
                     setPage(1)
                   }}
-                  className={`h-10 rounded-lg border px-3 text-sm font-medium ${
+                  className={`btn ${
                     availabilityFilter === option.key
                       ? "border-blue-600 bg-blue-600 text-white"
                       : "border-slate-300 text-slate-700"
@@ -361,7 +380,7 @@ export default function SparePartsPage() {
                 setSupplierFilter(event.target.value)
                 setPage(1)
               }}
-              className="mt-1.5 h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="dropdown mt-1.5 h-12"
             >
               <option value="">All suppliers</option>
               {suppliers.map((supplier) => (
@@ -381,7 +400,7 @@ export default function SparePartsPage() {
                 setPage(1)
               }}
               placeholder="Filter by category"
-              className="mt-1.5 h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="input mt-1.5 h-12"
             />
           </div>
 
@@ -393,7 +412,7 @@ export default function SparePartsPage() {
                 setPageSize(Number(event.target.value))
                 setPage(1)
               }}
-              className="mt-1.5 h-12 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="dropdown mt-1.5 h-12"
             >
               {ROW_SIZE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
@@ -419,7 +438,7 @@ export default function SparePartsPage() {
             <button
               type="button"
               onClick={() => setMobileFiltersOpen(false)}
-              className="h-10 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white"
+              className="btn btn-primary"
             >
               Apply
             </button>
@@ -439,7 +458,7 @@ export default function SparePartsPage() {
               }}
               placeholder="Search by spare name, category, supplier..."
               aria-label="Search spare parts"
-              className="h-10 w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-slate-700 placeholder:text-slate-400 transition duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="input pl-9 pr-9"
             />
             {searchInput ? (
               <button
@@ -465,7 +484,7 @@ export default function SparePartsPage() {
               setPageSize(Number(event.target.value))
               setPage(1)
             }}
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 transition duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="dropdown"
             aria-label="Rows per page"
           >
             {ROW_SIZE_OPTIONS.map((option) => (
@@ -479,7 +498,7 @@ export default function SparePartsPage() {
             <button
               type="button"
               onClick={() => setFilterOpen((previous) => !previous)}
-              className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-100 ${
+              className={`btn items-center justify-center ${
                 activeFilterCount > 0
                   ? "border-blue-300 bg-blue-50 text-blue-700"
                   : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
@@ -497,7 +516,7 @@ export default function SparePartsPage() {
             </button>
 
             {filterOpen ? (
-              <div className="absolute right-0 z-20 mt-2 w-[320px] rounded-lg bg-white p-3 shadow-[0_12px_32px_rgba(15,23,42,0.14)]">
+              <div className="dropdown-menu absolute right-0 z-20 mt-2 w-[320px] p-3">
               <div className="space-y-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Availability</p>
@@ -514,7 +533,7 @@ export default function SparePartsPage() {
                           setAvailabilityFilter(option.key as AvailabilityFilter)
                           setPage(1)
                         }}
-                        className={`h-8 rounded-lg border px-2.5 text-xs font-medium ${
+                        className={`btn btn-compact ${
                           availabilityFilter === option.key
                             ? "border-blue-600 bg-blue-600 text-white"
                             : "border-slate-300 text-slate-700 hover:bg-slate-50"
@@ -534,7 +553,7 @@ export default function SparePartsPage() {
                       setSupplierFilter(event.target.value)
                       setPage(1)
                     }}
-                    className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="dropdown mt-1.5"
                   >
                     <option value="">All suppliers</option>
                     {suppliers.map((supplier) => (
@@ -554,7 +573,7 @@ export default function SparePartsPage() {
                       setPage(1)
                     }}
                     placeholder="Filter by category"
-                    className="mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="input mt-1.5"
                   />
                 </div>
 
@@ -575,7 +594,7 @@ export default function SparePartsPage() {
                   <button
                     type="button"
                     onClick={() => setFilterOpen(false)}
-                    className="h-8 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white hover:bg-blue-700"
+                    className="btn btn-primary btn-compact"
                   >
                     Done
                   </button>
@@ -587,9 +606,9 @@ export default function SparePartsPage() {
         </div>
       </section>
 
-      <div className="pb-24 md:pb-0">
+      <div className="page-content">
         <SparePartsTable
-          rows={rows}
+          rows={sortedRows}
           loading={loading}
           page={page}
           pageSize={pageSize}
@@ -612,14 +631,33 @@ export default function SparePartsPage() {
         />
       </div>
 
-      <button
-        type="button"
-        onClick={() => setModalOpen(true)}
-        className="fixed bottom-5 right-5 z-30 inline-flex min-h-12 items-center gap-2 rounded-full bg-gradient-to-r from-blue-600 to-violet-600 px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(79,70,229,0.35)] md:hidden"
-      >
-        <Plus className="h-4 w-4" />
-        Add Spare
-      </button>
+      <div className="bottom-bar md:hidden">
+        <div className="bottom-bar-inner">
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="btn btn-primary w-full"
+          >
+            <Plus className="h-4 w-4" />
+            Add
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen((previous) => !previous)}
+            className="btn btn-secondary w-full"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filter
+          </button>
+          <button
+            type="button"
+            onClick={cycleSort}
+            className="btn btn-secondary w-full"
+          >
+            Sort
+          </button>
+        </div>
+      </div>
 
       <AddSpareModal
         open={modalOpen}
@@ -669,7 +707,7 @@ export default function SparePartsPage() {
         <>
           <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={() => setEditDetailsModalOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-            <div className="my-6 w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="card my-6 w-full max-w-xl p-5 shadow-2xl">
               <h3 className="text-lg font-semibold text-slate-900">Edit Spare</h3>
               <p className="mt-1 text-sm text-slate-600">Update settings for {selectedSpareForEdit.name}.</p>
 
@@ -678,13 +716,13 @@ export default function SparePartsPage() {
                   value={editCategory}
                   onChange={(event) => setEditCategory(event.target.value)}
                   placeholder="Category"
-                  className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
+                  className="input"
                 />
                 <input
                   value={editUnit}
                   onChange={(event) => setEditUnit(event.target.value)}
                   placeholder="Unit"
-                  className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
+                  className="input"
                 />
                 <input
                   type="number"
@@ -692,7 +730,7 @@ export default function SparePartsPage() {
                   value={editMinStock}
                   onChange={(event) => setEditMinStock(event.target.value)}
                   placeholder="Min stock"
-                  className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
+                  className="input"
                 />
                 <input
                   type="number"
@@ -701,7 +739,7 @@ export default function SparePartsPage() {
                   value={editCostPrice}
                   onChange={(event) => setEditCostPrice(event.target.value)}
                   placeholder="Cost price"
-                  className="h-10 rounded-xl border border-slate-300 px-3 text-sm text-slate-700"
+                  className="input"
                 />
               </div>
 
@@ -709,7 +747,7 @@ export default function SparePartsPage() {
                 <button
                   type="button"
                   onClick={() => setEditDetailsModalOpen(false)}
-                  className="h-10 rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
@@ -718,7 +756,7 @@ export default function SparePartsPage() {
                   loading={Boolean(editingSpareId)}
                   loadingLabel="Saving..."
                   onClick={handleSaveEditDetails}
-                  className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
+                  className="btn btn-primary"
                 >
                   Save changes
                 </LoadingButton>
@@ -732,7 +770,7 @@ export default function SparePartsPage() {
         <>
           <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={() => setDetailsModalOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-            <div className="my-6 w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+            <div className="card my-6 w-full max-w-lg p-5 shadow-2xl">
               <h3 className="text-lg font-semibold text-slate-900">Spare Details</h3>
               <p className="mt-1 text-sm text-slate-600">Quick business view for {selectedSpareForDetails.name}.</p>
 
@@ -761,7 +799,7 @@ export default function SparePartsPage() {
                 <button
                   type="button"
                   onClick={() => setDetailsModalOpen(false)}
-                  className="h-10 rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="btn btn-secondary"
                 >
                   Close
                 </button>
@@ -772,7 +810,7 @@ export default function SparePartsPage() {
                     setSelectedSpareForStockEdit(selectedSpareForDetails)
                     setEditStockModalOpen(true)
                   }}
-                  className="h-10 rounded-xl bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700"
+                  className="btn btn-primary"
                 >
                   Update stock
                 </button>

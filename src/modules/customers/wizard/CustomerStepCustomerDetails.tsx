@@ -26,8 +26,8 @@ export default function CustomerStepCustomerDetails({ value, errors, onChange }:
             type={field.type ?? "text"}
             value={value[field.key]}
             onChange={(event) => onChange(field.key, event.target.value)}
-            className={`rounded-lg border px-3 py-2 text-sm outline-none transition ${
-              errors[field.key] ? "border-rose-400 focus:ring-2 focus:ring-rose-100" : "border-gray-200 focus:ring-2 focus:ring-blue-100"
+            className={`input ${
+              errors[field.key] ? "border-rose-400 bg-rose-50" : ""
             }`}
           />
           {errors[field.key] ? <span className="text-xs text-rose-600">{errors[field.key]}</span> : null}

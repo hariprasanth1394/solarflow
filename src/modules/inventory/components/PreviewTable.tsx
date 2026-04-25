@@ -5,6 +5,7 @@ import {
   inventoryTableClass,
   inventoryTableHeaderCellClass,
   inventoryTableHeaderRowClass,
+  inventoryPagerButtonClass,
   inventoryTableRowClass,
   inventoryTableWrapperClass,
 } from './inventoryTableStyles'
@@ -93,7 +94,7 @@ export default function PreviewTable({
                       type="number"
                       value={row.importedStock}
                       onChange={(event) => onUpdateImportedStock(idx, event.target.value)}
-                      className="h-10 w-24 rounded-lg border border-slate-300 px-3 text-right text-sm text-slate-900 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      className="input h-10 w-24 text-right"
                     />
                   </td>
                   <td className={`${inventoryTableCellClass} text-right tabular-nums`}>{row.difference}</td>
@@ -118,7 +119,7 @@ export default function PreviewTable({
           type="button"
           onClick={onPrevPage}
           disabled={page <= 1}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-40"
+          className={inventoryPagerButtonClass}
         >
           Previous
         </button>
@@ -126,7 +127,7 @@ export default function PreviewTable({
           type="button"
           onClick={onNextPage}
           disabled={page >= totalPages}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-700 disabled:opacity-40"
+          className={inventoryPagerButtonClass}
         >
           Next
         </button>

@@ -170,16 +170,16 @@ export default function SystemAvailabilityDisplay({
 
       {/* EMPTY STATE */}
       {systemsAvailability.length === 0 && (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center">
+        <div className="card p-8 text-center">
           <p className="text-slate-600">No systems available</p>
         </div>
       )}
 
       {/* SUMMARY STATS */}
       {systemsAvailability.length > 0 && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="card p-4">
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-lg bg-green-50 p-3">
+            <div className="card bg-green-50 p-3">
               <p className="text-xs font-medium text-slate-600">Available for Production</p>
               <p className="mt-1 text-2xl font-bold text-green-600">{availableSystems.length}</p>
             </div>
@@ -187,7 +187,7 @@ export default function SystemAvailabilityDisplay({
               <p className="text-xs font-medium text-slate-600">Limited Stock</p>
               <p className="mt-1 text-2xl font-bold text-yellow-600">{limitedSystems.length}</p>
             </div>
-            <div className="rounded-lg bg-red-50 p-3">
+            <div className="card bg-red-50 p-3">
               <p className="text-xs font-medium text-slate-600">Out of Stock</p>
               <p className="mt-1 text-2xl font-bold text-red-600">{unavailableSystems.length}</p>
             </div>

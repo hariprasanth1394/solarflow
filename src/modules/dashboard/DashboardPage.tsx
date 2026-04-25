@@ -125,9 +125,9 @@ export default function DashboardPage() {
             </ChartCard>
           </section>
 
-          <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:col-span-2" data-responsive-table="true">
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">Recent Tasks</h3>
+          <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            <div className="card p-4 md:p-5 xl:col-span-2" data-responsive-table="true">
+              <h3 className="mb-4 text-base font-medium text-slate-900">Recent Tasks</h3>
               <DataTable
                 rows={recentTasks}
                 rowKey={(row) => row.id}
@@ -138,8 +138,8 @@ export default function DashboardPage() {
               />
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">Inventory Alerts</h3>
+            <div className="card p-4 md:p-5">
+              <h3 className="mb-4 text-base font-medium text-slate-900">Inventory Alerts</h3>
               <div className="space-y-2">
                 {inventoryAlerts.length === 0 ? <p className="text-sm text-slate-500">No stock alerts.</p> : null}
                 {inventoryAlerts.map((item) => (
@@ -151,9 +151,9 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">Activity Feed</h3>
+          <section className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+            <div className="card p-4 md:p-5">
+              <h3 className="mb-4 text-base font-medium text-slate-900">Activity Feed</h3>
               <ul className="space-y-2 text-sm text-slate-600">
                 {taskChartData.slice(0, 4).map((item) => (
                   <li key={item.status} className="rounded-lg bg-slate-50 px-3 py-2">

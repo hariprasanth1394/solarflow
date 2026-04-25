@@ -263,19 +263,13 @@ export default function ImportLogsView({
                   {/* ACTION BUTTONS */}
                   <div className="flex flex-wrap gap-2 border-t border-white/50 pt-4">
                     {onDownload && (
-                      <button
-                        onClick={() => onDownload(batch.id)}
-                        className="flex items-center gap-2 rounded border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                      >
+                      <button onClick={() => onDownload(batch.id)} className="btn btn-secondary btn-compact">
                         <Download className="h-4 w-4" />
                         Download
                       </button>
                     )}
                     {batch.status === 'failed' && onRetry && (
-                      <button
-                        onClick={() => onRetry(batch.id)}
-                        className="rounded bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700"
-                      >
+                      <button onClick={() => onRetry(batch.id)} className="btn btn-primary btn-compact">
                         Retry
                       </button>
                     )}
@@ -289,7 +283,7 @@ export default function ImportLogsView({
 
       {/* EMPTY STATE */}
       {filteredBatches.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50 py-12">
+        <div className="card flex flex-col items-center justify-center py-12">
           <Clock className="h-8 w-8 text-slate-400" />
           <p className="mt-2 text-slate-600">No import batches found</p>
         </div>

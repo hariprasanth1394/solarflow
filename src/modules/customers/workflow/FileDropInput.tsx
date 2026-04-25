@@ -47,13 +47,7 @@ export default function FileDropInput({
             inputRef.current?.click()
           }
         }}
-        className={`flex min-h-28 cursor-pointer items-center justify-center rounded-lg border border-dashed px-4 py-4 text-center transition-all ${
-          error
-            ? "border-rose-300 bg-rose-50"
-            : dragActive
-            ? "border-blue-400 bg-blue-50"
-            : "border-slate-300 bg-slate-50/50 hover:border-blue-300 hover:bg-blue-50/40"
-        }`}
+        className={`file-dropzone ${error ? "has-error" : dragActive ? "drag-active" : ""}`}
       >
         <input
           ref={inputRef}

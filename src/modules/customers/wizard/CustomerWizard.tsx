@@ -18,7 +18,7 @@ const steps = [
 ]
 
 const primaryButtonClass =
-  "rounded-lg bg-gradient-to-r from-purple-600 to-blue-500 px-4 py-2 text-sm font-medium text-white hover:from-purple-700 hover:to-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+  "btn btn-primary"
 
 const initialCustomer: CustomerDetailsState = {
   fullName: "",
@@ -210,16 +210,16 @@ export default function CustomerWizard() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="card p-5">
         <h1 className="text-2xl font-semibold text-gray-900">Add New Customer</h1>
         <p className="mt-1 text-sm text-gray-600">Complete the form to onboard a new solar installation customer.</p>
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="card p-5">
         <CustomerStepper step={step} steps={steps} />
       </section>
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="card p-5">
         {errorMessage ? <p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</p> : null}
         {message ? <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{message}</p> : null}
 
@@ -264,7 +264,7 @@ export default function CustomerWizard() {
             type="button"
             onClick={() => setStep((prev) => Math.max(prev - 1, 1))}
             disabled={step === 1 || saving}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn btn-secondary disabled:cursor-not-allowed disabled:opacity-60"
           >
             Previous
           </button>

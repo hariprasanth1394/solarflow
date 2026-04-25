@@ -465,7 +465,7 @@ export default function InventoryImportPage() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="card flex items-center gap-3 border-red-200 bg-red-50 p-4">
             <AlertCircle className="h-5 w-5 text-red-600" />
             <p className="flex-1 text-red-900">{error}</p>
             <button onClick={() => setError(null)} className="text-red-600 hover:text-red-700">
@@ -474,7 +474,7 @@ export default function InventoryImportPage() {
           </div>
         )}
 
-        <div className="rounded-lg border-2 border-dashed border-slate-300 p-12">
+        <div className="card border-2 border-dashed p-12">
           <div className="flex flex-col items-center gap-4">
             <div className="rounded-full bg-blue-100 p-4">
               <FileUp className="h-12 w-12 text-blue-600" />
@@ -483,17 +483,10 @@ export default function InventoryImportPage() {
               <p className="text-lg font-semibold text-slate-900">Upload Excel File</p>
               <p className="text-slate-600">Supported format: .xlsx only</p>
             </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded-lg bg-blue-600 px-6 py-3 text-white hover:bg-blue-700"
-            >
+            <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary h-11 px-6">
               Select File
             </button>
-            <button
-              onClick={handleDownloadTemplate}
-              type="button"
-              className="flex items-center gap-2 rounded-lg border border-slate-300 px-6 py-3 text-slate-700 hover:bg-slate-50"
-            >
+            <button onClick={handleDownloadTemplate} type="button" className="btn btn-secondary h-11 px-6">
               <Download className="h-4 w-4" />
               Download Real Data Template
             </button>
@@ -549,7 +542,7 @@ export default function InventoryImportPage() {
           <div className="flex gap-2">
             <button
               onClick={() => setScreen('logs')}
-              className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+              className="btn btn-secondary"
             >
               <BarChart3 className="h-4 w-4" />
               View Logs
@@ -558,7 +551,7 @@ export default function InventoryImportPage() {
         </div>
 
         {successMessage && (
-          <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
+          <div className="card flex items-center gap-3 border-green-200 bg-green-50 p-4">
             <CheckCircle className="h-5 w-5 text-green-600" />
             <p className="flex-1 text-green-900">{successMessage}</p>
             <button onClick={() => setSuccessMessage(null)} className="text-green-600 hover:text-green-700">
@@ -568,16 +561,16 @@ export default function InventoryImportPage() {
         )}
 
         {/* SUMMARY PANEL */}
-        <div className="sticky top-0 z-10 grid grid-cols-4 gap-4 rounded-lg bg-white p-4 shadow">
+        <div className="card sticky top-0 z-10 grid grid-cols-4 gap-4 p-4 shadow">
           <div className="rounded-lg bg-slate-50 p-3">
             <p className="text-2xl font-bold text-slate-900">{summary.totalRows}</p>
             <p className="text-sm text-slate-600">Total Rows</p>
           </div>
-          <div className="rounded-lg bg-green-50 p-3">
+          <div className="card bg-green-50 p-3">
             <p className="text-2xl font-bold text-green-600">{summary.validRows}</p>
             <p className="text-sm text-slate-600">Valid</p>
           </div>
-          <div className="rounded-lg bg-red-50 p-3">
+          <div className="card bg-red-50 p-3">
             <p className="text-2xl font-bold text-red-600">{summary.errorRows}</p>
             <p className="text-sm text-slate-600">Errors</p>
           </div>
@@ -587,7 +580,7 @@ export default function InventoryImportPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3">
+        <div className="card flex items-center justify-between p-3">
           <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -605,8 +598,8 @@ export default function InventoryImportPage() {
         </div>
 
         {/* DATA TABLE */}
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full">
+        <div className="table-shell overflow-x-auto">
+          <table className="table w-full">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Item</th>
@@ -646,7 +639,7 @@ export default function InventoryImportPage() {
                           type="number"
                           value={row.issuedQty ?? ''}
                           onChange={(e) => handleRowEdit(originalIndex, 'issuedQty', e.target.value ? parseFloat(e.target.value) : null)}
-                          className="w-full rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                          className="input h-8 px-2 py-1 text-right"
                           disabled={rowStatus === 'ERROR'}
                         />
                       </td>
@@ -655,7 +648,7 @@ export default function InventoryImportPage() {
                           type="number"
                           value={row.closingStock ?? ''}
                           onChange={(e) => handleRowEdit(originalIndex, 'closingStock', e.target.value ? parseFloat(e.target.value) : null)}
-                          className="w-full rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                          className="input h-8 px-2 py-1 text-right"
                           disabled={rowStatus === 'ERROR'}
                         />
                       </td>
@@ -704,14 +697,14 @@ export default function InventoryImportPage() {
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={safePage <= 1}
-            className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-700 disabled:opacity-50"
+            className="btn btn-secondary btn-compact disabled:opacity-50"
           >
             Previous
           </button>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={safePage >= totalPages}
-            className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-700 disabled:opacity-50"
+            className="btn btn-secondary btn-compact disabled:opacity-50"
           >
             Next
           </button>
@@ -721,7 +714,7 @@ export default function InventoryImportPage() {
         <div className="flex gap-3">
           <button
             onClick={() => setScreen('upload')}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+            className="btn btn-secondary"
           >
             Upload Different File
           </button>
@@ -734,7 +727,7 @@ export default function InventoryImportPage() {
               void handleValidate()
             }}
             disabled={summary.errorRows > 0 || status === 'validating'}
-            className="ml-auto rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="btn btn-primary ml-auto disabled:opacity-50"
           >
             {status === 'validating' ? (
               <>
@@ -760,7 +753,7 @@ export default function InventoryImportPage() {
         </div>
 
         {status === 'validating' && (
-          <div className="flex items-center justify-center gap-3 rounded-lg bg-blue-50 p-8">
+          <div className="card flex items-center justify-center gap-3 bg-blue-50 p-8">
             <Loader className="h-5 w-5 animate-spin text-blue-600" />
             <p className="text-blue-700">Calculating system availability...</p>
           </div>
@@ -772,14 +765,14 @@ export default function InventoryImportPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setScreen('preview')}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+                className="btn btn-secondary"
               >
                 Back to Preview
               </button>
               <button
                 onClick={handleConfirmImport}
                 disabled={status === 'processing'}
-                className="ml-auto rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+                className="btn btn-primary ml-auto disabled:opacity-50"
               >
                 {status === 'processing' ? (
                   <>
@@ -795,7 +788,7 @@ export default function InventoryImportPage() {
         ) : (
           <button
             onClick={handleCalculateAvailability}
-            className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+            className="btn btn-primary"
           >
             Calculate Availability
           </button>

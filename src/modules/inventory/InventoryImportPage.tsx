@@ -220,7 +220,7 @@ export default function InventoryImportPage() {
 
       {/* ERROR / SUCCESS MESSAGES */}
       {error && (
-        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="card flex items-center gap-3 border-red-200 bg-red-50 p-4">
           <AlertCircle className="h-5 w-5 text-red-600" />
           <div className="flex-1">
             <p className="font-medium text-red-900">{error}</p>
@@ -235,7 +235,7 @@ export default function InventoryImportPage() {
       )}
 
       {successMessage && (
-        <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-4">
+        <div className="card flex items-center gap-3 border-green-200 bg-green-50 p-4">
           <CheckCircle className="h-5 w-5 text-green-600" />
           <div className="flex-1">
             <p className="font-medium text-green-900">{successMessage}</p>
@@ -251,7 +251,7 @@ export default function InventoryImportPage() {
 
       {/* UPLOAD SECTION */}
       {status === 'idle' && (
-        <div className="rounded-lg border-2 border-dashed border-slate-300 p-8">
+        <div className="card border-2 border-dashed p-8">
           <div className="flex flex-col items-center gap-4">
             <div className="rounded-full bg-slate-100 p-4">
               <FileUp className="h-8 w-8 text-slate-600" />
@@ -260,10 +260,7 @@ export default function InventoryImportPage() {
               <p className="font-semibold text-slate-900">Upload Stock_Import.xlsx</p>
               <p className="text-sm text-slate-600">Drag and drop or click to select</p>
             </div>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
-            >
+            <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary">
               Select File
             </button>
             <input
@@ -279,7 +276,7 @@ export default function InventoryImportPage() {
 
       {/* LOADING STATES */}
       {(status === 'uploading' || status === 'validating') && (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-lg bg-slate-50 p-12">
+        <div className="card flex flex-col items-center justify-center gap-4 p-12">
           <Loader className="h-8 w-8 animate-spin text-blue-600" />
           <p className="text-slate-600">
             {status === 'uploading' ? 'Uploading file...' : 'Validating data...'}
@@ -291,17 +288,17 @@ export default function InventoryImportPage() {
       {(status === 'previewing' || status === 'confirming') && rows.length > 0 && (
         <>
           {/* SUMMARY PANEL (Sticky) */}
-          <div className="sticky top-0 z-10 space-y-3 rounded-lg bg-white p-4 shadow">
+          <div className="card sticky top-0 z-10 space-y-3 p-4 shadow">
             <div className="grid grid-cols-4 gap-4">
               <div className="rounded-lg bg-slate-50 p-3">
                 <p className="text-2xl font-bold text-slate-900">{summary.totalRows}</p>
                 <p className="text-sm text-slate-600">Total Rows</p>
               </div>
-              <div className="rounded-lg bg-green-50 p-3">
+              <div className="card bg-green-50 p-3">
                 <p className="text-2xl font-bold text-green-600">{summary.validRows}</p>
                 <p className="text-sm text-slate-600">Valid</p>
               </div>
-              <div className="rounded-lg bg-red-50 p-3">
+              <div className="card bg-red-50 p-3">
                 <p className="text-2xl font-bold text-red-600">{summary.errorRows}</p>
                 <p className="text-sm text-slate-600">Errors</p>
               </div>
@@ -313,8 +310,8 @@ export default function InventoryImportPage() {
           </div>
 
           {/* DATA TABLE */}
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full">
+          <div className="table-shell overflow-x-auto">
+            <table className="table w-full">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
                   <th className="px-4 py-3 text-left text-sm font-semibold text-slate-900">Item Code</th>
@@ -342,7 +339,7 @@ export default function InventoryImportPage() {
                           onChange={(e) =>
                             handleRowEdit(idx, 'issuedQty', e.target.value ? parseFloat(e.target.value) : null)
                           }
-                          className="w-full rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                          className="input h-8 px-2 py-1 text-right"
                           disabled={rowStatus === 'error'}
                         />
                       </td>
@@ -353,7 +350,7 @@ export default function InventoryImportPage() {
                           onChange={(e) =>
                             handleRowEdit(idx, 'closingStock', e.target.value ? parseFloat(e.target.value) : null)
                           }
-                          className="w-full rounded border border-slate-300 px-2 py-1 text-right text-sm"
+                          className="input h-8 px-2 py-1 text-right"
                           disabled={rowStatus === 'error'}
                         />
                       </td>
@@ -387,14 +384,14 @@ export default function InventoryImportPage() {
                 setSummary({ totalRows: 0, validRows: 0, errorRows: 0, warningRows: 0 })
                 setBatchId(null)
               }}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-slate-700 hover:bg-slate-50"
+              className="btn btn-secondary"
             >
               Upload Different File
             </button>
             <button
               onClick={handleConfirmImport}
               disabled={summary.errorRows > 0}
-              className="ml-auto rounded-lg bg-blue-600 px-6 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+              className="btn btn-primary ml-auto disabled:opacity-50"
             >
               {status === 'confirming' ? (
                 <>
@@ -411,7 +408,7 @@ export default function InventoryImportPage() {
 
       {/* COMPLETION SCREEN */}
       {status === 'completed' && (
-        <div className="rounded-lg border border-green-200 bg-green-50 p-8">
+        <div className="card border-green-200 bg-green-50 p-8">
           <div className="flex flex-col items-center gap-4">
             <CheckCircle className="h-12 w-12 text-green-600" />
             <h2 className="text-2xl font-bold text-green-900">Import Completed Successfully</h2>
@@ -423,7 +420,7 @@ export default function InventoryImportPage() {
                 setSummary({ totalRows: 0, validRows: 0, errorRows: 0, warningRows: 0 })
                 setBatchId(null)
               }}
-              className="rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700"
+              className="btn btn-primary"
             >
               Import Another File
             </button>

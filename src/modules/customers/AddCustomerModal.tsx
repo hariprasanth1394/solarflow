@@ -60,7 +60,7 @@ function CustomerModalForm({
       <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
         <form
-          className="my-6 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:p-5"
+          className="card my-6 w-full max-w-2xl p-4 shadow-2xl sm:p-5"
           onSubmit={async (event) => {
             event.preventDefault()
             await onSubmit(form)
@@ -72,32 +72,32 @@ function CustomerModalForm({
               value={form.name}
               onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               placeholder="Name"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="input"
               required
             />
             <input
               value={form.phone ?? ""}
               onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value || null }))}
               placeholder="Phone"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="input"
             />
             <input
               value={form.email ?? ""}
               onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value || null }))}
               placeholder="Email"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="input"
             />
             <input
               value={form.company ?? ""}
               onChange={(event) => setForm((prev) => ({ ...prev, company: event.target.value || null }))}
               placeholder="Company"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="input"
             />
             <input
               value={form.address ?? ""}
               onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value || null }))}
               placeholder="Address"
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm md:col-span-2"
+              className="input md:col-span-2"
             />
             <div className="md:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-700">Package Type</label>
@@ -105,7 +105,7 @@ function CustomerModalForm({
               <select
                 value={form.system_id ?? ""}
                 onChange={(event) => setForm((prev) => ({ ...prev, system_id: event.target.value || null }))}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-400"
+                className="dropdown disabled:opacity-50"
                 disabled={systemsLoading || noSystemsAvailable}
               >
                 <option value="">
@@ -126,14 +126,14 @@ function CustomerModalForm({
               <input
                 value={selectedCapacity !== null ? `${selectedCapacity}` : ""}
                 placeholder="Auto-filled from selected package"
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                className="input bg-slate-50"
                 readOnly
               />
             </div>
             <select
               value={form.assigned_to ?? ""}
               onChange={(event) => setForm((prev) => ({ ...prev, assigned_to: event.target.value || null }))}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="dropdown"
             >
               <option value="">Assign sales rep</option>
               {salesReps.map((rep) => (
@@ -145,7 +145,7 @@ function CustomerModalForm({
             <select
               value={form.status}
               onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              className="dropdown"
             >
               <option value="Created">Created</option>
               <option value="Govt Approval Pending">Govt Approval Pending</option>
@@ -158,7 +158,7 @@ function CustomerModalForm({
           </div>
 
           <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm sm:w-auto">
+            <button type="button" onClick={onClose} className="btn btn-secondary w-full sm:w-auto">
               Cancel
             </button>
             <LoadingButton
@@ -166,7 +166,7 @@ function CustomerModalForm({
               loading={loading}
               loadingLabel="Saving..."
               disabled={disabled}
-              className="w-full bg-violet-600 text-white sm:w-auto"
+              className="btn btn-primary w-full sm:w-auto"
             >
               {initialValue ? "Update Customer" : "Add Customer"}
             </LoadingButton>

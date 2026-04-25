@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Check, CircleCheck, Clock3, CreditCard, FileText, Flag, Loader2, Pencil, Plus, Upload, UserRound, Zap } from "lucide-react"
+import { ArrowLeft, Check, CircleCheck, Clock3, CreditCard, FileText, Flag, Loader2, Pencil, Plus, Upload, UserRound, Zap } from "lucide-react"
 import { formatDateTimeUTC } from "@/utils/dateFormat"
 import { validateUUID } from "@/utils/validateUUID"
 import { getCustomerById, getCustomerProgress, updateCustomer } from "@/services/customerService"
@@ -546,10 +546,8 @@ export default function CustomerDetailsPage() {
     setModalState({ action })
   }
 
-  const textFieldClass =
-    "h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-  const areaFieldClass =
-    "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+  const textFieldClass = "input h-12"
+  const areaFieldClass = "textarea"
 
   function modalStageLabel(action: WorkflowActionKey | null) {
     if (action === "SUBMIT_APPROVAL_DOCUMENTS" || action === "MARK_GOVERNMENT_APPROVED") return "Government Approval"
@@ -607,7 +605,8 @@ export default function CustomerDetailsPage() {
     return { key: allowedActionModel.primaryAction, label: meta.label, description: meta.description }
   }, [allowedActionModel])
 
-  const canUpdatePayment = allowedActionModel.allowedActions.includes("CLOSE_PROJECT")
+  const isFullyPaid = paymentModel.total > 0 && paymentModel.remaining <= 0
+  const canUpdatePayment = !(isFullyPaid && currentWorkflowStage === "CLOSED")
 
   const appendNotes = (base: string | null | undefined, sectionTitle: string, lines: string[]) => {
     const nextSection = [`${sectionTitle}:`, ...lines.filter(Boolean)].join("\n")
@@ -843,20 +842,20 @@ export default function CustomerDetailsPage() {
           throw new Error("Please provide completion notes before updating payment.")
         }
 
-        if (paidAmountValue < totalAmountValue) {
-          throw new Error(`Cannot close project: Rs ${remainingAmountValue.toFixed(2)} is still pending.`)
-        }
-
         if (invoiceDoc) {
           setActionProgressMessage("Uploading document...")
           await runWithRetry(() => uploadDocument(invoiceDoc, "project-closure-invoice", customer.id))
         }
 
+        const shouldCloseProject = paidAmountValue >= totalAmountValue && totalAmountValue > 0
+        const nextStatus = shouldCloseProject ? "Completed" : customer.status
+        const nextStage = shouldCloseProject ? "CLOSED" : customer.current_stage ?? "INSTALLATION"
+
         setActionProgressMessage("Validating data...")
         await runWithRetry(() =>
           updateCustomer(customer.id, {
-            status: "Completed",
-            current_stage: "CLOSED",
+            status: nextStatus,
+            current_stage: nextStage,
             notes: appendNotes(customer.notes, "Project Closure", [
               `Payment Status: ${autoPaymentStatus}`,
               `Total Amount: ${totalAmountValue.toFixed(2)}`,
@@ -867,8 +866,13 @@ export default function CustomerDetailsPage() {
           })
         )
         setActionProgressMessage("Updating workflow...")
-        applyLocalStage("Completed", "CLOSED")
-        setStatusToast("Status updated successfully")
+        if (shouldCloseProject) {
+          applyLocalStage("Completed", "CLOSED")
+          setStatusToast("Payment updated and project closed")
+        } else {
+          applyLocalStage(customer.status, customer.current_stage ?? "INSTALLATION")
+          setStatusToast("Payment updated successfully")
+        }
       }
 
       closeModal()
@@ -891,7 +895,7 @@ export default function CustomerDetailsPage() {
   const customerLocation = [customer?.city, customer?.state, customer?.country].filter(Boolean).join(", ") || customer?.address || ""
 
   return (
-    <div className="w-full space-y-5">
+    <div className="w-full space-y-6">
       {statusToast ? (
         <div className="fixed right-5 top-5 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 py-3 text-sm font-medium text-emerald-700 shadow-[0_12px_32px_rgba(15,23,42,0.14)]">
           <Check className="h-4 w-4" />
@@ -899,14 +903,14 @@ export default function CustomerDetailsPage() {
         </div>
       ) : null}
 
-      <Link href="/customers" className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-slate-800">
-        <span aria-hidden>←</span>
+      <Link href="/customers" className="back-button">
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to Customers
       </Link>
 
       {/* ── Loading ── */}
       {loading ? (
-        <div className="flex items-center gap-2.5 rounded-lg bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)] text-sm text-slate-500">
+        <div className="sf-section-card flex items-center gap-2.5 p-5 text-sm text-slate-500">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading customer details…
         </div>
       ) : null}
@@ -915,8 +919,9 @@ export default function CustomerDetailsPage() {
       {!loading && error === "Customer not found" ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
           <p className="text-sm text-amber-800">Customer not found.</p>
-          <Link href="/customers" className="mt-3 inline-flex rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-amber-800">
-            ← Back to Customers
+          <Link href="/customers" className="back-button mt-3">
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Back to Customers
           </Link>
         </div>
       ) : null}
@@ -931,7 +936,7 @@ export default function CustomerDetailsPage() {
           {/* ══════════════════════════════════════════
                HEADER
           ══════════════════════════════════════════ */}
-          <div className="rounded-lg bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+          <div className="sf-section-card p-5">
             {/* Row 1 */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -944,13 +949,13 @@ export default function CustomerDetailsPage() {
                   {customerLocation ? <span>{customerLocation}</span> : null}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+              <div className="flex shrink-0 flex-row items-center justify-end gap-2 sm:gap-3">
                 <span className={`inline-flex items-center rounded-[6px] px-2.5 py-1 text-[12px] font-medium transition-all duration-200 ${headerStageBadge(currentStage)} ${statusChipPulse ? "scale-[1.04] shadow-[0_0_0_4px_rgba(59,130,246,0.12)]" : "scale-100"}`}>
                   {stageDefinitions.find((s) => s.key === currentStage)?.title ?? customer.status}
                 </span>
                 <Link
                   href={`/customers/${customer.id}/edit`}
-                  className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+                  className="btn btn-secondary btn-compact"
                 >
                   <Pencil className="h-3.5 w-3.5" />
                   Edit
@@ -959,7 +964,7 @@ export default function CustomerDetailsPage() {
                   type="button"
                   onClick={() => openActionModal("CLOSE_PROJECT")}
                   disabled={!canUpdatePayment}
-                  className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition-all hover:from-blue-700 hover:to-violet-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn btn-primary btn-compact customer-primary-btn"
                 >
                   <CreditCard className="h-3.5 w-3.5" />
                   Update Payment
@@ -989,7 +994,7 @@ export default function CustomerDetailsPage() {
           {/* ══════════════════════════════════════════
                WORKFLOW PROGRESS
           ══════════════════════════════════════════ */}
-          <div className="sf-card rounded-lg bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+          <div className="sf-section-card p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Workflow Progress</p>
 
             {/* Horizontal stepper */}
@@ -1000,10 +1005,7 @@ export default function CustomerDetailsPage() {
                   className="workflow-stepper-progress absolute left-[calc(12.5%+0.5rem)] top-5 h-0.5"
                   style={{ width: `calc((100% - 2rem) * ${stageProgressPercent / 100})` }}
                 />
-                <div
-                  className="relative z-[2] grid"
-                  style={{ gridTemplateColumns: `repeat(${stageDefinitions.length}, minmax(0, 1fr))` }}
-                >
+                <div className="workflow-container relative z-[2]">
                   {stageDefinitions.map((stage, index) => {
                     const isDone = index < progressIndex
                     const isActive = index === progressIndex
@@ -1022,7 +1024,7 @@ export default function CustomerDetailsPage() {
                       : "upcoming"
                     const Icon = iconForStage(stage.key)
                     return (
-                      <div key={stage.key} className="flex justify-center">
+                      <div key={stage.key} className="workflow-step">
                         <div
                           className={`workflow-step-node flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-all ${
                             visualState === "completed"
@@ -1041,10 +1043,7 @@ export default function CustomerDetailsPage() {
                   })}
                 </div>
               </div>
-              <div
-                className="mt-2 grid gap-1"
-                style={{ gridTemplateColumns: `repeat(${stageDefinitions.length}, minmax(0, 1fr))` }}
-              >
+              <div className="workflow-container mt-2 gap-1">
                 {stageDefinitions.map((stage, index) => {
                   const isDone = index < progressIndex
                   const isActive = index === progressIndex
@@ -1057,14 +1056,14 @@ export default function CustomerDetailsPage() {
                   return (
                     <p
                       key={`${stage.key}-label`}
-                      className={`px-1 text-center text-[11px] font-medium leading-tight ${
+                      className={`workflow-label px-1 leading-tight ${
                         isActive
-                          ? "text-slate-900"
+                          ? "current-stage"
                           : isDone
-                          ? "text-emerald-600"
+                          ? "completed-stage"
                           : isBlocked
                           ? "text-amber-600"
-                          : "text-slate-400"
+                          : ""
                       }`}
                     >
                       {stage.title}
@@ -1076,20 +1075,20 @@ export default function CustomerDetailsPage() {
 
             {/* Next action required — dominant CTA */}
             {currentWorkflowStage !== "CLOSED" ? (
-              <div className="mt-5 overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-violet-50/40">
+              <div className="next-action mt-5 overflow-hidden">
                 <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600/10">
-                    <Zap className="h-5 w-5 text-blue-600" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/15">
+                    <Zap className="h-5 w-5 text-blue-400" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-blue-600">Next Action Required</p>
-                    <p className="mt-0.5 text-[15px] font-semibold leading-snug text-slate-900">{allowedActionModel.guidance}</p>
+                    <p className="next-action-title">Next Action Required</p>
+                    <p className="next-action-text mt-0.5">{allowedActionModel.guidance}</p>
                   </div>
                   {nextActionInfo && nextActionInfo.key !== "CLOSE_PROJECT" ? (
                     <button
                       type="button"
                       onClick={() => openActionModal(nextActionInfo.key)}
-                      className="sf-btn-gradient inline-flex min-h-12 shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-semibold text-white active:scale-[0.97]"
+                      className="btn btn-primary customer-primary-btn shrink-0"
                     >
                       {nextActionInfo.label}
                     </button>
@@ -1105,29 +1104,6 @@ export default function CustomerDetailsPage() {
           </div>
 
           {/* ══════════════════════════════════════════
-               ACTION BAR
-          ══════════════════════════════════════════ */}
-          <div className="flex justify-end gap-3">
-            {allowedActionModel.allowedActions
-              .filter((action) => action !== "CLOSE_PROJECT")
-              .map((action) => {
-                const meta = actionMeta(action)
-                return (
-                  <button
-                    key={action}
-                    type="button"
-                    onClick={() => openActionModal(action)}
-                    className="sf-btn-secondary inline-flex min-h-12 items-center justify-center gap-1.5 rounded-lg px-4 text-sm font-medium transition-all active:scale-[0.97]"
-                  >
-                    {action === "START_INSTALLATION" ? <Plus className="h-4 w-4 text-slate-400" /> : null}
-                    {action === "SUBMIT_APPROVAL_DOCUMENTS" ? <Upload className="h-4 w-4 text-slate-400" /> : null}
-                    {meta.label}
-                  </button>
-                )
-              })}
-          </div>
-
-          {/* ══════════════════════════════════════════
                MAIN 2-COLUMN LAYOUT
           ══════════════════════════════════════════ */}
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_300px]">
@@ -1135,7 +1111,7 @@ export default function CustomerDetailsPage() {
             <div className="space-y-5">
 
               {/* Stage Pipeline */}
-              <div className="overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <div className="sf-section-card overflow-hidden">
                 <div className="border-b border-slate-100 px-5 py-3.5">
                   <h2 className="text-sm font-semibold text-slate-900">Stage Pipeline</h2>
                 </div>
@@ -1166,14 +1142,14 @@ export default function CustomerDetailsPage() {
               </div>
 
               {/* Documents */}
-              <div className="overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <div className="sf-section-card overflow-hidden">
                 <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
                   <h2 className="text-sm font-semibold text-slate-900">Documents</h2>
                   {allowedActionModel.allowedActions.includes("SUBMIT_APPROVAL_DOCUMENTS") ? (
                     <button
                       type="button"
                       onClick={() => openActionModal("SUBMIT_APPROVAL_DOCUMENTS")}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+                      className="btn btn-secondary btn-compact"
                     >
                       <Upload className="h-3.5 w-3.5" />
                       Upload Document
@@ -1224,7 +1200,7 @@ export default function CustomerDetailsPage() {
                                   setViewingDocumentId(null)
                                 }
                               }}
-                              className="inline-flex h-7 items-center gap-1 rounded border border-slate-200 px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                              className="btn btn-secondary btn-compact"
                             >
                               {viewingDocumentId === doc.id ? "Opening…" : "View"}
                             </button>
@@ -1263,7 +1239,7 @@ export default function CustomerDetailsPage() {
                               setViewingDocumentId(null)
                             }
                           }}
-                          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-slate-200 px-4 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                          className="btn btn-secondary w-full disabled:opacity-50"
                         >
                           {viewingDocumentId === doc.id ? "Opening…" : "View document"}
                         </button>
@@ -1277,7 +1253,7 @@ export default function CustomerDetailsPage() {
             {/* ── RIGHT: Tasks + Activity ── */}
             <div className="space-y-5">
 
-              <div className={`overflow-hidden rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.05)] ${persistedRemainingAmount > 0 ? "border border-amber-200 bg-amber-50/40" : "bg-white"}`}>
+              <div className={`sf-section-card overflow-hidden ${persistedRemainingAmount > 0 ? "border-amber-200 bg-amber-50/40" : ""}`}>
                 <div className="border-b border-slate-100 px-4 py-3.5">
                   <h2 className="text-sm font-semibold text-slate-900">Payment Overview</h2>
                 </div>
@@ -1316,14 +1292,14 @@ export default function CustomerDetailsPage() {
               </div>
 
               {/* Tasks */}
-              <div className="overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <div className="sf-section-card overflow-hidden">
                 <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5">
                   <h2 className="text-sm font-semibold text-slate-900">Tasks</h2>
                   {allowedActionModel.allowedActions.includes("START_INSTALLATION") ? (
                     <button
                       type="button"
                       onClick={() => openActionModal("START_INSTALLATION")}
-                      className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 px-2 text-xs font-medium text-slate-700 transition-all hover:bg-slate-50 active:scale-[0.97]"
+                      className="btn btn-secondary btn-compact"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Add Task
@@ -1363,7 +1339,7 @@ export default function CustomerDetailsPage() {
               </div>
 
               {/* Activity Timeline */}
-              <div className="overflow-hidden rounded-lg bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+              <div className="sf-section-card overflow-hidden">
                 <div className="border-b border-slate-100 px-4 py-3.5">
                   <h2 className="text-sm font-semibold text-slate-900">Activity</h2>
                 </div>

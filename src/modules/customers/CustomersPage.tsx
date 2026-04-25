@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { Plus, Search, Users } from "lucide-react"
 import AddCustomerModal from "./AddCustomerModal"
 import CustomerTable, { type CustomerRow } from "./CustomerTable"
+import Card from "@/components/ui/Card"
 import { createCustomer, deleteCustomer, getAssignableSalesReps, getCustomers, updateCustomer } from "../../services/customerService"
 import { getAvailableSolarSystems, type AvailableSolarSystem } from "../../services/inventoryService"
 import {
@@ -92,15 +93,15 @@ export default function CustomersPage() {
     <div className={inventoryPageContainerClass}>
 
       {/* ── Header ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Customers</h1>
+          <h1 className="text-slate-900">Customers</h1>
           <p className="mt-0.5 text-sm text-slate-500">Manage customer pipeline and installation lifecycle</p>
         </div>
         <button
           type="button"
           onClick={openAddModal}
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="btn btn-primary"
         >
           <Plus className="h-4 w-4" />
           Add Customer
@@ -108,23 +109,23 @@ export default function CustomersPage() {
       </div>
 
       {/* ── Stats row ── */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className={inventorySectionCardClass}>
+      <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+        <Card padded>
           <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Total Customers</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{dashboardCounts.total}</p>
-        </div>
-        <div className={inventorySectionCardClass}>
+          <p className="mt-3 text-[28px] font-semibold leading-[1.2] tabular-nums text-slate-900">{dashboardCounts.total}</p>
+        </Card>
+        <Card padded>
           <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Active Projects</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{dashboardCounts.installation}</p>
-        </div>
-        <div className={inventorySectionCardClass}>
+          <p className="mt-3 text-[28px] font-semibold leading-[1.2] tabular-nums text-slate-900">{dashboardCounts.installation}</p>
+        </Card>
+        <Card padded>
           <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Pending Approvals</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{dashboardCounts.governmentApproval}</p>
-        </div>
-        <div className={inventorySectionCardClass}>
+          <p className="mt-3 text-[28px] font-semibold leading-[1.2] tabular-nums text-slate-900">{dashboardCounts.governmentApproval}</p>
+        </Card>
+        <Card padded>
           <p className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Completed Installations</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{dashboardCounts.closed}</p>
-        </div>
+          <p className="mt-3 text-[28px] font-semibold leading-[1.2] tabular-nums text-slate-900">{dashboardCounts.closed}</p>
+        </Card>
       </div>
 
       {/* ── Toolbar (Spare-style card controls) ── */}
@@ -137,7 +138,7 @@ export default function CustomersPage() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Search customers, phone, location, system…"
-            className="h-10 w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 transition duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="input pl-9 pr-3"
           />
         </div>
 
@@ -146,7 +147,7 @@ export default function CustomersPage() {
           <select
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
-            className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 transition duration-200 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="dropdown"
           >
             {stageOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>

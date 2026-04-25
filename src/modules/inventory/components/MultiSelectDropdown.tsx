@@ -26,16 +26,33 @@ const selectStyles: StylesConfig<SelectOption, true> = {
     ...base,
     minHeight: 44,
     borderRadius: 12,
-    borderColor: state.isFocused ? '#3b82f6' : '#cbd5e1',
-    boxShadow: state.isFocused ? '0 0 0 3px rgba(59,130,246,0.15)' : 'none',
-    '&:hover': { borderColor: '#94a3b8' }
+    backgroundColor: 'var(--sf-card-bg)',
+    color: 'var(--sf-text)',
+    borderColor: state.isFocused ? 'var(--sf-primary-start)' : 'var(--sf-card-border)',
+    boxShadow: state.isFocused ? 'var(--sf-focus-glow)' : 'none',
+    '&:hover': { borderColor: 'var(--sf-card-border)' }
   }),
-  menu: (base) => ({ ...base, borderRadius: 12, overflow: 'hidden' }),
+  menu: (base) => ({
+    ...base,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'var(--sf-card-bg)',
+    border: '1px solid var(--sf-card-border)',
+    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)'
+  }),
   menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-  menuList: (base) => ({ ...base, maxHeight: 240 }),
-  multiValue: (base) => ({ ...base, borderRadius: 9999, backgroundColor: '#eff6ff' }),
-  multiValueLabel: (base) => ({ ...base, color: '#1d4ed8', fontWeight: 500 }),
-  multiValueRemove: (base) => ({ ...base, color: '#1d4ed8', ':hover': { backgroundColor: '#dbeafe', color: '#1e40af' } })
+  menuList: (base) => ({ ...base, maxHeight: 240, backgroundColor: 'var(--sf-card-bg)' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isFocused ? 'var(--sf-hover-soft)' : 'var(--sf-card-bg)',
+    color: 'var(--sf-text)'
+  }),
+  input: (base) => ({ ...base, color: 'var(--sf-text)' }),
+  singleValue: (base) => ({ ...base, color: 'var(--sf-text)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--sf-muted-text)' }),
+  multiValue: (base) => ({ ...base, borderRadius: 9999, backgroundColor: 'var(--sf-hover-soft)' }),
+  multiValueLabel: (base) => ({ ...base, color: 'var(--sf-text)', fontWeight: 500 }),
+  multiValueRemove: (base) => ({ ...base, color: 'var(--sf-text)', ':hover': { backgroundColor: 'var(--sf-hover-soft)', color: 'var(--sf-text)' } })
 }
 
 function MultiSelectDropdownComponent({

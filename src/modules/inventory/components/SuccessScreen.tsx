@@ -52,7 +52,7 @@ export default function SuccessScreen({
   return (
     <div className="space-y-6 p-6">
       {/* SUCCESS CARD */}
-      <div className="rounded-lg border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-8">
+      <div className="card border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-8">
         <div className="flex gap-4">
           <div className="flex-shrink-0">
             <CheckCircle className="h-12 w-12 text-green-600" />
@@ -71,21 +71,21 @@ export default function SuccessScreen({
 
       {/* PROCESSING SUMMARY */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="card p-4">
           <p className="text-sm font-medium text-slate-600">Total Rows Processed</p>
           <p className="mt-2 text-3xl font-bold text-slate-900">{summary.totalRows}</p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="card p-4">
           <p className="text-sm font-medium text-slate-600">Successful</p>
           <p className="mt-2 text-3xl font-bold text-green-600">{summary.successfulRows}</p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="card p-4">
           <p className="text-sm font-medium text-slate-600">Processing Time</p>
           <p className="mt-2 text-3xl font-bold text-slate-900">
             {(summary.processingTimeMs / 1000).toFixed(2)}s
           </p>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className="card p-4">
           <p className="text-sm font-medium text-slate-600">Completed At</p>
           <p className="mt-2 text-sm font-semibold text-slate-900">
             {new Date(summary.timestamp).toLocaleTimeString()}
@@ -94,14 +94,14 @@ export default function SuccessScreen({
       </div>
 
       {/* STOCK MOVEMENT SUMMARY */}
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
+      <div className="card p-6">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-blue-600" />
           <h2 className="text-lg font-semibold text-slate-900">Stock Movement Summary</h2>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <div className="flex gap-3">
-            <div className="rounded-lg bg-blue-50 p-3">
+            <div className="card bg-blue-50 p-3">
               <BarChart3 className="h-5 w-5 text-blue-600" />
             </div>
             <div>
@@ -123,7 +123,7 @@ export default function SuccessScreen({
             </div>
           </div>
           <div className="flex gap-3">
-            <div className="rounded-lg bg-amber-50 p-3">
+            <div className="card bg-amber-50 p-3">
               <TrendingUp className="h-5 w-5 text-amber-600" />
             </div>
             <div>
@@ -138,7 +138,7 @@ export default function SuccessScreen({
 
       {/* SYSTEM IMPACT */}
       {systemImpact.availabilityReduction.length > 0 && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6">
+        <div className="card p-6">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-600" />
             <h2 className="text-lg font-semibold text-slate-900">System Availability Impact</h2>
@@ -173,21 +173,21 @@ export default function SuccessScreen({
       <div className="flex flex-wrap gap-3">
         <button
           onClick={onDownloadReport}
-          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
+          className="btn btn-secondary"
         >
           <Download className="h-4 w-4" />
           Download Report
         </button>
         <button
           onClick={onViewLogs}
-          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-slate-700 hover:bg-slate-50"
+          className="btn btn-secondary"
         >
           <BarChart3 className="h-4 w-4" />
           View Batch Logs
         </button>
         <button
           onClick={onNewImport}
-          className="ml-auto rounded-lg bg-green-600 px-6 py-2 text-white hover:bg-green-700"
+          className="btn btn-primary ml-auto"
         >
           Import Another File
         </button>

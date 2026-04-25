@@ -67,23 +67,23 @@ export default function InventoryDashboard() {
     >
       {loading ? <p className="text-sm text-slate-500">Loading dashboard...</p> : null}
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
           <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Total spare parts</p>
-          <p className="text-2xl font-bold text-slate-900">{metrics.totalSpareParts}</p>
+          <p className="text-[28px] font-semibold leading-[1.2] text-slate-900">{metrics.totalSpareParts}</p>
         </div>
         <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
           <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Buildable systems</p>
-          <p className="text-2xl font-bold text-slate-900">{metrics.availableSystems}</p>
+          <p className="text-[28px] font-semibold leading-[1.2] text-slate-900">{metrics.availableSystems}</p>
         </div>
         <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
           <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Low-stock items</p>
-          <p className="text-2xl font-bold text-slate-900">{metrics.lowStockItems}</p>
+          <p className="text-[28px] font-semibold leading-[1.2] text-slate-900">{metrics.lowStockItems}</p>
         </div>
         <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
           <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Low-stock risk</p>
           <div>
-            <p className="text-2xl font-bold text-slate-900">{riskRate}%</p>
+            <p className="text-[28px] font-semibold leading-[1.2] text-slate-900">{riskRate}%</p>
             <p className="mt-1 text-[12px] text-slate-500">Reserved systems: {metrics.reservedSystems}</p>
           </div>
         </div>
@@ -91,7 +91,7 @@ export default function InventoryDashboard() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">Priority insights</h2>
+          <h2 className="text-slate-900">Priority insights</h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">Spares with the lowest available quantities appear first.</p>
         </div>
 

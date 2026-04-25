@@ -30,8 +30,8 @@ export default function CustomerStepSolarDetails({
             onFieldChange("systemId", selectedId)
             onFieldChange("systemCapacity", selected?.capacity_kw ? `${selected.capacity_kw}` : "")
           }}
-          className={`rounded-lg border px-3 py-2 text-sm outline-none transition ${
-            errors.systemId ? "border-rose-400 focus:ring-2 focus:ring-rose-100" : "border-gray-200 focus:ring-2 focus:ring-blue-100"
+          className={`dropdown ${
+            errors.systemId ? "border-rose-400 bg-rose-50" : ""
           }`}
           disabled={systemsLoading || noSystemsAvailable}
         >
@@ -54,7 +54,7 @@ export default function CustomerStepSolarDetails({
           value={value.systemCapacity}
           readOnly
           placeholder="Auto populated"
-          className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
+          className="input bg-slate-50"
         />
       </label>
 
@@ -63,10 +63,8 @@ export default function CustomerStepSolarDetails({
         <select
           value={value.paymentStatus}
           onChange={(event) => onFieldChange("paymentStatus", event.target.value)}
-          className={`rounded-lg border px-3 py-2 text-sm outline-none transition ${
-            errors.paymentStatus
-              ? "border-rose-400 focus:ring-2 focus:ring-rose-100"
-              : "border-gray-200 focus:ring-2 focus:ring-blue-100"
+          className={`dropdown ${
+            errors.paymentStatus ? "border-rose-400 bg-rose-50" : ""
           }`}
         >
           <option value="">Select payment status</option>
@@ -83,10 +81,8 @@ export default function CustomerStepSolarDetails({
           type="date"
           value={value.estimatedInstallationDate}
           onChange={(event) => onFieldChange("estimatedInstallationDate", event.target.value)}
-          className={`rounded-lg border px-3 py-2 text-sm outline-none transition ${
-            errors.estimatedInstallationDate
-              ? "border-rose-400 focus:ring-2 focus:ring-rose-100"
-              : "border-gray-200 focus:ring-2 focus:ring-blue-100"
+          className={`input ${
+            errors.estimatedInstallationDate ? "border-rose-400 bg-rose-50" : ""
           }`}
         />
         {errors.estimatedInstallationDate ? <span className="text-xs text-rose-600">{errors.estimatedInstallationDate}</span> : null}
@@ -98,7 +94,7 @@ export default function CustomerStepSolarDetails({
           rows={4}
           value={value.additionalNotes}
           onChange={(event) => onFieldChange("additionalNotes", event.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-blue-100"
+          className="textarea"
           placeholder="Add installation, payment, or site notes"
         />
       </label>

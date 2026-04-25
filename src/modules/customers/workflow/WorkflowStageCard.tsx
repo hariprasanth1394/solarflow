@@ -38,10 +38,10 @@ export default function WorkflowStageCard({
     <div
       className={`relative transition-all duration-200 ${
         current
-          ? "shadow-[inset_3px_0_0_#2563eb]"
+          ? "current-stage-card"
           : isCompleted
-          ? "shadow-[inset_3px_0_0_#34d399]"
-          : "shadow-[inset_3px_0_0_#e2e8f0] opacity-55"
+          ? "completed-stage-card"
+          : "pending-stage-card opacity-70"
       }`}
     >
       {/* Header */}
@@ -49,7 +49,7 @@ export default function WorkflowStageCard({
         type="button"
         onClick={onToggle}
         className={`flex w-full items-center justify-between gap-3 py-4 pl-6 pr-5 text-left transition-colors ${
-          current ? "hover:bg-blue-50/30" : "hover:bg-slate-50"
+          current ? "hover:bg-violet-500/10" : "hover:bg-slate-50"
         }`}
       >
         <div className="flex items-center gap-3.5">
@@ -57,9 +57,9 @@ export default function WorkflowStageCard({
           <div
             className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-200 ${
               current
-                ? "bg-blue-600 text-white shadow-[0_0_0_4px_rgba(37,99,235,0.12)]"
+                ? "bg-violet-600 text-white shadow-[0_0_0_4px_rgba(124,58,237,0.2)]"
                 : isCompleted
-                ? "bg-emerald-500 text-white"
+                ? "bg-emerald-600 text-white"
                 : "bg-slate-100 text-slate-400"
             }`}
           >
@@ -70,9 +70,9 @@ export default function WorkflowStageCard({
             <h3
               className={`font-semibold leading-tight transition-all ${
                 current
-                  ? "text-[15px] text-slate-900"
+                  ? "text-[15px] text-violet-500"
                   : isCompleted
-                  ? "text-[13px] text-slate-600"
+                  ? "text-[13px] text-emerald-600"
                   : "text-[13px] text-slate-400"
               }`}
             >
@@ -94,18 +94,18 @@ export default function WorkflowStageCard({
 
       {/* Expanded body */}
       {expanded ? (
-        <div className="border-t border-slate-100 bg-slate-50/50 pl-6 pr-5 py-4">
+        <div className="stage-expanded">
           {primaryAction ? (
             <>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[12px] leading-snug text-slate-500">
+                <p className="stage-description">
                   {current ? "Take the next step to advance this stage." : "This stage is not currently active."}
                 </p>
                 <button
                   type="button"
                   onClick={() => onActionClick(primaryAction)}
                   disabled={!current || loadingActionKey !== null}
-                  className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-violet-600 px-4 text-[13px] font-semibold text-white shadow-sm transition-all duration-150 hover:from-blue-700 hover:to-violet-700 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn btn-primary btn-compact customer-primary-btn shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loadingActionKey === primaryAction.key ? (
                     <>
@@ -119,14 +119,14 @@ export default function WorkflowStageCard({
               </div>
 
               {secondaryActions.length > 0 ? (
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200/60 pt-3">
                   {secondaryActions.map((action) => (
                     <button
                       key={action.key}
                       type="button"
                       onClick={() => onActionClick(action)}
                       disabled={!current || loadingActionKey !== null}
-                      className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-medium text-slate-600 transition-all hover:border-slate-300 hover:bg-slate-50 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="btn btn-secondary btn-compact disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {loadingActionKey === action.key ? "Saving…" : action.label}
                     </button>
@@ -135,7 +135,7 @@ export default function WorkflowStageCard({
               ) : null}
             </>
           ) : (
-            <p className="text-[13px] text-slate-400">
+            <p className="stage-description">
               {isCompleted ? "This stage is complete ✓" : "No actions required at this time."}
             </p>
           )}
