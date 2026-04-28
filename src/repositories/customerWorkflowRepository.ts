@@ -21,7 +21,11 @@ function isWorkflowSchemaMissingError(error: { code?: string; message?: string }
     error.code === "PGRST205" ||
     message.includes("current_stage") ||
     message.includes("customer_progress") ||
-    message.includes("related_customer_id")
+    message.includes("related_customer_id") ||
+    message.includes("submission_completed") ||
+    message.includes("approval_completed") ||
+    message.includes("installation_completed") ||
+    message.includes("closure_completed")
   )
 }
 
@@ -152,6 +156,88 @@ export async function updateCustomerCurrentStage(customerId: string, organizatio
     handleRepositoryError("customerWorkflowRepository", "updateCustomerCurrentStage", error)
   }
   return data as { id: string; current_stage: WorkflowStage }
+}
+
+export async function updateCustomerStageCompletion(
+  customerId: string,
+  organizationId: string,
+  stage: WorkflowStage,
+  completed: boolean
+) {
+  assertValidUUID(customerId, "customerId")
+  assertValidUUID(organizationId, "organizationId")
+
+  const stageColumn = getStageCompletionColumn(stage)
+  const updateData: Record<string, boolean> = { [stageColumn]: completed }
+
+  const { data, error } = await supabase
+    .from("customers")
+    .update(updateData)
+    .eq("id", customerId)
+    .eq("organization_id", organizationId)
+    .select(`id,${stageColumn}`)
+    .single()
+
+  if (error) {
+    if (isWorkflowSchemaMissingError(error)) {
+      return await updateCustomerCurrentStage(customerId, organizationId, stage)
+    }
+    handleRepositoryError("customerWorkflowRepository", "updateCustomerStageCompletion", error)
+  }
+  return data
+}
+
+export async function fetchCustomerStageCompletions(customerId: string, organizationId: string) {
+  assertValidUUID(customerId, "customerId")
+  assertValidUUID(organizationId, "organizationId")
+
+  const { data, error } = await supabase
+    .from("customers")
+    .select("id,submission_completed,approval_completed,installation_completed,closure_completed")
+    .eq("id", customerId)
+    .eq("organization_id", organizationId)
+    .single()
+
+  if (error) {
+    if (isWorkflowSchemaMissingError(error)) {
+      const legacy = await supabase
+        .from("customers")
+        .select("id,current_stage,status")
+        .eq("id", customerId)
+        .eq("organization_id", organizationId)
+        .single()
+
+      if (legacy.error) handleRepositoryError("customerWorkflowRepository", "fetchCustomerStageCompletions", legacy.error)
+
+      const stage = legacy.data?.current_stage ?? mapStatusToStage(legacy.data?.status)
+      return {
+        id: legacy.data.id,
+        submission_completed: stage !== "CREATED",
+        approval_completed: stage === "APPROVED" || stage === "INSTALLATION" || stage === "CLOSED",
+        installation_completed: stage === "INSTALLATION" || stage === "CLOSED",
+        closure_completed: stage === "CLOSED"
+      }
+    }
+    handleRepositoryError("customerWorkflowRepository", "fetchCustomerStageCompletions", error)
+  }
+
+  return data as {
+    id: string
+    submission_completed: boolean
+    approval_completed: boolean
+    installation_completed: boolean
+    closure_completed: boolean
+  }
+}
+
+function getStageCompletionColumn(stage: WorkflowStage): string {
+  switch (stage) {
+    case "SUBMITTED": return "submission_completed"
+    case "APPROVED": return "approval_completed"
+    case "INSTALLATION": return "installation_completed"
+    case "CLOSED": return "closure_completed"
+    default: throw new Error(`No completion column for stage: ${stage}`)
+  }
 }
 
 export async function insertCustomerProgressEntry(payload: ProgressInsert) {

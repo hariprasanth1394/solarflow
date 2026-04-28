@@ -1,6 +1,8 @@
 "use client"
 
 import type { ReactNode } from "react"
+import { useEffect } from "react"
+import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 
 type ModalProps = {
@@ -32,15 +34,35 @@ export default function Modal({
   footerClassName,
   mobileFullscreen = false,
 }: ModalProps) {
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
   if (!open) return null
 
-  return (
-    <div className={`fixed inset-0 z-50 flex justify-center ${mobileFullscreen ? "items-end p-0 sm:items-center sm:p-4" : "items-center p-4"}`}>
-      <button aria-label="Close modal" className="modal-overlay-enter absolute inset-0 bg-slate-900/40" onClick={onClose} />
+  const modalContent = (
+    <div className="modal-overlay fixed inset-0 z-[1000] flex justify-center items-center p-4">
       <div
-        className={`modal-panel-enter sf-modal-panel relative z-10 flex w-full max-w-lg flex-col border bg-white text-[color:var(--sf-text)] shadow-[0_18px_40px_rgba(15,23,42,0.16)] ${
-          mobileFullscreen ? "max-h-[100dvh] min-h-[100dvh] rounded-none sm:max-h-[90vh] sm:min-h-0 sm:rounded-xl" : "rounded-xl"
+        className="modal-overlay-bg absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        className={`modal-content relative z-10 flex w-full max-w-lg flex-col border bg-white text-[color:var(--sf-text)] shadow-[0_18px_40px_rgba(15,23,42,0.16)] rounded-xl ${
+          mobileFullscreen ? "max-h-[100dvh] min-h-[100dvh] rounded-none sm:max-h-[90vh] sm:min-h-0 sm:rounded-xl" : ""
         } ${panelClassName ?? ""}`}
+        style={{
+          width: 'min(520px, 92vw)',
+          maxHeight: '90vh'
+        }}
       >
         {title || subtitle || showCloseButton ? (
           <div className={`sf-modal-header border-b px-5 py-4 md:px-6 ${headerClassName ?? ""}`}>
@@ -75,4 +97,6 @@ export default function Modal({
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

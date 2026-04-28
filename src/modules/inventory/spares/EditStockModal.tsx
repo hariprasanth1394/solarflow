@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import LoadingButton from "../../../components/ui/LoadingButton"
+import ModalPortal from "../../../components/ui/ModalPortal"
 
 type EditStockModalProps = {
   open: boolean
@@ -28,8 +29,6 @@ export default function EditStockModal({
     [loading, normalizedStock, stockQuantity]
   )
 
-  if (!open) return null
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (disabled) return
@@ -37,10 +36,8 @@ export default function EditStockModal({
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-        <form onSubmit={handleSubmit} className="card my-6 w-full max-w-lg p-4 shadow-2xl sm:p-5">
+    <ModalPortal isOpen={open} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="card relative z-10 w-full max-w-lg p-4 shadow-2xl sm:p-5">
           <h3 className="text-lg font-semibold text-slate-900">Edit Stock</h3>
           <p className="mt-1 text-sm text-slate-600">Update stock quantity for {spareName}.</p>
 
@@ -79,7 +76,6 @@ export default function EditStockModal({
             </LoadingButton>
           </div>
         </form>
-      </div>
-    </>
+    </ModalPortal>
   )
 }

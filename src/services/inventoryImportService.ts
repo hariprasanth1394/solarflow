@@ -178,10 +178,10 @@ export async function validateRowsAgainstDatabase(
       if (itemsResult.error) throw itemsResult.error
       if (systemsResult.error) throw systemsResult.error
 
-      // Build lookup maps
+      // Build normalized lookup maps — keys are trim+lower for resilient matching
       const itemCodeMap = new Map(
         (itemsResult.data || []).map((item: any) => [
-          item.name.toUpperCase(),
+          String(item.name ?? '').trim().toLowerCase(),
           {
             id: item.id,
             name: item.name,
@@ -192,7 +192,7 @@ export async function validateRowsAgainstDatabase(
 
       const systemCodeMap = new Map(
         (systemsResult.data || []).map((system: any) => [
-          system.system_name.toUpperCase(),
+          String(system.system_name ?? '').trim().toLowerCase(),
           {
             id: system.id,
             name: system.system_name

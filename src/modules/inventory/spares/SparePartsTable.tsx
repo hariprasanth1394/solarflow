@@ -1,6 +1,7 @@
 "use client"
 
 import { memo, useEffect, useMemo, useRef, useState } from "react"
+import { makeSpareCodeKey } from "@/lib/inventoryImportNormalize"
 import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
 import {
   inventoryTableCellClass,
@@ -18,6 +19,7 @@ import {
 
 type SpareRow = {
   id: string
+  spare_code: string
   name: string
   category: string | null
   supplierName: string
@@ -29,6 +31,7 @@ type SpareRow = {
 
 type SparePartsTableProps = {
   rows: SpareRow[]
+  highlightedSpareCodes?: string[]
   loading: boolean
   page: number
   pageSize: number
@@ -91,6 +94,7 @@ function getVisiblePages(currentPage: number, totalPages: number) {
 
 function SparePartsTable({
   rows,
+  highlightedSpareCodes = [],
   loading,
   page,
   pageSize,
@@ -107,6 +111,10 @@ function SparePartsTable({
   const totalPages = Math.ceil(totalCount / pageSize)
   const effectiveTotalPages = Math.max(1, totalPages)
   const currentPage = Math.min(Math.max(1, page), effectiveTotalPages)
+  const highlightedCodeSet = useMemo(
+    () => new Set(highlightedSpareCodes.map((value) => makeSpareCodeKey(value))),
+    [highlightedSpareCodes]
+  )
 
   const visiblePages = useMemo(
     () => (totalCount === 0 ? [] : getVisiblePages(currentPage, effectiveTotalPages)),
@@ -178,10 +186,17 @@ function SparePartsTable({
                 </td>
               </tr>
             ) : (
-              rows.map((row) => (
+              rows.map((row) => {
+                const isHighlighted = highlightedCodeSet.has(makeSpareCodeKey(row.spare_code))
+
+                return (
                 <tr
                   key={row.id}
-                  className={`group ${inventoryTableRowClass}`}
+                  className={`group ${inventoryTableRowClass} ${
+                    isHighlighted
+                      ? 'bg-emerald-50/85 shadow-[inset_4px_0_0_0_rgb(16_185_129)] transition-colors duration-300'
+                      : ''
+                  }`}
                 >
                   <td className={`${inventoryTableCellClass} font-medium text-slate-900`}>{row.name}</td>
                   <td className={inventoryTableCellClass}>{row.category || "-"}</td>
@@ -261,7 +276,8 @@ function SparePartsTable({
                     </div>
                   </td>
                 </tr>
-              ))
+                )
+              })
             )}
           </tbody>
         </table>
@@ -295,6 +311,7 @@ function SparePartsTable({
         ) : (
           rows.map((row) => {
             const stock = getStockStatus(row)
+            const isHighlighted = highlightedCodeSet.has(makeSpareCodeKey(row.spare_code))
             const statusLeftBorder =
               stock.label === "Out of stock"
                 ? "border-l-rose-500"
@@ -302,7 +319,12 @@ function SparePartsTable({
                 ? "border-l-amber-500"
                 : "border-l-emerald-500"
             return (
-              <article key={row.id} className={`${inventoryMobileCardClass} border-l-4 ${statusLeftBorder}`}>
+              <article
+                key={row.id}
+                className={`${inventoryMobileCardClass} border-l-4 ${statusLeftBorder} ${
+                  isHighlighted ? 'bg-emerald-50/85 ring-1 ring-emerald-200 transition-colors duration-300' : ''
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-base font-bold text-slate-900">{row.name}</h3>

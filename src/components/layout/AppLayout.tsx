@@ -52,8 +52,8 @@ function AppLayoutInner({ children }: AppLayoutProps) {
     >
       <Sidebar mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className={`sf-layer-topbar ${mobileOpen ? "pointer-events-none lg:pointer-events-auto" : ""}`} aria-hidden={mobileOpen ? true : undefined}>
-          <Header onMenuClick={() => setMobileOpen(true)} dark={dark} onToggleTheme={() => setDark((prev) => !prev)} />
+        <div className="sf-layer-topbar">
+          <Header onMenuClick={() => setMobileOpen((prev) => !prev)} dark={dark} onToggleTheme={() => setDark((prev) => !prev)} />
           {topBarContent ? (
             <div className="sf-sticky-subnav sf-layer-subnav border-b border-slate-200 backdrop-blur" style={{ backgroundColor: "color-mix(in srgb, var(--sf-card-bg) 96%, transparent)" }}>
               {topBarContent}

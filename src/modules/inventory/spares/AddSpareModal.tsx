@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import LoadingButton from "../../../components/ui/LoadingButton"
+import ModalPortal from "../../../components/ui/ModalPortal"
 
 type Supplier = { id: string; name: string }
 
@@ -32,8 +33,6 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
 
   const disabled = useMemo(() => !name.trim() || loading, [name, loading])
 
-  if (!open) return null
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     await onSubmit({
@@ -55,10 +54,8 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-        <form onSubmit={handleSubmit} className="card my-6 w-full max-w-2xl p-4 shadow-2xl sm:p-5">
+    <ModalPortal isOpen={open} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="card relative z-10 w-full max-w-2xl p-4 shadow-2xl sm:p-5">
           <h3 className="text-lg font-semibold text-slate-900">Add Spare Part</h3>
           <p className="mt-1 text-sm text-slate-600">Create a new spare item for your organization inventory.</p>
 
@@ -136,7 +133,6 @@ export default function AddSpareModal({ open, loading, suppliers, onClose, onSub
             </LoadingButton>
           </div>
         </form>
-      </div>
-    </>
+    </ModalPortal>
   )
 }

@@ -1,8 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Plus, Search, SlidersHorizontal, X } from "lucide-react"
+import Toast from "@/components/ui/Toast"
+import ModalPortal from "@/components/ui/ModalPortal"
+import { consumeInventoryImportSuccess } from "@/lib/inventoryImportSuccess"
+import { makeSpareCodeKey } from "@/lib/inventoryImportNormalize"
 import AddSpareModal from "./AddSpareModal"
 import EditStockModal from "./EditStockModal"
 import SparePartsTable from "./SparePartsTable"
@@ -15,6 +19,7 @@ type Supplier = { id: string; name: string }
 
 type SpareApiRow = {
   id: string
+  spare_code: string
   name: string
   category: string | null
   unit: string | null
@@ -27,6 +32,7 @@ type SpareApiRow = {
 
 type SpareRow = {
   id: string
+  spare_code: string
   name: string
   category: string | null
   supplierName: string
@@ -38,6 +44,12 @@ type SpareRow = {
 
 type AvailabilityFilter = "all" | "in_stock" | "out_of_stock"
 type SortOption = "recent" | "name_asc" | "stock_desc" | "stock_asc"
+type ToastState = {
+  type: "success" | "error" | "info"
+  title: string
+  description: string
+  duration?: number
+} | null
 
 const ROW_SIZE_OPTIONS = [25, 50, 100, 200] as const
 
@@ -48,6 +60,7 @@ function getSupplierName(value: SpareApiRow["suppliers"]) {
 }
 
 export default function SparePartsPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [rows, setRows] = useState<SpareRow[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -79,7 +92,9 @@ export default function SparePartsPage() {
   const [categoryFilter, setCategoryFilter] = useState("")
   const [sortBy, setSortBy] = useState<SortOption>("recent")
   const [message, setMessage] = useState("")
-  const importSuccess = searchParams.get('import') === 'success'
+  const [toast, setToast] = useState<ToastState>(null)
+  const [highlightedSpareCodes, setHighlightedSpareCodes] = useState<string[]>([])
+  const importSuccess = searchParams.get('updated') === 'true'
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pageSize)), [pageSize, totalCount])
   const activeFilterCount = useMemo(() => {
     let count = 0
@@ -120,6 +135,12 @@ export default function SparePartsPage() {
     }
   }, [searchInput])
 
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), toast.duration ?? 4000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
   const loadSpares = useCallback(async () => {
     setLoading(true)
     const { data, count, error } = await getSpares({
@@ -133,6 +154,7 @@ export default function SparePartsPage() {
     if (!error) {
       const mapped = (data as SpareApiRow[]).map((row) => ({
         id: row.id,
+        spare_code: row.spare_code,
         name: row.name,
         category: row.category,
         supplierName: getSupplierName(row.suppliers),
@@ -161,11 +183,30 @@ export default function SparePartsPage() {
   useEffect(() => {
     if (!importSuccess) return
 
-    setMessage('Import applied successfully. Spare stock counts are now refreshed.')
+    const payload = consumeInventoryImportSuccess()
+    if (!payload) return
+
+    setToast({
+      type: "success",
+      title: "Inventory Updated",
+      description: `${payload.updatedRows} updated, ${payload.newRows} added`,
+      duration: 4000
+    })
+    setHighlightedSpareCodes(payload.spareCodes.map(makeSpareCodeKey))
     queueMicrotask(() => {
       void loadSpares()
     })
-  }, [importSuccess, loadSpares])
+
+    const timer = window.setTimeout(() => {
+      setHighlightedSpareCodes([])
+    }, 3000)
+
+    router.replace('/inventory?tab=spares', { scroll: false })
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [importSuccess, loadSpares, router])
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -282,6 +323,17 @@ export default function SparePartsPage() {
         </LoadingButton>
       }
     >
+      {toast ? (
+        <div className="fixed right-4 top-4 z-50 w-[min(92vw,420px)] sm:right-6 sm:top-6">
+          <Toast
+            title={toast.title}
+            description={toast.description}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        </div>
+      ) : null}
+
       {message ? (
         <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
           {message}
@@ -584,6 +636,7 @@ export default function SparePartsPage() {
       <div className="page-content">
         <SparePartsTable
           rows={sortedRows}
+          highlightedSpareCodes={highlightedSpareCodes}
           loading={loading}
           page={page}
           pageSize={pageSize}
@@ -678,122 +731,114 @@ export default function SparePartsPage() {
         }}
       />
 
-      {editDetailsModalOpen && selectedSpareForEdit ? (
-        <>
-          <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={() => setEditDetailsModalOpen(false)} />
-          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-            <div className="card my-6 w-full max-w-xl p-5 shadow-2xl">
-              <h3 className="text-lg font-semibold text-slate-900">Edit Spare</h3>
-              <p className="mt-1 text-sm text-slate-600">Update settings for {selectedSpareForEdit.name}.</p>
+      <ModalPortal isOpen={editDetailsModalOpen && Boolean(selectedSpareForEdit)} onClose={() => setEditDetailsModalOpen(false)}>
+        <div className="card relative z-10 w-full max-w-xl p-5 shadow-2xl">
+          <h3 className="text-lg font-semibold text-slate-900">Edit Spare</h3>
+          <p className="mt-1 text-sm text-slate-600">Update settings for {selectedSpareForEdit?.name}.</p>
 
-              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                <input
-                  value={editCategory}
-                  onChange={(event) => setEditCategory(event.target.value)}
-                  placeholder="Category"
-                  className="input"
-                />
-                <input
-                  value={editUnit}
-                  onChange={(event) => setEditUnit(event.target.value)}
-                  placeholder="Unit"
-                  className="input"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  value={editMinStock}
-                  onChange={(event) => setEditMinStock(event.target.value)}
-                  placeholder="Min stock"
-                  className="input"
-                />
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={editCostPrice}
-                  onChange={(event) => setEditCostPrice(event.target.value)}
-                  placeholder="Cost price"
-                  className="input"
-                />
-              </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <input
+              value={editCategory}
+              onChange={(event) => setEditCategory(event.target.value)}
+              placeholder="Category"
+              className="input"
+            />
+            <input
+              value={editUnit}
+              onChange={(event) => setEditUnit(event.target.value)}
+              placeholder="Unit"
+              className="input"
+            />
+            <input
+              type="number"
+              min={0}
+              value={editMinStock}
+              onChange={(event) => setEditMinStock(event.target.value)}
+              placeholder="Min stock"
+              className="input"
+            />
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={editCostPrice}
+              onChange={(event) => setEditCostPrice(event.target.value)}
+              placeholder="Cost price"
+              className="input"
+            />
+          </div>
 
-              <div className="mt-5 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setEditDetailsModalOpen(false)}
-                  className="btn btn-secondary"
-                >
-                  Cancel
-                </button>
-                <LoadingButton
-                  type="button"
-                  loading={Boolean(editingSpareId)}
-                  loadingLabel="Saving..."
-                  onClick={handleSaveEditDetails}
-                  className="btn btn-primary"
-                >
-                  Save changes
-                </LoadingButton>
-              </div>
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditDetailsModalOpen(false)}
+              className="btn btn-secondary"
+            >
+              Cancel
+            </button>
+            <LoadingButton
+              type="button"
+              loading={Boolean(editingSpareId)}
+              loadingLabel="Saving..."
+              onClick={handleSaveEditDetails}
+              className="btn btn-primary"
+            >
+              Save changes
+            </LoadingButton>
+          </div>
+        </div>
+      </ModalPortal>
+
+      <ModalPortal isOpen={detailsModalOpen && Boolean(selectedSpareForDetails)} onClose={() => setDetailsModalOpen(false)}>
+        <div className="card relative z-10 w-full max-w-lg p-5 shadow-2xl">
+          <h3 className="text-lg font-semibold text-slate-900">Spare Details</h3>
+          <p className="mt-1 text-sm text-slate-600">Quick business view for {selectedSpareForDetails?.name}.</p>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Category</p>
+              <p className="mt-1 font-medium text-slate-900">{selectedSpareForDetails?.category || "-"}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Supplier</p>
+              <p className="mt-1 font-medium text-slate-900">{selectedSpareForDetails?.supplierName || "-"}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Stock</p>
+              <p className="mt-1 font-medium text-slate-900">{selectedSpareForDetails?.stock_quantity}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Inventory value</p>
+              <p className="mt-1 font-medium text-slate-900">
+                {selectedSpareForDetails ? formatCurrency(selectedSpareForDetails.stock_quantity * selectedSpareForDetails.cost_price) : "-"}
+              </p>
             </div>
           </div>
-        </>
-      ) : null}
 
-      {detailsModalOpen && selectedSpareForDetails ? (
-        <>
-          <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={() => setDetailsModalOpen(false)} />
-          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-            <div className="card my-6 w-full max-w-lg p-5 shadow-2xl">
-              <h3 className="text-lg font-semibold text-slate-900">Spare Details</h3>
-              <p className="mt-1 text-sm text-slate-600">Quick business view for {selectedSpareForDetails.name}.</p>
-
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Category</p>
-                  <p className="mt-1 font-medium text-slate-900">{selectedSpareForDetails.category || "-"}</p>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Supplier</p>
-                  <p className="mt-1 font-medium text-slate-900">{selectedSpareForDetails.supplierName || "-"}</p>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Stock</p>
-                  <p className="mt-1 font-medium text-slate-900">{selectedSpareForDetails.stock_quantity}</p>
-                </div>
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs uppercase tracking-wide text-slate-500">Inventory value</p>
-                  <p className="mt-1 font-medium text-slate-900">
-                    {formatCurrency(selectedSpareForDetails.stock_quantity * selectedSpareForDetails.cost_price)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDetailsModalOpen(false)}
-                  className="btn btn-secondary"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDetailsModalOpen(false)
-                    setSelectedSpareForStockEdit(selectedSpareForDetails)
-                    setEditStockModalOpen(true)
-                  }}
-                  className="btn btn-primary"
-                >
-                  Update stock
-                </button>
-              </div>
-            </div>
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setDetailsModalOpen(false)}
+              className="btn btn-secondary"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDetailsModalOpen(false)
+                if (selectedSpareForDetails) {
+                  setSelectedSpareForStockEdit(selectedSpareForDetails)
+                  setEditStockModalOpen(true)
+                }
+              }}
+              className="btn btn-primary"
+            >
+              Update stock
+            </button>
           </div>
-        </>
-      ) : null}
+        </div>
+      </ModalPortal>
     </InventoryPageShell>
   )
 }

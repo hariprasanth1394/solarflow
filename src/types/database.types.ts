@@ -65,56 +65,68 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
+          approval_completed: boolean
           assigned_to: string | null
           city: string | null
+          closure_completed: boolean
           company: string | null
           country: string | null
           current_stage: string
           created_at: string
           email: string | null
           id: string
+          installation_completed: boolean
           name: string
           notes: string | null
           organization_id: string
           phone: string | null
           state: string | null
           status: string
+          submission_completed: boolean
           system_id: string | null
         }
         Insert: {
           address?: string | null
+          approval_completed?: boolean
           assigned_to?: string | null
           city?: string | null
+          closure_completed?: boolean
           company?: string | null
           country?: string | null
           current_stage?: string
           created_at?: string
           email?: string | null
           id?: string
+          installation_completed?: boolean
           name: string
           notes?: string | null
           organization_id: string
           phone?: string | null
           state?: string | null
           status?: string
+          submission_completed?: boolean
           system_id?: string | null
         }
         Update: {
           address?: string | null
+          approval_completed?: boolean
           assigned_to?: string | null
           city?: string | null
+          closure_completed?: boolean
           company?: string | null
           country?: string | null
           current_stage?: string
           created_at?: string
           email?: string | null
           id?: string
+          installation_completed?: boolean
           name?: string
           notes?: string | null
           organization_id?: string
           phone?: string | null
           state?: string | null
           status?: string
+          submission_completed?: boolean
           system_id?: string | null
         }
         Relationships: [
@@ -417,6 +429,7 @@ export type Database = {
           min_stock: number
           name: string
           organization_id: string
+          spare_code: string
           stock_quantity: number
           supplier_id: string | null
           unit: string | null
@@ -429,6 +442,7 @@ export type Database = {
           min_stock?: number
           name: string
           organization_id: string
+          spare_code?: string
           stock_quantity?: number
           supplier_id?: string | null
           unit?: string | null
@@ -441,6 +455,7 @@ export type Database = {
           min_stock?: number
           name?: string
           organization_id?: string
+          spare_code?: string
           stock_quantity?: number
           supplier_id?: string | null
           unit?: string | null

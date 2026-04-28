@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import LoadingButton from "../../components/ui/LoadingButton"
+import ModalPortal from "../../components/ui/ModalPortal"
 
 type Customer = {
   id: string
@@ -10,11 +11,13 @@ type Customer = {
 
 // Inner component - no effects, state initialized from props
 function DocumentUploadForm({
+  open,
   loading,
   customers,
   onClose,
   onSubmit,
 }: {
+  open: boolean
   loading: boolean
   customers: Customer[]
   onClose: () => void
@@ -24,17 +27,15 @@ function DocumentUploadForm({
   const [relatedCustomerId, setRelatedCustomerId] = useState("")
 
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-        <form
-          onSubmit={async (event) => {
-            event.preventDefault()
-            if (!file) return
-            await onSubmit({ file, relatedCustomerId: relatedCustomerId || null })
-          }}
-          className="my-6 w-full max-w-xl rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:p-5"
-        >
+    <ModalPortal isOpen={open} onClose={onClose}>
+      <form
+        onSubmit={async (event) => {
+          event.preventDefault()
+          if (!file) return
+          await onSubmit({ file, relatedCustomerId: relatedCustomerId || null })
+        }}
+        className="card relative z-10 w-full max-w-xl p-4 shadow-2xl sm:p-5"
+      >
           <h3 className="text-lg font-semibold text-gray-900">Upload Document</h3>
           <p className="mt-1 text-sm text-gray-500">Upload to Supabase Storage and store metadata in documents table.</p>
 
@@ -75,8 +76,7 @@ function DocumentUploadForm({
             </LoadingButton>
           </div>
         </form>
-      </div>
-    </>
+    </ModalPortal>
   )
 }
 
@@ -89,30 +89,13 @@ type UploadDocumentModalProps = {
 }
 
 export default function UploadDocumentModal(props: UploadDocumentModalProps) {
-  const openCountRef = useRef(0)
-  const [keyCounter, setKeyCounter] = useState(0)
-
-  // Track when modal opens to generate a new key
-  useEffect(() => {
-    if (props.open) {
-      openCountRef.current++
-      setKeyCounter(openCountRef.current)
-    }
-  }, [props.open])
-
-  if (!props.open) return null
-
-  // Use a stable key based on open count
-  // This resets all internal state automatically when modal opens
-  const modalKey = `document-upload-${keyCounter}`
-
-  return (
+  return props.open ? (
     <DocumentUploadForm
-      key={modalKey}
+      open={props.open}
       loading={props.loading}
       customers={props.customers}
       onClose={props.onClose}
       onSubmit={props.onSubmit}
     />
-  )
+  ) : null
 }

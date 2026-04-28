@@ -2,11 +2,15 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import FileUploadDropzone from './components/FileUploadDropzone'
 import PreviewTable from './components/PreviewTable'
 import InventoryPageShell from './components/InventoryPageShell'
 import { inventorySectionCardClass } from './components/inventoryTableStyles'
+import Toast from '@/components/ui/Toast'
+import { persistInventoryImportSuccess } from '@/lib/inventoryImportSuccess'
+import { makeSpareCodeKey, normalize } from '@/lib/inventoryImportNormalize'
 
 const MultiSelectDropdown = dynamic(() => import('./components/MultiSelectDropdown'), {
   ssr: false
@@ -14,17 +18,23 @@ const MultiSelectDropdown = dynamic(() => import('./components/MultiSelectDropdo
 
 type PreviewRow = {
   rowNumber: number
-  itemCode: string
+  spareCode: string
   itemName: string
   category: string
   unit: string
-  systemCode: string
-  systemName: string
   currentStock: number
   importedStock: number
   difference: number
-  status: 'NEW' | 'UPDATED' | 'UNCHANGED' | 'ERROR'
+  status: 'NEW' | 'UPDATE' | 'NO CHANGE' | 'ERROR'
   errors: Array<{ column: string; message: string }>
+  warnings: Array<{ column: string; message: string }>
+  matchFound: boolean
+  adjustmentReason?: string | null
+}
+
+type DbMatchRow = {
+  spare_code: string
+  current_stock: number
 }
 
 type ValidationSummary = {
@@ -58,6 +68,13 @@ type FilterCombination = {
   rowCount: number
 }
 
+type ToastState = {
+  type: 'success' | 'error' | 'info'
+  title: string
+  description: string
+  duration?: number
+} | null
+
 export default function InventoryImportExportPage() {
   const router = useRouter()
   const [workflow, setWorkflow] = useState<WorkflowMode | null>(null)
@@ -80,6 +97,71 @@ export default function InventoryImportExportPage() {
   const [page, setPage] = useState(1)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [toast, setToast] = useState<ToastState>(null)
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), toast.duration ?? 4000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  const showToast = (nextToast: NonNullable<ToastState>) => {
+    setToast(nextToast)
+  }
+
+  const clearFile = () => {
+    setSelectedFile(null)
+    setFileName('')
+    setBatchKey('')
+  }
+
+  const clearValidationState = () => {
+    setRows([])
+    setSummary(null)
+    setShowOnlyChanged(false)
+    setPage(1)
+    setError('')
+    setMessage('')
+  }
+
+  const resetImportFlow = () => {
+    clearFile()
+    clearValidationState()
+    setWorkflow(null)
+  }
+
+  const deriveFrontendRows = (incomingRows: PreviewRow[], dbItems: DbMatchRow[] = []) => {
+    const dbItemMap = new Map<string, DbMatchRow>()
+    dbItems.forEach((item) => {
+      dbItemMap.set(makeSpareCodeKey(item.spare_code), item)
+    })
+
+    return incomingRows.map((row) => {
+      const key = makeSpareCodeKey(row.spareCode)
+      const match = dbItemMap.get(key)
+      const matchFound = !!match
+      const currentStock = matchFound ? Number(match?.current_stock || 0) : Number(row.currentStock || 0)
+      // Trust the backend-calculated difference, don't recalculate
+      const difference = row.difference
+      const status: PreviewRow['status'] = row.errors.length > 0 ? 'ERROR' : !row.spareCode ? 'NEW' : Math.abs(difference) > 0.01 ? 'UPDATE' : 'NO CHANGE'
+
+      console.log('[inventory.import.frontend] row_match_check', {
+        excelItem: row.spareCode,
+        normalizedExcel: normalize(row.spareCode),
+        matched: matchFound,
+        difference,
+        currentStock
+      })
+
+      return {
+        ...row,
+        currentStock,
+        difference,
+        status,
+        matchFound
+      }
+    })
+  }
 
   useEffect(() => {
     let active = true
@@ -112,7 +194,7 @@ export default function InventoryImportExportPage() {
 
   const filteredRows = useMemo(() => {
     if (!showOnlyChanged) return rows
-    return rows.filter((row) => row.status !== 'UNCHANGED')
+    return rows.filter((row) => row.status !== 'NO CHANGE')
   }, [rows, showOnlyChanged])
 
   const availableCategoryIds = useMemo(() => {
@@ -255,10 +337,21 @@ export default function InventoryImportExportPage() {
         throw new Error(payload?.error?.message || 'Failed to validate file')
       }
 
+      const rawRows = payload.data.rows || []
+      const dbItems = payload.data.dbItems || []
+      const mappedRows = deriveFrontendRows(rawRows, dbItems)
+
       setFileName(payload.data.fileName)
       setBatchKey(payload.data.batchKey)
-      setRows(payload.data.rows || [])
-      setSummary(payload.data.summary || null)
+      setRows(mappedRows)
+      setSummary({
+        totalRows: mappedRows.length,
+        newRows: mappedRows.filter((row: PreviewRow) => row.status === 'NEW').length,
+        updatedRows: mappedRows.filter((row: PreviewRow) => row.status === 'UPDATE').length,
+        unchangedRows: mappedRows.filter((row: PreviewRow) => row.status === 'NO CHANGE').length,
+        errorRows: mappedRows.filter((row: PreviewRow) => row.status === 'ERROR').length,
+        hasBlockingErrors: mappedRows.some((row: PreviewRow) => row.status === 'ERROR')
+      })
       setPage(1)
       setMessage('Validation complete. Review and confirm import.')
     } catch (err) {
@@ -278,14 +371,25 @@ export default function InventoryImportExportPage() {
     target.difference = target.importedStock - target.currentStock
     target.status = target.errors.length > 0
       ? 'ERROR'
-      : target.status === 'NEW'
+      : !target.spareCode
         ? 'NEW'
         : Math.abs(target.difference) > 0.01
-          ? 'UPDATED'
-          : 'UNCHANGED'
+          ? 'UPDATE'
+          : 'NO CHANGE'
 
             const byRowNumber = new Map(updated.map((row) => [row.rowNumber, row]))
             setRows((prev) => prev.map((row) => byRowNumber.get(row.rowNumber) || row))
+  }
+
+  const updateAdjustmentReason = (index: number, value: string) => {
+    const updated = [...filteredRows]
+    const target = updated[index]
+    if (!target) return
+
+    target.adjustmentReason = value || null
+
+    const byRowNumber = new Map(updated.map((row) => [row.rowNumber, row]))
+    setRows((prev) => prev.map((row) => byRowNumber.get(row.rowNumber) || row))
   }
 
   const downloadErrorRows = () => {
@@ -293,8 +397,8 @@ export default function InventoryImportExportPage() {
     if (!errorRows.length) return
 
     const lines = [
-      'Row,Item Code,System Code,Errors',
-      ...errorRows.map((row) => `${row.rowNumber},${row.itemCode},${row.systemCode},"${row.errors.map((e) => `${e.column}: ${e.message}`).join(' | ')}"`)
+      'Row,Spare Code,Item Name,Errors',
+      ...errorRows.map((row) => `${row.rowNumber},${row.spareCode},${row.itemName},"${row.errors.map((e) => `${e.column}: ${e.message}`).join(' | ')}"`)
     ]
 
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
@@ -311,11 +415,6 @@ export default function InventoryImportExportPage() {
   const confirmImport = async () => {
     if (!rows.length) return
 
-    if (rows.some((row) => row.status === 'ERROR')) {
-      setError('Fix errors before confirming import')
-      return
-    }
-
     setConfirming(true)
     setError('')
     setMessage('')
@@ -329,16 +428,16 @@ export default function InventoryImportExportPage() {
           batchKey,
           rows: rows.map((row) => ({
             rowNumber: row.rowNumber,
-            itemCode: row.itemCode,
+            spareCode: row.spareCode,
             itemName: row.itemName,
             category: row.category,
-            systemCode: row.systemCode,
-            systemName: row.systemName,
+            unit: row.unit,
             currentStock: row.currentStock,
             closingStock: row.importedStock,
             unitCost: 0,
             importStatus: row.status,
-            errors: row.errors
+            errors: row.errors,
+            adjustmentReason: row.adjustmentReason || null
           }))
         })
       })
@@ -349,11 +448,29 @@ export default function InventoryImportExportPage() {
         throw new Error(payload?.error?.message || 'Failed to apply import')
       }
 
-      setMessage('Import applied successfully. Opening Spare Parts with latest counts...')
-      setTimeout(() => {
-        router.push('/inventory?tab=spares&import=success')
-        router.refresh()
-      }, 700)
+      const insertedRows = Number(payload?.data?.insertedRows || 0)
+      const updatedRows = Number(payload?.data?.updatedRows || 0)
+      const affectedSpareCodes = Array.isArray(payload?.data?.affectedSpareCodes)
+        ? payload.data.affectedSpareCodes.map((value: unknown) => String(value || '').trim()).filter(Boolean)
+        : []
+      const errorCount = Array.isArray(payload?.data?.errors) ? payload.data.errors.length : 0
+
+      showToast({
+        type: 'success',
+        title: 'Inventory Updated',
+        description: `${updatedRows} updated, ${insertedRows} added`,
+        duration: 4000
+      })
+
+      persistInventoryImportSuccess({
+        updatedRows,
+        newRows: insertedRows,
+        errorRows: errorCount,
+        spareCodes: affectedSpareCodes
+      })
+
+      resetImportFlow()
+      router.push('/inventory/spares?updated=true')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Confirm failed')
     } finally {
@@ -392,7 +509,16 @@ export default function InventoryImportExportPage() {
         </>
       }
     >
-      {message && <p className="card bg-green-50 px-4 py-3 text-sm text-green-700">{message}</p>}
+      {toast ? (
+        <div className="fixed right-4 top-4 z-50 w-[min(92vw,420px)] sm:right-6 sm:top-6">
+          <Toast
+            title={toast.title}
+            description={toast.description}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        </div>
+      ) : null}
       {error && <p className="card bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
 
       <section className={inventorySectionCardClass}>
@@ -490,6 +616,7 @@ export default function InventoryImportExportPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Step 2: Upload and validate</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Upload your filled template and validate rows before any update is applied.</p>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-500">Spare Code is read-only and is the primary identifier for updates. Leave Spare Code blank only when intentionally inserting a new spare.</p>
             </div>
 
             <FileUploadDropzone
@@ -518,8 +645,8 @@ export default function InventoryImportExportPage() {
               <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
                 <div className="card p-4 text-sm text-slate-700">Total: <span className="font-semibold text-slate-900">{summary.totalRows}</span></div>
                 <div className="card bg-blue-50 p-4 text-sm text-blue-700">New: <span className="font-semibold text-blue-900">{summary.newRows}</span></div>
-                <div className="card bg-amber-50 p-4 text-sm text-amber-700">Updated: <span className="font-semibold text-amber-900">{summary.updatedRows}</span></div>
-                <div className="card bg-emerald-50 p-4 text-sm text-emerald-700">Unchanged: <span className="font-semibold text-emerald-900">{summary.unchangedRows}</span></div>
+                <div className="card bg-emerald-50 p-4 text-sm text-emerald-700">Update: <span className="font-semibold text-emerald-900">{summary.updatedRows}</span></div>
+                <div className="card bg-slate-100 p-4 text-sm text-slate-700">No Change: <span className="font-semibold text-slate-900">{summary.unchangedRows}</span></div>
                 <div className="card bg-rose-50 p-4 text-sm text-rose-700">Errors: <span className="font-semibold text-rose-900">{summary.errorRows}</span></div>
               </div>
 
@@ -535,14 +662,22 @@ export default function InventoryImportExportPage() {
                 onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
                 onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
                 onUpdateImportedStock={updateImportedStock}
+                onUpdateAdjustmentReason={updateAdjustmentReason}
               />
 
               <div className="flex flex-wrap gap-2">
                 <button onClick={downloadErrorRows} disabled={!rows.some((row) => row.status === 'ERROR')} className="btn btn-secondary disabled:opacity-40">
                   Download Error CSV
                 </button>
-                <button onClick={() => void confirmImport()} disabled={confirming || rows.some((row) => row.status === 'ERROR')} className="btn btn-primary ml-auto disabled:opacity-40">
-                  {confirming ? 'Applying...' : 'Confirm & Apply'}
+                <button onClick={() => void confirmImport()} disabled={confirming} className="btn btn-primary ml-auto disabled:opacity-40">
+                  {confirming ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Applying changes...
+                    </>
+                  ) : (
+                    'Confirm & Apply'
+                  )}
                 </button>
               </div>
             </section>

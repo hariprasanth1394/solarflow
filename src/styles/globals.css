@@ -36,10 +36,11 @@
   --sf-hover-soft: color-mix(in srgb, var(--sf-primary-start) 8%, var(--sf-card-bg));
   --sf-z-content: 1;
   --sf-z-subnav: 30;
-  --sf-z-topbar: 40;
-  --sf-z-sidebar-backdrop: 70;
-  --sf-z-sidebar: 80;
-  --sf-z-modal: 90;
+  --sf-z-topbar: 100;
+  --sf-z-sidebar-backdrop: 110;
+  --sf-z-sidebar: 115;
+  --sf-z-dropdown: 200;
+  --sf-z-modal: 1000;
 }
 
 html.theme-dark,
@@ -68,10 +69,11 @@ html.dark,
   --sf-hover-soft: color-mix(in srgb, var(--card) 82%, var(--hover));
   --sf-z-content: 1;
   --sf-z-subnav: 30;
-  --sf-z-topbar: 40;
-  --sf-z-sidebar-backdrop: 70;
-  --sf-z-sidebar: 80;
-  --sf-z-modal: 90;
+  --sf-z-topbar: 100;
+  --sf-z-sidebar-backdrop: 110;
+  --sf-z-sidebar: 115;
+  --sf-z-dropdown: 200;
+  --sf-z-modal: 1000;
 }
 
 html,
@@ -344,7 +346,9 @@ select {
   margin-top: 6px;
   font-size: 12px;
   text-align: center;
-  max-width: 80px;
+  max-width: 100%;
+  width: 100%;
+  justify-self: center;
   white-space: normal;
   word-break: break-word;
   line-height: 1.25;
@@ -381,12 +385,18 @@ html.dark .workflow-step-label.pending,
 
 @media (max-width: 640px) {
   .workflow-container {
-    gap: 12px;
+    gap: 8px;
+  }
+
+  .workflow-step {
+    min-width: 0;
   }
 
   .workflow-step-label {
     font-size: 10px;
     line-height: 1.2;
+    max-width: 100%;
+    padding: 0 2px;
   }
 
   .workflow-step-label-full {
@@ -397,10 +407,7 @@ html.dark .workflow-step-label.pending,
     display: inline;
   }
 
-  .workflow-step-label-mobile-hidden {
-    display: none;
-  }
-
+  .workflow-step-label-mobile-hidden,
   .workflow-step-label-mobile-visible {
     display: block;
   }

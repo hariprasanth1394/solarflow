@@ -156,7 +156,8 @@ function iconForStage(stageKey: WorkflowStageKey) {
 function normalizeStageKey(input: string | null | undefined): WorkflowStageKey {
   const value = (input ?? "").toUpperCase().trim()
   if (value.includes("CLOSED") || value.includes("CLOSURE")) return "CLOSURE"
-  if (value.includes("INSTALLATION") || value.includes("APPROVED")) return "INSTALLATION"
+  if (value.includes("INSTALLATION")) return "INSTALLATION"
+  if (value.includes("APPROVED")) return "GOVERNMENT_APPROVAL"
   if (value.includes("SUBMITTED") || value.includes("GOV") || value.includes("APPROVAL")) {
     return "GOVERNMENT_APPROVAL"
   }
@@ -173,7 +174,7 @@ function normalizeWorkflowStage(input: string | null | undefined): WorkflowStage
 }
 
 function shortStageLabel(stageKey: WorkflowStageKey) {
-  if (stageKey === "GOVERNMENT_APPROVAL") return "Approval"
+  if (stageKey === "GOVERNMENT_APPROVAL") return "Govt Approval"
   if (stageKey === "INSTALLATION") return "Install"
   if (stageKey === "CLOSURE") return "Closure"
   return "Created"
@@ -267,18 +268,40 @@ function buildStageStatusMap({
   )
   const normalizedStatusText = status.toLowerCase()
 
+  const stageOrder: Record<WorkflowStageValue, number> = {
+    CREATED: 0,
+    SUBMITTED: 1,
+    APPROVED: 2,
+    INSTALLATION: 3,
+    CLOSED: 4
+  }
+  const currentStageIndex = stageOrder[currentWorkflowStage] ?? 0
+
+  const submissionCompleted =
+    currentStageIndex >= stageOrder.SUBMITTED ||
+    normalizedStageHistory.has("SUBMITTED") ||
+    normalizedStatusText.includes("submitted") ||
+    normalizedStatusText.includes("approval submitted")
+
   const approvalCompleted =
+    currentStageIndex >= stageOrder.APPROVED ||
     normalizedStageHistory.has("APPROVED") ||
     normalizedStatusText.includes("government approved")
+
   const approvalSubmitted =
+    approvalCompleted ||
+    currentStageIndex >= stageOrder.SUBMITTED ||
     normalizedStageHistory.has("SUBMITTED") ||
     normalizedStatus === "APPROVAL_SUBMITTED"
 
   const installationCompleted =
-    normalizedStatus === "COMPLETED" || normalizedStatus === "COMPLETED_PAYMENT_PENDING"
-  const installationInProgress = normalizedStatus === "IN_PROGRESS"
+    currentStageIndex >= stageOrder.INSTALLATION ||
+    normalizedStatus === "COMPLETED" ||
+    normalizedStatus === "COMPLETED_PAYMENT_PENDING"
+  const installationInProgress =
+    normalizedStatus === "IN_PROGRESS" || currentStageIndex >= stageOrder.INSTALLATION
 
-  const closureCompleted = currentWorkflowStage === "CLOSED"
+  const closureCompleted = currentStageIndex >= stageOrder.CLOSED
   const closurePaymentPending = !closureCompleted && payment.total > 0 && payment.remaining > 0
 
   return {
@@ -1076,8 +1099,8 @@ export default function CustomerDetailsPage() {
               <div className="relative px-2 sm:px-4">
                 <div className="workflow-stepper-track absolute left-[calc(12.5%+0.5rem)] right-[calc(12.5%+0.5rem)] top-5 h-0.5" />
                 <div
-                  className="workflow-stepper-progress absolute left-[calc(12.5%+0.5rem)] top-5 h-0.5"
-                  style={{ width: `calc((100% - 2rem) * ${stageProgressPercent / 100})` }}
+                  className="workflow-stepper-progress absolute left-[calc(12.5%+0.5rem)] right-[calc(12.5%+0.5rem)] top-5 h-0.5 origin-left"
+                  style={{ transform: `scaleX(${stageProgressPercent / 100})` }}
                 />
                 <div className="workflow-container relative z-[2]">
                   {stageDefinitions.map((stage, index) => {
@@ -1118,29 +1141,31 @@ export default function CustomerDetailsPage() {
                   })}
                 </div>
               </div>
-              <div className="workflow-container mt-2 gap-1">
-                {stageDefinitions.map((stage, index) => {
-                  const stageStatus = stageStatusMap[stage.key]
-                  const isDone = stageStatus.tone === "completed"
-                  const isActive = stage.key === currentStage && stageStatus.tone !== "completed"
-                  const isBlocked =
-                    !isDone &&
-                    !isActive &&
-                    stage.key === "CLOSURE" &&
-                    currentWorkflowStage === "INSTALLATION" &&
-                    !allowedActionModel.closureEnabled
-                  return (
-                    <p
-                      key={`${stage.key}-label`}
-                      className={`workflow-step-label ${
-                        isActive ? "current" : isDone ? "completed" : "pending"
-                      } ${isActive ? "workflow-step-label-mobile-visible" : "workflow-step-label-mobile-hidden"}`}
-                    >
-                      <span className="workflow-step-label-full">{stage.title}</span>
-                      <span className="workflow-step-label-short">{shortStageLabel(stage.key)}</span>
-                    </p>
-                  )
-                })}
+              <div className="px-2 sm:px-4">
+                <div className="workflow-container mt-2 gap-1">
+                  {stageDefinitions.map((stage, index) => {
+                    const stageStatus = stageStatusMap[stage.key]
+                    const isDone = stageStatus.tone === "completed"
+                    const isActive = stage.key === currentStage && stageStatus.tone !== "completed"
+                    const isBlocked =
+                      !isDone &&
+                      !isActive &&
+                      stage.key === "CLOSURE" &&
+                      currentWorkflowStage === "INSTALLATION" &&
+                      !allowedActionModel.closureEnabled
+                    return (
+                      <p
+                        key={`${stage.key}-label`}
+                        className={`workflow-step-label ${
+                          isActive ? "current" : isDone ? "completed" : "pending"
+                        } ${isActive ? "workflow-step-label-mobile-visible" : "workflow-step-label-mobile-hidden"}`}
+                      >
+                        <span className="workflow-step-label-full">{stage.title}</span>
+                        <span className="workflow-step-label-short">{shortStageLabel(stage.key)}</span>
+                      </p>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 

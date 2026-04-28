@@ -3,17 +3,19 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { Database } from '@/types/database.types'
 import { withOrganizationContext } from '@/utils/withOrganizationContext'
 import { getRequestContext } from '@/lib/orgContext'
+import { makeSpareCodeKey, normalize } from '@/lib/inventoryImportNormalize'
 
 export const runtime = 'nodejs'
 
 type ConfirmRow = {
   rowNumber?: number
-  itemCode?: string
+  spareCode?: string
   itemName?: string
-  systemCode?: string
-  systemName?: string
+  unit?: string
   category?: string
   closingStock?: number
+  currentStock?: number
+  unitCost?: number
   importStatus?: string
   status?: string
   errors?: unknown[]
@@ -46,16 +48,13 @@ function normalizeOne<T>(value: T | T[] | null): T | null {
   return Array.isArray(value) ? (value[0] || null) : value
 }
 
-function normalizeSystemKey(value: string): string {
-  return value
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-}
-
 function parseNumber(value: unknown): number {
   const numeric = Number(value)
   return Number.isFinite(numeric) ? numeric : 0
+}
+
+function generateSpareCode(): string {
+  return `SPR-${crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase()}`
 }
 
 function getRowIdentity(row: ConfirmRow): string {
@@ -285,140 +284,137 @@ async function syncInventoryStockQuantities(
   return { syncedCount }
 }
 
-async function applyImportFallback(
+async function applyImportRows(
   db: SupabaseClient<Database>,
   organizationId: string,
   userId: string,
   rows: ConfirmRow[]
-): Promise<{ appliedRows: number; skippedRows: number; mode: 'fallback' }> {
-  const legacyDb = db as any
+): Promise<{
+  appliedRows: number
+  skippedRows: number
+  insertedRows: number
+  updatedRows: number
+  affectedSpareCodes: string[]
+  errors: Array<{ row: number; reason: string }>
+}> {
+  const { data: spares, error: sparesError } = await db
+    .from('spares')
+    .select('id, spare_code, name, category, unit, stock_quantity, cost_price, min_stock, supplier_id')
+    .eq('organization_id', organizationId)
 
-  const [itemsResult, systemsResult, stockResult] = await Promise.all([
-    legacyDb
-      .from('inventory_items')
-      .select('id, item_code, item_name, category, is_active')
-      .eq('organization_id', organizationId)
-      .neq('is_active', false),
-    legacyDb
-      .from('systems')
-      .select('id, system_name, system_code')
-      .eq('organization_id', organizationId),
-    legacyDb
-      .from('inventory_stock')
-      .select('item_id, system_id, quantity')
-      .eq('organization_id', organizationId)
-  ])
+  if (sparesError) throw sparesError
 
-  if (itemsResult.error) throw itemsResult.error
-  if (systemsResult.error) throw systemsResult.error
-  if (stockResult.error) throw stockResult.error
-
-  const items = itemsResult.data || []
-  const systems = systemsResult.data || []
-  const stocks = stockResult.data || []
-
-    type LegacyItem = { id: string; item_code: string; item_name: string; category: string; is_active: boolean }
-    type LegacySystem = { id: string; system_name: string; system_code: string }
-    type LegacyStock = { item_id: string; system_id: string; quantity: number | null }
-    const typedItems = (items as LegacyItem[])
-    const typedSystems = (systems as LegacySystem[])
-    const typedStocks = (stocks as LegacyStock[])
-
-    const itemCodeMap = new Map(typedItems.map((item) => [String(item.item_code || '').toUpperCase(), item]))
-    const itemNameMap = new Map(typedItems.map((item) => [String(item.item_name || '').toUpperCase(), item]))
-
-    const systemCodeMap = new Map(typedSystems.map((system) => [String(system.system_code || '').toUpperCase(), system]))
-    const systemNameMap = new Map(typedSystems.map((system) => [String(system.system_name || '').toUpperCase(), system]))
-    const systemNormalizedMap = new Map<string, LegacySystem>()
-    typedSystems.forEach((system) => {
-      const code = normalizeSystemKey(String(system.system_code || ''))
-      const name = normalizeSystemKey(String(system.system_name || ''))
-      if (code) systemNormalizedMap.set(code, system)
-      if (name) systemNormalizedMap.set(name, system)
-    })
-
-    const stockMap = new Map(typedStocks.map((stock) => [`${stock.item_id}:${stock.system_id}`, stock]))
+  const spareByCode = new Map((spares || []).map((spare) => [makeSpareCodeKey(spare.spare_code), spare]))
 
   let appliedRows = 0
   let skippedRows = 0
+  let insertedRows = 0
+  let updatedRows = 0
+  const affectedSpareCodes = new Set<string>()
+  const rowErrors: Array<{ row: number; reason: string }> = []
 
   for (const row of rows) {
-    const rowStatus = String(row.importStatus || row.status || '').toUpperCase()
-    if (rowStatus === 'ERROR') {
-      skippedRows += 1
-      continue
-    }
-
-    const itemCode = String(row.itemCode || '').trim().toUpperCase()
+    const rowNumber = row.rowNumber ?? 0
+    const normalizedSpareCode = makeSpareCodeKey(row.spareCode)
     const itemName = String(row.itemName || '').trim()
-    const systemCode = String(row.systemCode || '').trim().toUpperCase()
-    const systemName = String(row.systemName || '').trim()
+    const category = String(row.category || '').trim() || null
+    const unit = String(row.unit || '').trim() || 'Nos'
+    const unitCost = parseNumber(row.unitCost)
+    const existingSpare = normalizedSpareCode ? spareByCode.get(normalizedSpareCode) || null : null
+    const targetQty = Number(row.closingStock)
 
-    const item = itemCodeMap.get(itemCode) || itemNameMap.get(itemName.toUpperCase()) || null
-    const normalizedSystemCode = normalizeSystemKey(systemCode)
-    const normalizedSystemName = normalizeSystemKey(systemName)
-    const system =
-      systemCodeMap.get(systemCode) ||
-      systemNameMap.get(systemCode) ||
-      systemCodeMap.get(systemName.toUpperCase()) ||
-      systemNameMap.get(systemName.toUpperCase()) ||
-      (normalizedSystemCode ? systemNormalizedMap.get(normalizedSystemCode) : null) ||
-      (normalizedSystemName ? systemNormalizedMap.get(normalizedSystemName) : null) ||
-      null
+    console.log('[inventory.import.confirm] processing_row', {
+      rowNumber,
+      spareCode: String(row.spareCode || '').trim(),
+      normalizedSpareCode,
+      matched: !!existingSpare
+    })
 
-    if (!item || !system) {
+    if (!Number.isFinite(targetQty) || targetQty < 0) {
       skippedRows += 1
+      rowErrors.push({ row: rowNumber, reason: 'Invalid stock value' })
       continue
     }
 
-    const targetQty = parseNumber(row.closingStock)
-    const stockKey = `${item.id}:${system.id}`
-    const existingStock = stockMap.get(stockKey)
+    if (!existingSpare && !itemName) {
+      skippedRows += 1
+      rowErrors.push({ row: rowNumber, reason: 'Missing required field: Item Name' })
+      continue
+    }
 
-    if (existingStock) {
-      const { error: updateError } = await legacyDb
-        .from('inventory_stock')
-        .update({ quantity: targetQty })
-        .eq('organization_id', organizationId)
-        .eq('item_id', item.id)
-        .eq('system_id', system.id)
-      if (updateError) throw updateError
-    } else {
-      const { error: insertError } = await legacyDb
-        .from('inventory_stock')
+    console.log('[inventory.import.confirm] row_match_check', {
+      spareCode: String(row.spareCode || '').trim(),
+      normalizedSpareCode,
+      matched: !!existingSpare
+    })
+
+    try {
+      if (existingSpare && Number(existingSpare.stock_quantity || 0) === targetQty) {
+        continue
+      }
+
+      const spareCode = existingSpare?.spare_code || generateSpareCode()
+      const { data: upsertedSpare, error: upsertError } = await db
+        .from('spares')
+        .upsert(
+          {
+            organization_id: organizationId,
+            spare_code: spareCode,
+            name: existingSpare?.name || itemName,
+            category: existingSpare?.category || category,
+            unit: existingSpare?.unit || unit,
+            stock_quantity: targetQty,
+            min_stock: existingSpare?.min_stock || 0,
+            cost_price: unitCost || Number(existingSpare?.cost_price || 0),
+            supplier_id: existingSpare?.supplier_id || null
+          },
+          { onConflict: 'spare_code' }
+        )
+        .select('id, spare_code, name, stock_quantity')
+        .single()
+
+      if (upsertError) throw upsertError
+
+      const previousQty = Number(existingSpare?.stock_quantity || 0)
+      const delta = targetQty - previousQty
+      const { error: txError } = await db
+        .from('stock_transactions')
         .insert({
           organization_id: organizationId,
-          item_id: item.id,
-          system_id: system.id,
-          quantity: targetQty
+          spare_id: upsertedSpare.id,
+          type: 'adjustment',
+          quantity: delta,
+          reference: `IMPORT-${spareCode}`
         })
-      if (insertError) throw insertError
-    }
+      if (txError) {
+        console.warn('[inventory.import.confirm] transaction_insert_failed', {
+          rowNumber,
+          spareCode,
+          message: txError.message
+        })
+      }
 
-    const { error: txError } = await legacyDb
-      .from('inventory_transactions')
-      .insert({
-        organization_id: organizationId,
-        item_id: item.id,
-        system_id: system.id,
-        transaction_type: 'ADJUSTMENT',
-        quantity: targetQty,
-        notes: 'Import fallback apply',
-        created_by: userId
-      })
-    if (txError) {
-      console.warn('[inventory.import.confirm] fallback_transaction_insert_failed', {
-        organizationId,
-        itemId: item.id,
-        systemId: system.id,
-        message: txError.message
-      })
+      appliedRows += 1
+      affectedSpareCodes.add(String(upsertedSpare.spare_code || spareCode).trim())
+      if (existingSpare) {
+        updatedRows += 1
+      } else {
+        insertedRows += 1
+      }
+    } catch (err) {
+      skippedRows += 1
+      rowErrors.push({ row: rowNumber, reason: err instanceof Error ? err.message : 'Upsert failed' })
     }
-
-    appliedRows += 1
   }
 
-  return { appliedRows, skippedRows, mode: 'fallback' }
+  return {
+    appliedRows,
+    skippedRows,
+    insertedRows,
+    updatedRows,
+    affectedSpareCodes: [...affectedSpareCodes],
+    errors: rowErrors
+  }
 }
 
 async function getRequestClient(): Promise<SupabaseClient<Database> | null> {
@@ -470,18 +466,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      if (typedRows.some((row) => row?.status === 'ERROR' || row?.importStatus === 'ERROR' || (row?.errors?.length || 0) > 0)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: 'BLOCKING_ERRORS',
-              message: 'Please resolve row-level errors before confirming import'
-            }
-          },
-          { status: 400 }
-        )
-      }
+      // Process all rows regardless of individual ERROR status — fallback handles per-row skipping
 
       const { userId } = await getRequestContext()
       const db = await getRequestClient()
@@ -498,75 +483,18 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const legacyDb = db as any
-
-      const { data, error } = await legacyDb.rpc('apply_inventory_import_v2', {
-        p_organization_id: organizationId,
-        p_uploaded_by: userId,
-        p_file_name: fileName,
-        p_batch_key: batchKey,
-        p_rows: rows
-      })
-
-      let applyResult: unknown = data || {}
-      if (error) {
-        const errorMsg = String(error.message || '')
-        const canFallback = /no unique or exclusion constraint matching the ON CONFLICT specification/i.test(errorMsg)
-        if (!canFallback) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: {
-                code: 'APPLY_FAILED',
-                message: error.message
-              }
-            },
-            { status: 500 }
-          )
-        }
-
-        console.warn('[inventory.import.confirm] rpc_apply_failed_fallback_triggered', {
-          organizationId,
-          message: errorMsg
-        })
-
-        applyResult = await applyImportFallback(db, organizationId, userId, typedRows)
-      }
-
-      const inventoryStockSyncResult = await syncInventoryStockQuantities(db, organizationId, typedRows)
-      let stockSyncResult: { syncedCount: number; mode: 'inventory' | 'rows' } = { syncedCount: 0, mode: 'inventory' }
-      try {
-        const inventorySync = await syncSpareStockFromInventory(db, organizationId)
-        stockSyncResult = { ...inventorySync, mode: 'inventory' }
-      } catch (syncError) {
-        console.warn('[inventory.import.confirm] inventory_spare_sync_failed_using_row_fallback', {
-          organizationId,
-          message: syncError instanceof Error ? syncError.message : 'Unknown sync error'
-        })
-        const rowSync = await syncSpareStockFromRows(db, organizationId, typedRows)
-        stockSyncResult = { ...rowSync, mode: 'rows' }
-      }
-
-      const { data: availabilityRows } = await legacyDb
-        .from('system_inventory')
-        .select('system_id, available_count, limiting_item, systems(system_name)')
-        .eq('organization_id', organizationId)
-
-      const mappedAvailability = ((availabilityRows || []) as unknown as AvailabilityRow[]).map((row) => ({
-        systemId: row.system_id,
-        systemName: String(normalizeOne(row.systems)?.system_name || ''),
-        availableCount: row.available_count,
-        limitingItem: row.limiting_item
-      }))
+      const applyResult = await applyImportRows(db, organizationId, userId, typedRows)
 
       return NextResponse.json(
         {
           success: true,
           data: {
-            ...(applyResult as object),
-            inventoryStockSync: inventoryStockSyncResult,
-            spareStockSync: stockSyncResult,
-            systemAvailability: mappedAvailability
+            appliedRows: applyResult.appliedRows,
+            skippedRows: applyResult.skippedRows,
+            insertedRows: applyResult.insertedRows,
+            updatedRows: applyResult.updatedRows,
+            affectedSpareCodes: applyResult.affectedSpareCodes,
+            errors: applyResult.errors
           }
         },
         { status: 200 }

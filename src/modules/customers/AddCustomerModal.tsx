@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import LoadingButton from "../../components/ui/LoadingButton"
+import ModalPortal from "../../components/ui/ModalPortal"
 import type { AvailableSolarSystem } from "../../services/inventoryService"
 
 type SalesRep = { id: string; name: string | null; email: string | null }
@@ -30,6 +31,7 @@ const emptyForm: CustomerPayload = {
 
 // Inner component - no effects, state initialized from props
 function CustomerModalForm({
+  open,
   initialValue,
   loading,
   systemsLoading,
@@ -38,6 +40,7 @@ function CustomerModalForm({
   onClose,
   onSubmit,
 }: {
+  open: boolean
   initialValue?: CustomerPayload | null
   loading: boolean
   systemsLoading: boolean
@@ -56,16 +59,14 @@ function CustomerModalForm({
   const noSystemsAvailable = !systemsLoading && availableSystems.length === 0
 
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-        <form
-          className="card my-6 w-full max-w-2xl p-4 shadow-2xl sm:p-5"
-          onSubmit={async (event) => {
-            event.preventDefault()
-            await onSubmit(form)
-          }}
-        >
+    <ModalPortal isOpen={open} onClose={onClose}>
+      <form
+        className="card relative z-10 w-full max-w-2xl p-4 shadow-2xl sm:p-5"
+        onSubmit={async (event) => {
+          event.preventDefault()
+          await onSubmit(form)
+        }}
+      >
           <h3 className="text-lg font-semibold text-gray-900">{initialValue ? "Edit Customer" : "Add Customer"}</h3>
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             <input
@@ -172,8 +173,7 @@ function CustomerModalForm({
             </LoadingButton>
           </div>
         </form>
-      </div>
-    </>
+    </ModalPortal>
   )
 }
 
@@ -189,15 +189,9 @@ type AddCustomerModalProps = {
 }
 
 export default function AddCustomerModal(props: AddCustomerModalProps) {
-  if (!props.open) return null
-
-  // Use a key based on initialValue to force remount when modal opens with different data
-  // This resets all internal state automatically without needing effects with setState
-  const modalKey = `customer-modal-${props.initialValue?.name ?? "new"}`
-
-  return (
+  return props.open ? (
     <CustomerModalForm
-      key={modalKey}
+      open={props.open}
       initialValue={props.initialValue}
       loading={props.loading}
       systemsLoading={props.systemsLoading}
@@ -206,5 +200,5 @@ export default function AddCustomerModal(props: AddCustomerModalProps) {
       onClose={props.onClose}
       onSubmit={props.onSubmit}
     />
-  )
+  ) : null
 }

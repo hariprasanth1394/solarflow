@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import ModalPortal from "../../../components/ui/ModalPortal"
 
 type SpareOption = { id: string; name: string; unit: string | null }
 
@@ -18,8 +19,6 @@ export default function AddComponentModal({ open, loading, spares, onClose, onSu
 
   const disabled = useMemo(() => !spareId || loading, [spareId, loading])
 
-  if (!open) return null
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     await onSubmit({ spare_id: spareId, quantity_required: Number(quantityRequired) || 1 })
@@ -28,10 +27,8 @@ export default function AddComponentModal({ open, loading, spares, onClose, onSu
   }
 
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-slate-900/40" onClick={onClose} />
-      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center">
-        <form onSubmit={handleSubmit} className="card my-6 w-full max-w-lg p-4 shadow-2xl sm:p-5">
+    <ModalPortal isOpen={open} onClose={onClose}>
+      <form onSubmit={handleSubmit} className="card relative z-10 w-full max-w-lg p-4 shadow-2xl sm:p-5">
           <h3 className="text-lg font-semibold text-slate-900">Add System Component</h3>
           <p className="mt-1 text-sm text-slate-600">Select a spare and define required quantity.</p>
 
@@ -73,7 +70,6 @@ export default function AddComponentModal({ open, loading, spares, onClose, onSu
             </button>
           </div>
         </form>
-      </div>
-    </>
+    </ModalPortal>
   )
 }

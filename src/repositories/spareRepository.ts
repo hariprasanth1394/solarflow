@@ -24,7 +24,7 @@ export async function querySpares(
 
   let query = supabase
     .from("spares")
-    .select("id,name,category,unit,stock_quantity,min_stock,cost_price,supplier_id,suppliers(name)", { count: "exact" })
+    .select("id,spare_code,name,category,unit,stock_quantity,min_stock,cost_price,supplier_id,suppliers(name)", { count: "exact" })
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
 

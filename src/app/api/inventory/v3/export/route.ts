@@ -56,13 +56,11 @@ async function getRequestClient(): Promise<SupabaseClient<Database> | null> {
 
 type ExportRow = {
   rowType: 'EXISTING'
-  itemCode: string
+  spareCode: string
   itemName: string
   category: string
-  systemCode: string
-  systemName: string
+  unit: string
   currentStock: number
-  issuedQty: number
   closingStock: number
   unitCost: number
 }
@@ -95,7 +93,9 @@ type SpareRow = {
   name: string | null
   category: string | null
   cost_price: number | null
+  spare_code: string | null
   stock_quantity: number | null
+  unit: string | null
 }
 
 type BomRow = {
@@ -139,126 +139,46 @@ export async function GET(request: NextRequest) {
 
       const legacyStockDb = db as any
 
-      const [sparesResult, stockResult] = await Promise.all([
+      const [sparesResult, bomResult] = await Promise.all([
         db
           .from('spares')
-          .select('id, name, category, cost_price, stock_quantity')
+          .select('id, spare_code, name, category, unit, cost_price, stock_quantity')
           .eq('organization_id', organizationId),
-        (systemIds.length > 0
-          ? legacyStockDb
-              .from('inventory_stock')
-              .select('item_id, system_id, quantity, item:inventory_items(id, item_code, item_name, category, organization_id, is_active), system:systems(id, system_name, system_code)')
-              .eq('organization_id', organizationId)
-              .in('system_id', systemIds)
-          : legacyStockDb
-              .from('inventory_stock')
-              .select('item_id, system_id, quantity, item:inventory_items(id, item_code, item_name, category, organization_id, is_active), system:systems(id, system_name, system_code)')
-              .eq('organization_id', organizationId))
+        legacyStockDb
+          .from('system_components')
+          .select('system_id, spare_id')
+          .eq('organization_id', organizationId)
       ])
 
       if (sparesResult.error) throw sparesResult.error
-      if (stockResult.error) throw stockResult.error
+      if (bomResult.error) throw bomResult.error
 
-      const stockRows = (stockResult.data || []) as unknown as StockRow[]
       const spares = (sparesResult.data || []) as unknown as SpareRow[]
-      const spareMap = new Map(spares.map((spare) => [String(spare.name || '').toUpperCase(), spare]))
+      const bomRows = (bomResult.data || []) as unknown as BomRow[]
+      const allowedSpareIds = systemIds.length > 0
+        ? new Set(bomRows.filter((row) => systemIds.includes(row.system_id)).map((row) => row.spare_id).filter(Boolean))
+        : null
 
-      console.info('[inventory.export] joined_rows_loaded', {
-        organizationId,
-        stockRowCount: stockRows.length,
-        spareCount: spares.length
-      })
-
-      let exportRows: ExportRow[] = stockRows
-        .map((stock) => {
-          const item = normalizeOne(stock.item)
-          const system = normalizeOne(stock.system)
-          if (!item || !system) return null
-          if (item.is_active === false) return null
-          if (item.organization_id && item.organization_id !== organizationId) return null
-
-          const category = String(item.category || '').trim()
-          if (categoryNamesFilter.length > 0 && !categoryNamesFilter.includes(category.toUpperCase())) {
-            return null
-          }
-
-          const itemCode = String(item.item_code || '').trim()
-          const itemName = String(item.item_name || '').trim()
-          const currentStock = Number(stock.quantity || 0)
-          const unitCost = Number(spareMap.get(itemName.toUpperCase())?.cost_price || 0)
-
+      const exportRows: ExportRow[] = spares
+        .filter((spare) => {
+          const category = String(spare.category || '').trim()
+          const categoryOk = categoryNamesFilter.length === 0 || categoryNamesFilter.includes(category.toUpperCase())
+          const systemOk = !allowedSpareIds || (spare.id ? allowedSpareIds.has(spare.id) : false)
+          return categoryOk && systemOk
+        })
+        .map((spare) => {
+          const currentStock = Number(spare.stock_quantity || 0)
           return {
             rowType: 'EXISTING',
-            itemCode,
-            itemName,
-            category,
-            systemCode: String(system.system_code || system.system_name || ''),
-            systemName: String(system.system_name || ''),
+            spareCode: String(spare.spare_code || '').trim(),
+            itemName: String(spare.name || '').trim(),
+            category: String(spare.category || '').trim(),
+            unit: String(spare.unit || 'Nos').trim(),
             currentStock,
-            issuedQty: 0,
             closingStock: currentStock,
-            unitCost
+            unitCost: Number(spare.cost_price || 0)
           }
         })
-        .filter(Boolean) as ExportRow[]
-
-      console.info('[inventory.export] filtered_rows', {
-        organizationId,
-        filteredCount: exportRows.length
-      })
-
-      if (exportRows.length === 0) {
-        const [legacySystemsResult, bomResult] = await Promise.all([
-          db
-            .from('systems')
-            .select('id, system_name, system_code')
-            .eq('organization_id', organizationId),
-          db
-            .from('system_components')
-            .select('system_id, spare_id')
-            .eq('organization_id', organizationId)
-        ])
-
-        if (legacySystemsResult.error) throw legacySystemsResult.error
-        if (bomResult.error) throw bomResult.error
-
-        const legacySystems = (legacySystemsResult.data || []) as unknown as SystemRow[]
-        const legacySystemMap = new Map(legacySystems.map((row) => [row.id, row]))
-        const spareById = new Map(spares.map((spare) => [spare.id, spare]))
-
-        exportRows = ((bomResult.data || []) as unknown as BomRow[])
-          .map((row) => {
-            const system = legacySystemMap.get(row.system_id)
-            const spare = row.spare_id ? spareById.get(row.spare_id) : null
-            if (!system || !spare) return null
-
-            const systemCode = String(system.system_code || system.system_name || '')
-            const systemName = String(system.system_name || '')
-            const category = String(spare.category || '').trim()
-
-            if (systemIds.length > 0 && !systemIds.includes(system.id)) {
-              return null
-            }
-            if (categoryNamesFilter.length > 0 && !categoryNamesFilter.includes(category.toUpperCase())) {
-              return null
-            }
-
-            const currentStock = Number(spare.stock_quantity || 0)
-            return {
-              rowType: 'EXISTING',
-              itemCode: String(spare.name || '').toUpperCase(),
-              itemName: String(spare.name || ''),
-              category,
-              systemCode,
-              systemName,
-              currentStock,
-              issuedQty: 0,
-              closingStock: currentStock,
-              unitCost: Number(spare.cost_price || 0)
-            }
-          })
-          .filter(Boolean) as ExportRow[]
-      }
 
       if (exportRows.length === 0) {
         return NextResponse.json(
@@ -274,23 +194,19 @@ export async function GET(request: NextRequest) {
       }
 
       const categoryList = [...new Set(exportRows.map((row) => row.category).filter(Boolean))].sort((a, b) => a.localeCompare(b))
-      const systemCodeList = [...new Set(exportRows.map((row) => row.systemCode).filter(Boolean))].sort((a, b) => a.localeCompare(b))
-      const systemNameList = [...new Set(exportRows.map((row) => row.systemName).filter(Boolean))].sort((a, b) => a.localeCompare(b))
-
       const workbook = new ExcelJS.Workbook()
       const dataSheet = workbook.addWorksheet('Inventory_Import')
       const masterSheet = workbook.addWorksheet('Master_Data')
+      const instructionsSheet = workbook.addWorksheet('Instructions')
 
       const headers = [
         'Row Type',
-        'Item Code',
+        'Spare Code',
         'Item Name',
         'Category',
-        'System Code',
-        'System Name',
+        'Unit',
         'Current Stock',
-        'Issued Qty',
-        'Closing Stock',
+        'Final Stock',
         'Unit Cost'
       ]
 
@@ -299,13 +215,11 @@ export async function GET(request: NextRequest) {
       exportRows.forEach((row) => {
         dataSheet.addRow([
           row.rowType,
-          row.itemCode,
+          row.spareCode,
           row.itemName,
           row.category,
-          row.systemCode,
-          row.systemName,
+          row.unit,
           row.currentStock,
-          row.issuedQty,
           row.closingStock,
           row.unitCost
         ])
@@ -315,18 +229,6 @@ export async function GET(request: NextRequest) {
       categoryList.forEach((value) => masterSheet.addRow([value]))
       const categoryEnd = Math.max(2, masterSheet.rowCount)
 
-      masterSheet.getCell('C1').value = 'Systems'
-      systemCodeList.forEach((value, index) => {
-        masterSheet.getCell(`C${index + 2}`).value = value
-      })
-      const systemCodeEnd = Math.max(2, systemCodeList.length + 1)
-
-      masterSheet.getCell('E1').value = 'System Names'
-      systemNameList.forEach((value, index) => {
-        masterSheet.getCell(`E${index + 2}`).value = value
-      })
-      const systemNameEnd = Math.max(2, systemNameList.length + 1)
-
       const lastDataRow = dataSheet.rowCount
       for (let row = 2; row <= lastDataRow; row++) {
         dataSheet.getCell(`D${row}`).dataValidation = {
@@ -334,17 +236,23 @@ export async function GET(request: NextRequest) {
           allowBlank: true,
           formulae: [`Master_Data!$A$2:$A$${categoryEnd}`]
         }
-        dataSheet.getCell(`E${row}`).dataValidation = {
-          type: 'list',
-          allowBlank: false,
-          formulae: [`Master_Data!$C$2:$C$${systemCodeEnd}`]
-        }
-        dataSheet.getCell(`F${row}`).dataValidation = {
-          type: 'list',
-          allowBlank: false,
-          formulae: [`Master_Data!$E$2:$E$${systemNameEnd}`]
-        }
+
+        // Only Final Stock (column G) stays editable in Excel.
+        ;['A', 'B', 'C', 'D', 'E', 'F', 'H'].forEach((column) => {
+          dataSheet.getCell(`${column}${row}`).protection = { locked: true }
+        })
+        ;['G'].forEach((column) => {
+          dataSheet.getCell(`${column}${row}`).protection = { locked: false }
+        })
       }
+
+      instructionsSheet.addRow(['Inventory Import Instructions'])
+      instructionsSheet.addRow(['Do not edit Spare Code. It is the stable primary identifier used for updates.'])
+      instructionsSheet.addRow(['Rows with empty Spare Code are treated as NEW inserts and will receive a generated Spare Code.'])
+      instructionsSheet.addRow(['Only edit Final Stock. All other columns are read-only reference data.'])
+      instructionsSheet.addRow(['Final Stock is the only value required for updates. Difference is auto-calculated: Final Stock − Current Stock.'])
+      instructionsSheet.columns = [{ width: 120 }]
+      await dataSheet.protect('', { selectLockedCells: true, selectUnlockedCells: true })
 
       headers.forEach((header, index) => {
         const cell = dataSheet.getCell(1, index + 1)
@@ -357,9 +265,7 @@ export async function GET(request: NextRequest) {
         { width: 18 },
         { width: 28 },
         { width: 14 },
-        { width: 18 },
-        { width: 26 },
-        { width: 14 },
+        { width: 12 },
         { width: 14 },
         { width: 14 },
         { width: 14 }

@@ -357,25 +357,26 @@ function validateBusinessLogic(row: ImportRow): void {
     }
   }
 
-  // Check if Closing Stock exceeds Current Stock
+  // Closing Stock exceeding Current Stock is valid for NEW items (currentStock may be 0).
+  // Demoted to warning so NEW rows are not blocked.
   if (row.closingStock !== null && row.closingStock > row.currentStock) {
-    row.errors.push({
+    row.warnings.push({
       rowNumber: row.rowNumber,
       column: 'Closing Stock',
-      message: 'Closing Stock cannot exceed Current Stock',
+      message: `Closing Stock (${row.closingStock}) exceeds Current Stock (${row.currentStock}). Accepted as-is — valid for new items.`,
       errorCode: 'CLOSING_EXCEEDS_CURRENT',
-      severity: 'error'
+      severity: 'warning'
     })
   }
 
-  // Check if Issued Qty exceeds Current Stock
+  // Issued Qty exceeding Current Stock is also a warning for NEW items.
   if (row.issuedQty !== null && row.issuedQty > row.currentStock) {
-    row.errors.push({
+    row.warnings.push({
       rowNumber: row.rowNumber,
       column: 'Issued Qty',
-      message: 'Issued Qty cannot exceed Current Stock',
+      message: `Issued Qty (${row.issuedQty}) exceeds Current Stock (${row.currentStock}). Accepted as-is — valid for new items.`,
       errorCode: 'ISSUED_EXCEEDS_CURRENT',
-      severity: 'error'
+      severity: 'warning'
     })
   }
 }
@@ -407,13 +408,18 @@ export type DatabaseValidationContext = {
   systemCodeMap: Map<string, { id: string; name: string }>
 }
 
+/** Canonical normalizer — applied before every Map lookup. */
+function normalizeKey(value: unknown): string {
+  return String(value ?? '').trim().toLowerCase()
+}
+
 export async function validateAgainstDatabase(
   rows: ImportRow[],
   context: DatabaseValidationContext
 ): Promise<ImportRow[]> {
   return rows.map((row) => {
-    // Validate Item Code exists
-    const item = context.itemCodeMap.get(row.itemCode)
+    // Validate Item Code exists — item_code-first normalized lookup
+    const item = context.itemCodeMap.get(normalizeKey(row.itemCode)) || null
     if (!item) {
       row.warnings.push({
         rowNumber: row.rowNumber,
@@ -426,8 +432,11 @@ export async function validateAgainstDatabase(
       row.itemName = item.name
     }
 
-    // Validate System Code exists
-    const system = context.systemCodeMap.get(row.systemCode)
+    // Validate System Code exists — normalized lookup
+    const system =
+      context.systemCodeMap.get(normalizeKey(row.systemCode)) ||
+      context.systemCodeMap.get(normalizeKey(row.systemName)) ||
+      null
     if (!system) {
       row.errors.push({
         rowNumber: row.rowNumber,

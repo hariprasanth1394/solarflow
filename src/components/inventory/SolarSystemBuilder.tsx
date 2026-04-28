@@ -4,6 +4,7 @@ import { Eye, Plus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import Button from "../ui/Button";
 import Card from "../ui/Card";
+import ModalPortal from "../ui/ModalPortal";
 
 type SystemComponent = {
   spareName: string;
