@@ -151,7 +151,7 @@ export default function LoginPage() {
   return (
     <div
       style={{ fontFamily: "var(--font-inter, Inter, sans-serif)" }}
-      className={`min-h-screen bg-[#F0F2F5] transition-opacity duration-500 ${mounted ? "opacity-100" : "opacity-0"} md:grid md:grid-cols-[60%_40%]`}
+      className={`min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-500 ${mounted ? "opacity-100" : "opacity-0"} md:grid md:grid-cols-[58%_42%]`}
     >
       <section className="relative hidden min-h-screen overflow-hidden md:block">
         {slides.map((slide, index) => (
@@ -230,15 +230,15 @@ export default function LoginPage() {
         </div>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center bg-[#F0F2F5] px-4 py-8 sm:px-6 md:px-6 md:py-10">
-        <div className="w-full max-w-[400px] rounded-[10px] bg-white px-5 py-7 shadow-[0_2px_8px_rgba(15,23,42,0.08),0_1px_3px_rgba(15,23,42,0.05)]">
-          <div className="mb-6 flex flex-col items-center gap-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 shadow-[0_3px_10px_rgba(37,99,235,0.30)]">
-              <Image src="/assets/solarflow-icon-light.svg" alt="Solar Flow logo" width={24} height={24} className="h-6 w-6" />
+      <section className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8 sm:px-6 md:px-8 md:py-12 dark:bg-slate-950">
+        <div className="w-full max-w-[450px] rounded-none bg-white/95 px-6 py-8 shadow-[0_36px_90px_-48px_rgba(15,23,42,0.30)] backdrop-blur-md ring-1 ring-slate-200/80 transition-all duration-500 animate-[fadeIn_0.45s_ease-out] dark:bg-slate-900/95 dark:ring-slate-700/80">
+          <div className="mb-8 flex flex-col items-center gap-4 text-center">
+            <div className="flex h-20 w-20 items-center justify-center">
+              <Image src="/assets/solarflow-logo-dar5asda.svg" alt="Solar Flow logo" width={80} height={80} className="h-20 w-20" />
             </div>
-            <div className="space-y-1 text-center">
-              <h1 className="text-[22px] font-semibold tracking-tight text-slate-900">Welcome back</h1>
-              <p className="text-[13px] font-normal text-slate-500">Sign in to your account</p>
+            <div className="space-y-2 text-center">
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Welcome back</h1>
+              <p className="max-w-[320px] text-sm leading-6 text-slate-500 dark:text-slate-400">Securely access your solar inventory, projects, and approvals from one intelligent platform.</p>
             </div>
           </div>
 
@@ -246,7 +246,7 @@ export default function LoginPage() {
             type="button"
             disabled={isLoading}
             onClick={handleGoogleSignIn}
-            className="inline-flex h-11 w-full items-center justify-center gap-3 rounded-[6px] border border-slate-200 bg-white text-[13px] font-medium text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_2px_6px_rgba(15,23,42,0.08)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex h-[48px] w-full items-center justify-center gap-3 rounded-none border border-slate-200 bg-white text-sm font-semibold text-slate-700 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.22)] transition duration-200 ease-out hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_22px_50px_-28px_rgba(15,23,42,0.20)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <GoogleIcon />
             Continue with Google
@@ -258,13 +258,13 @@ export default function LoginPage() {
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="login-email" className="mb-1.5 block text-[12px] font-medium text-slate-600">
+              <label htmlFor="login-email" className="mb-2 block text-sm font-semibold text-slate-600 dark:text-slate-300">
                 Email address
               </label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <div className="relative rounded-2xl border border-slate-200 bg-slate-50 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-400">
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   id="login-email"
                   type="email"
@@ -273,17 +273,17 @@ export default function LoginPage() {
                   placeholder="you@company.com"
                   autoFocus
                   required
-                  className="h-11 w-full rounded-[6px] border border-slate-200 bg-[#F8FAFC] py-2 pl-9 pr-3 text-[14px] text-slate-800 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 hover:border-slate-300"
+                  className="h-[48px] w-full rounded-2xl border-0 bg-transparent px-12 text-sm text-slate-950 outline-none transition duration-200 ease-out placeholder:text-slate-500 placeholder:opacity-80 dark:text-white dark:placeholder:text-slate-500"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="login-password" className="mb-1.5 block text-[12px] font-medium text-slate-600">
+              <label htmlFor="login-password" className="mb-2 block text-sm font-semibold text-slate-600 dark:text-slate-300">
                 Password
               </label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <div className="relative rounded-2xl border border-slate-200 bg-slate-50 focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-950 dark:focus-within:border-sky-400">
+                <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                 <input
                   id="login-password"
                   type={showPassword ? "text" : "password"}
@@ -291,12 +291,12 @@ export default function LoginPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Min. 8 characters"
                   required
-                  className="h-11 w-full rounded-[6px] border border-slate-200 bg-[#F8FAFC] py-2 pl-9 pr-10 text-[14px] text-slate-800 outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 hover:border-slate-300"
+                  className="h-[48px] w-full rounded-2xl border-0 bg-transparent px-12 pr-14 text-sm text-slate-950 outline-none transition duration-200 ease-out placeholder:text-slate-500 placeholder:opacity-80 dark:text-white dark:placeholder:text-slate-500"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
-                  className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-slate-500 transition duration-200 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -304,29 +304,31 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-1">
-              <label className="inline-flex items-center gap-2 text-[12px] text-slate-600">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <label className="inline-flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(event) => setRememberMe(event.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 dark:border-slate-600"
                 />
                 Remember me
               </label>
-              <a href="mailto:support@solarflow.app" className="text-[12px] font-medium text-blue-600 transition hover:text-blue-700 hover:underline">
+              <a href="mailto:support@solarflow.app" className="text-sm font-semibold text-sky-600 transition hover:text-sky-500 hover:underline">
                 Forgot?
               </a>
             </div>
 
             {errorMessage ? (
-              <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</p>
+              <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+                {errorMessage}
+              </p>
             ) : null}
 
             <button
               type="submit"
               disabled={isLoading}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[6px] bg-[linear-gradient(135deg,#0F172A_0%,#1E3A8A_100%)] text-[14px] font-semibold text-white shadow-[0_2px_6px_rgba(15,23,42,0.25)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(15,23,42,0.35)] active:translate-y-0 active:shadow-[0_1px_4px_rgba(15,23,42,0.15)] disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-none bg-gradient-to-r from-sky-500 via-indigo-600 to-violet-600 text-sm font-semibold text-white shadow-[0_20px_60px_-32px_rgba(59,130,246,0.75)] transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_24px_80px_-36px_rgba(79,70,229,0.65)] active:translate-y-0 active:shadow-[0_8px_20px_-32px_rgba(15,23,42,0.25)] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {submitting ? (
                 <span className="inline-flex items-center gap-2">

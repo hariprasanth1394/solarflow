@@ -937,6 +937,20 @@ html.dark .btn-primary {
   }
 }
 
+/* Premium User Dropdown */
+.user-dropdown {
+  border-radius: 12px;
+}
+
+.user-dropdown-item {
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+
+.user-dropdown-item:active {
+  transform: scale(0.96);
+}
+
 .table-shell {
   overflow: hidden;
   border: 1px solid var(--border);

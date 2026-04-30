@@ -1,15 +1,48 @@
+import Image from "next/image"
+
 type AvatarProps = {
-  name: string
-  src?: string
+  src?: string | null
+  alt?: string
+  initials?: string
+  size?: "sm" | "md" | "lg"
+  className?: string
 }
 
-export default function Avatar({ name, src }: AvatarProps) {
-  return src ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={name} className="h-9 w-9 rounded-full object-cover" />
-  ) : (
-    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-300 text-xs font-semibold text-slate-700">
-      {name.slice(0, 2).toUpperCase()}
+const sizeClasses = {
+  sm: "h-8 w-8 text-xs",
+  md: "h-9 w-9 text-sm",
+  lg: "h-14 w-14 text-base"
+}
+
+export default function Avatar({
+  src,
+  alt = "Avatar",
+  initials = "?",
+  size = "md",
+  className = ""
+}: AvatarProps) {
+  const sizeClass = sizeClasses[size]
+
+  if (src) {
+    return (
+      <Image
+        src={src}
+        alt={alt}
+        width={size === "lg" ? 56 : size === "sm" ? 32 : 36}
+        height={size === "lg" ? 56 : size === "sm" ? 32 : 36}
+        className={`rounded-xl object-cover ${sizeClass} ${className}`}
+      />
+    )
+  }
+
+  return (
+    <div
+      className={`flex items-center justify-center rounded-xl font-semibold text-white ${sizeClass} ${className}`}
+      style={{
+        background: "linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)"
+      }}
+    >
+      {initials}
     </div>
   )
 }

@@ -1,10 +1,10 @@
 "use client"
 
-import { Bell, ChevronDown, Menu, Moon, Sun } from "lucide-react"
+import { Bell, Menu, Moon, Sun } from "lucide-react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { logout } from "../../services/authService"
+import UserDropdown from "@/components/ui/UserDropdown"
+import { supabase } from "@/lib/supabaseClient"
 
 type HeaderProps = {
   onMenuClick?: () => void
@@ -13,11 +13,9 @@ type HeaderProps = {
 }
 
 export default function Header({ onMenuClick, dark: controlledDark, onToggleTheme }: HeaderProps) {
-  const router = useRouter()
   const [internalDark, setInternalDark] = useState(false)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [menuError, setMenuError] = useState("")
+  const [userName, setUserName] = useState("Admin")
+  const [userAvatar, setUserAvatar] = useState<string | null>(null)
 
   const dark = typeof controlledDark === "boolean" ? controlledDark : internalDark
 
@@ -28,6 +26,35 @@ export default function Header({ onMenuClick, dark: controlledDark, onToggleThem
       setInternalDark(true)
     }
   }, [controlledDark])
+
+  // Load user data
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser()
+        if (!authData?.user) return
+
+        const { data: profileData } = await supabase
+          .from("users")
+          .select("first_name, last_name, avatar_url")
+          .eq("id", authData.user.id)
+          .single()
+
+        if (profileData) {
+          const profile = profileData as { first_name?: string; last_name?: string; avatar_url?: string }
+          const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+          setUserName(fullName || authData.user.email || "User")
+          if (profile.avatar_url) {
+            setUserAvatar(profile.avatar_url)
+          }
+        }
+      } catch (error) {
+        console.error("Error loading user:", error)
+      }
+    }
+
+    void loadUser()
+  }, [])
 
   const handleThemeToggle = () => {
     if (onToggleTheme) {
@@ -46,23 +73,6 @@ export default function Header({ onMenuClick, dark: controlledDark, onToggleThem
       }
       return next
     })
-  }
-
-  const handleLogout = async () => {
-    if (isLoggingOut) return
-    setMenuError("")
-    setIsLoggingOut(true)
-
-    try {
-      await logout()
-      setMenuOpen(false)
-      router.replace("/login")
-      router.refresh()
-    } catch (error) {
-      setMenuError(error instanceof Error ? error.message : "Unable to log out. Please try again")
-    } finally {
-      setIsLoggingOut(false)
-    }
   }
 
   return (
@@ -112,36 +122,7 @@ export default function Header({ onMenuClick, dark: controlledDark, onToggleThem
           </button>
 
           <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              className={`flex items-center gap-2 rounded-xl border px-2 py-1.5 ${
-                dark ? "border-slate-700 hover:bg-slate-800" : "border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <div className={`h-7 w-7 rounded-full ${dark ? "bg-slate-600" : "bg-slate-300"}`} />
-              <span className="hidden text-sm font-medium md:inline">Admin</span>
-              <ChevronDown className={`h-4 w-4 ${dark ? "text-slate-300" : "text-slate-500"}`} />
-            </button>
-            {menuOpen ? (
-              <div className="dropdown-menu absolute right-0 top-11 z-20 min-w-40">
-                <button
-                  type="button"
-                  className="dropdown-item"
-                >
-                  Profile
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="dropdown-item disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isLoggingOut ? "Logging out..." : "Logout"}
-                </button>
-                {menuError ? <p className="px-3 py-2 text-xs text-rose-600">{menuError}</p> : null}
-              </div>
-            ) : null}
+            <UserDropdown name={userName} avatar={userAvatar} dark={dark} />
           </div>
         </div>
       </div>
