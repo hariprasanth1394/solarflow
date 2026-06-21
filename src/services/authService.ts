@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient"
+import { clearQueryCache } from "../lib/queryCache"
 import { logError, logInfo } from "../utils/logger"
 
 const ACCESS_COOKIE = "sb-access-token"
@@ -123,13 +124,23 @@ export async function loginWithGoogle(redirectTo: string) {
 }
 
 export async function logout() {
+  console.log("Signing out...")
+
   try {
     const { error } = await supabase.auth.signOut()
 
     if (error) throw error
 
     clearAccessCookie()
+    clearQueryCache()
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("solarflow.rememberMe")
+      localStorage.removeItem("solarflow.sessionTimeoutMs")
+    }
+
     logInfo("Auth logout completed", { service: "authService" })
+    console.log("Session cleared")
   } catch (error) {
     logError("Auth logout failed", error, { service: "authService" })
     throw new Error("Operation failed")

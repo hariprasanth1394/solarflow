@@ -206,15 +206,29 @@ export async function getAssignableSalesReps() {
   })
 }
 
-export async function createCustomer(payload: Omit<CustomerInsert, "organization_id">) {
+export async function createCustomer(payload: Omit<CustomerInsert, "organization_id"> & Partial<{ total_cost: number | null; paid_amount: number | null }>) {
   if (!payload.name?.trim()) {
     throw new Error("Operation failed")
+  }
+
+  // compute payment aggregates if provided
+  const totalCost = Number(payload.total_cost ?? 0)
+  const paid = Number(payload.paid_amount ?? 0)
+  const pending = Math.max(totalCost - paid, 0)
+  const paymentStatus = totalCost > 0 ? (paid >= totalCost ? "Paid" : paid > 0 ? "Partial" : "Pending") : "Pending"
+
+  const payloadWithPayment = {
+    ...payload,
+    total_cost: totalCost > 0 ? totalCost : undefined,
+    paid_amount: paid > 0 ? paid : 0,
+    pending_amount: pending,
+    payment_status: paymentStatus
   }
 
   const startedAt = startTimer()
   return withRequestContext(async ({ organizationId, userId }) => {
     try {
-      const data = await insertCustomer(organizationId, payload)
+      const data = await insertCustomer(organizationId, payloadWithPayment)
       invalidateQueryCacheByPrefix(`customers:list:${organizationId}:`)
       await logActivity("Customer created", "customer", data.id, { name: data.name })
       if (data.system_id) {
@@ -287,9 +301,22 @@ export async function updateCustomer(id: string, payload: CustomerUpdate) {
       validateWorkflowTransition(previousStage, minimumStage, payload)
       const transitionTimestamp = new Date().toISOString()
       const paymentSnapshot = derivePaymentSnapshot(payload.notes)
+      // compute payment fields if provided in payload
+      const totalCost = payload.total_cost !== undefined ? Number(payload.total_cost) : undefined
+      const paid = payload.paid_amount !== undefined ? Number(payload.paid_amount) : undefined
+      const pending = totalCost !== undefined ? Math.max(totalCost - (paid ?? 0), 0) : undefined
+      const paymentStatus = totalCost !== undefined ? (paid !== undefined ? (paid >= totalCost ? "Paid" : paid > 0 ? "Partial" : "Pending") : undefined) : undefined
+      const payloadWithPayment = {
+        ...payload,
+        ...(totalCost !== undefined ? { total_cost: totalCost } : {}),
+        ...(paid !== undefined ? { paid_amount: paid } : {}),
+        ...(pending !== undefined ? { pending_amount: pending } : {}),
+        ...(paymentStatus !== undefined ? { payment_status: paymentStatus } : {})
+      }
+
       const stageChanged = Boolean(minimumStage && minimumStage !== previousStage)
 
-      const data = await updateCustomerById(id, organizationId, payload)
+      const data = await updateCustomerById(id, organizationId, payloadWithPayment)
       invalidateQueryCacheByPrefix(`customers:list:${organizationId}:`)
       await logActivity(stageChanged ? "Customer stage transitioned" : "Customer updated", "customer", id, {
         action_type: stageChanged ? "workflow-transition" : "workflow-update",

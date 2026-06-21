@@ -53,8 +53,11 @@ export default function AuthSessionSync() {
 
     const redirectToLoginIfProtected = () => {
       if (!isProtectedPath) return
-      const redirectPath = pathname && pathname !== '/' ? `?redirect=${encodeURIComponent(pathname)}` : ''
+      const currentPath = `${pathname}${window.location.search}`
+      const redirectPath = pathname && pathname !== '/' ? `?redirect=${encodeURIComponent(currentPath)}` : ''
+      console.log("Unauthenticated session detected, redirecting to login", currentPath)
       router.replace(`/login${redirectPath}`)
+      router.refresh()
     }
 
     const syncCurrentSession = async () => {

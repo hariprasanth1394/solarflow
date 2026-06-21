@@ -64,7 +64,9 @@ export default function UserDropdown({ name, avatar, dark = false }: UserDropdow
     setIsLoggingOut(true)
 
     try {
+      console.log("Signing out...")
       await logout()
+      console.log("Redirecting to login")
       setOpen(false)
       router.replace("/login")
       router.refresh()
@@ -135,7 +137,7 @@ export default function UserDropdown({ name, avatar, dark = false }: UserDropdow
               } disabled:cursor-not-allowed disabled:opacity-60`}
             >
               <LogOut className="h-4 w-4" />
-              {isLoggingOut ? "Logging out..." : "Logout"}
+              {isLoggingOut ? "Signing out..." : "Logout"}
             </button>
           </nav>
 

@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation"
 import { Check, Eye, EyeOff, Upload, AlertCircle } from "lucide-react"
 import { supabase } from "@/lib/supabaseClient"
 import Avatar from "@/components/ui/Avatar"
+import Button from "@/components/ui/Button"
+import Card from "@/components/ui/Card"
+import Input from "@/components/ui/Input"
+
+const AVATAR_STORAGE_BUCKET = process.env.NEXT_PUBLIC_SUPABASE_AVATAR_BUCKET ?? "documents"
 
 type ProfileForm = {
   name: string
@@ -191,12 +196,12 @@ export default function ProfilePage() {
       const filePath = `avatars/${user.id}/avatar.${fileExt}`
 
       const { error: uploadError } = await supabase.storage
-        .from("avatars")
+        .from(AVATAR_STORAGE_BUCKET)
         .upload(filePath, file, { upsert: true })
 
       if (uploadError) throw uploadError
 
-      const { data } = supabase.storage.from("avatars").getPublicUrl(filePath)
+      const { data } = supabase.storage.from(AVATAR_STORAGE_BUCKET).getPublicUrl(filePath)
       const publicUrl = data.publicUrl
 
       const { error: updateError } = await supabase
@@ -210,9 +215,16 @@ export default function ProfilePage() {
       setPreviewUrl(publicUrl)
       setMessage({ type: "success", text: "Profile picture updated." })
     } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to upload avatar."
+
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to upload avatar."
+        text: errorMessage.includes("Bucket not found")
+          ? `Storage bucket not found. Check NEXT_PUBLIC_SUPABASE_AVATAR_BUCKET or create the bucket '${AVATAR_STORAGE_BUCKET}' in Supabase.`
+          : errorMessage
       })
     } finally {
       setUploading(false)
@@ -226,12 +238,12 @@ export default function ProfilePage() {
     : ""
 
   return (
-    <div className="mx-auto max-w-5xl py-10 px-4 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-screen-2xl py-10 px-4 sm:px-6 lg:px-8">
       <div className="mb-8 space-y-3">
         <div className="max-w-3xl space-y-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-sky-600">Account</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Profile Settings</h1>
-          <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-sky-600">Account</p>
+          <h1 className="text-xl font-semibold text-slate-950 dark:text-white">Profile Settings</h1>
+          <p className="max-w-2xl text-sm text-slate-600 dark:text-slate-400">
             Keep your account details current, personalize your profile and secure your login with a stronger password.
           </p>
         </div>
@@ -242,7 +254,7 @@ export default function ProfilePage() {
           className={`mb-6 rounded-3xl border px-5 py-4 shadow-sm ${
             message.type === "success"
               ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100"
-              : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100"
+              : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200"
           }`}
         >
           <div className="flex items-center gap-3">
@@ -256,47 +268,31 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition dark:border-slate-700 dark:bg-slate-950">
-          <div className="mb-8 space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-lg font-semibold text-slate-950 dark:text-white">Identity</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Personal details shown on your account.</p>
-              </div>
-            </div>
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        <Card variant="section" padded className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-base font-medium text-slate-950 dark:text-white">Identity</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Personal details shown on your account.</p>
           </div>
 
-          <div className="mb-8 grid gap-6 rounded-[2rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex flex-wrap items-center gap-5">
+          <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-950">
+            <div className="flex flex-wrap items-center gap-4">
               <button
                 type="button"
                 onClick={handleOpenFilePicker}
-                className="group relative inline-flex h-fit items-center rounded-[1.75rem] border border-slate-200 p-2 transition hover:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-700"
+                className="inline-flex items-center justify-center rounded-full border border-slate-200 p-1.5 transition hover:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:border-slate-700"
               >
-                <Avatar
-                  src={avatarSource}
-                  initials={initials || "?"}
-                  size="lg"
-                  className="cursor-pointer"
-                />
+                <Avatar src={avatarSource} initials={initials || "?"} size="lg" />
               </button>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 space-y-2">
                 <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Profile photo</p>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Tap or click the avatar to upload a new image. It will appear instantly.
-                </p>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleOpenFilePicker}
-                    disabled={uploading}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
-                  >
+                <p className="text-sm text-slate-500 dark:text-slate-400">Tap the avatar to upload a new image.</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button type="button" variant="secondary" size="sm" onClick={handleOpenFilePicker} disabled={uploading}>
                     <Upload className="h-4 w-4" />
                     {uploading ? "Uploading..." : "Change photo"}
-                  </button>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">JPG or PNG up to 5MB</span>
+                  </Button>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">JPG, PNG up to 5MB</span>
                 </div>
               </div>
             </div>
@@ -309,155 +305,118 @@ export default function ProfilePage() {
             />
           </div>
 
-          <form onSubmit={handleUpdateProfile} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Full Name
-              </label>
-              <input
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Full Name</label>
+              <Input
                 type="text"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Hari Prasanth"
-                className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 transition focus:border-sky-500 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                className="w-full"
               />
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Email
-              </label>
-              <input
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
+              <Input
                 type="email"
                 value={form.email}
                 disabled
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+                className="w-full bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-400"
               />
-              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Email address is managed through your authentication provider.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Email address is managed through your authentication provider.</p>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-indigo-600 to-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_20px_60px_-32px_rgba(59,130,246,0.75)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_80px_-36px_rgba(79,70,229,0.65)] active:translate-y-0 active:shadow-[0_8px_20px_-32px_rgba(15,23,42,0.25)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Check className="h-4 w-4" />
-              {loading ? "Saving..." : "Save changes"}
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <Button type="submit" variant="primary" className="w-full sm:w-auto" disabled={loading}>
+                <Check className="h-4 w-4" />
+                {loading ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
           </form>
-        </section>
+        </Card>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition dark:border-slate-700 dark:bg-slate-950">
-          <div className="mb-8 space-y-3">
-            <p className="text-lg font-semibold text-slate-950 dark:text-white">Security</p>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Change your password and keep your account protected.
-            </p>
+        <Card variant="section" padded className="space-y-6">
+          <div className="space-y-2">
+            <p className="text-base font-medium text-slate-950 dark:text-white">Security</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Change your password and keep your account protected.</p>
           </div>
 
-          <form onSubmit={handleUpdatePassword} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Current Password
-              </label>
+          <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Current Password</label>
               <div className="relative">
-                <input
+                <Input
                   type={showPasswords.current ? "text" : "password"}
                   value={form.currentPassword}
                   onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-10 text-slate-900 transition focus:border-sky-500 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="w-full pr-10"
                 />
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowPasswords((prev) => ({ ...prev, current: !prev.current }))
-                  }
+                  onClick={() => setShowPasswords((prev) => ({ ...prev, current: !prev.current }))}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  aria-label={showPasswords.current ? "Hide current password" : "Show current password"}
                 >
-                  {showPasswords.current ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Required to confirm your identity before updating the password.</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Required to confirm your identity before updating the password.</p>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                New Password
-              </label>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">New Password</label>
               <div className="relative">
-                <input
+                <Input
                   type={showPasswords.new ? "text" : "password"}
                   value={form.newPassword}
                   onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-10 text-slate-900 transition focus:border-sky-500 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="w-full pr-10"
                 />
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowPasswords((prev) => ({ ...prev, new: !prev.new }))
-                  }
+                  onClick={() => setShowPasswords((prev) => ({ ...prev, new: !prev.new }))}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  aria-label={showPasswords.new ? "Hide new password" : "Show new password"}
                 >
-                  {showPasswords.new ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Confirm Password
-              </label>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Confirm Password</label>
               <div className="relative">
-                <input
+                <Input
                   type={showPasswords.confirm ? "text" : "password"}
                   value={form.confirmPassword}
                   onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 pr-10 text-slate-900 transition focus:border-sky-500 focus:ring-2 focus:ring-sky-300/40 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  className="w-full pr-10"
                 />
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowPasswords((prev) => ({ ...prev, confirm: !prev.confirm }))
-                  }
+                  onClick={() => setShowPasswords((prev) => ({ ...prev, confirm: !prev.confirm }))}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                  aria-label={showPasswords.confirm ? "Hide confirm password" : "Show confirm password"}
                 >
-                  {showPasswords.confirm ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {passwordFeedback ? (
-                <p className="mt-2 text-sm text-rose-500">{passwordFeedback}</p>
-              ) : (
-                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  Use at least 8 characters and make sure both fields match.
-                </p>
-              )}
+              <p className={`text-sm ${passwordFeedback ? "text-rose-500" : "text-slate-500 dark:text-slate-400"}`}>
+                {passwordFeedback || "Use at least 8 characters and make sure both fields match."}
+              </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 via-indigo-600 to-violet-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_20px_60px_-32px_rgba(59,130,246,0.75)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_80px_-36px_rgba(79,70,229,0.65)] active:translate-y-0 active:shadow-[0_8px_20px_-32px_rgba(15,23,42,0.25)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
+            <Button type="submit" variant="primary" className="w-full" disabled={loading}>
               <Check className="h-4 w-4" />
               {loading ? "Updating..." : "Update password"}
-            </button>
+            </Button>
           </form>
-        </section>
+        </Card>
       </div>
     </div>
   )

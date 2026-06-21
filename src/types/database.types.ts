@@ -84,6 +84,10 @@ export type Database = {
           status: string
           submission_completed: boolean
           system_id: string | null
+          total_cost: number | null
+          paid_amount: number
+          pending_amount: number
+          payment_status: string | null
         }
         Insert: {
           address?: string | null
@@ -106,6 +110,10 @@ export type Database = {
           status?: string
           submission_completed?: boolean
           system_id?: string | null
+          total_cost?: number | null
+          paid_amount?: number
+          pending_amount?: number
+          payment_status?: string | null
         }
         Update: {
           address?: string | null
@@ -128,6 +136,10 @@ export type Database = {
           status?: string
           submission_completed?: boolean
           system_id?: string | null
+          total_cost?: number | null
+          paid_amount?: number
+          pending_amount?: number
+          payment_status?: string | null
         }
         Relationships: [
           {
@@ -475,6 +487,47 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      payments: {
+        Row: {
+          id: string
+          organization_id: string
+          installation_id: string
+          amount: number
+          payment_date: string
+          payment_method: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          organization_id?: string
+          installation_id: string
+          amount: number
+          payment_date: string
+          payment_method?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          organization_id?: string
+          installation_id?: string
+          amount?: number
+          payment_date?: string
+          payment_method?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          }
         ]
       }
       stock_transactions: {

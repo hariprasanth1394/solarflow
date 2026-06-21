@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Check, CircleCheck, Clock3, CreditCard, FileText, Flag, Loader2, Pencil, Plus, Upload, UserRound, Zap } from "lucide-react"
+import { ArrowLeft, Check, CircleCheck, Clock3, CreditCard, FileText, Flag, Loader2, Pencil, Plus, Upload, UserRound, X, Zap } from "lucide-react"
 import { formatDateTimeUTC } from "@/utils/dateFormat"
 import { validateUUID } from "@/utils/validateUUID"
 import { getCustomerById, getCustomerProgress, updateCustomer } from "@/services/customerService"
@@ -12,9 +12,13 @@ import { listDocumentsByCustomerId, downloadDocument, uploadDocument } from "@/s
 import { getCustomerActivityLogs } from "@/services/activityLogService"
 import { getSystemAvailability } from "@/services/inventoryService"
 import { consumeReservedInventoryForInstallation } from "@/services/installationInventoryService"
+import { getPaymentsByInstallationId, createPaymentForInstallation, uploadPaymentProof } from "@/services/paymentService"
 import WorkflowStageCard from "./workflow/WorkflowStageCard"
 import FileDropInput from "./workflow/FileDropInput"
 import WorkflowActionModal from "./workflow/WorkflowActionModal"
+import PaymentHistoryModal from "./workflow/PaymentHistoryModal"
+import Button from "@/components/ui/Button"
+import Card from "@/components/ui/Card"
 import type { StageDefinition, WorkflowActionKey, WorkflowBadgeTone, WorkflowStageKey } from "./workflow/types"
 
 type CustomerRow = {
@@ -29,7 +33,23 @@ type CustomerRow = {
   status: string
   current_stage?: string | null
   system_id?: string | null
+  total_cost?: number | null
+  paid_amount?: number | null
+  pending_amount?: number | null
+  payment_status?: string | null
   notes: string | null
+  created_at: string
+}
+
+type PaymentRow = {
+  id: string
+  organization_id: string
+  installation_id: string
+  amount: number
+  payment_date: string
+  payment_method: string
+  notes: string | null
+  proof_url: string | null
   created_at: string
 }
 
@@ -235,6 +255,34 @@ function parsePaymentStatusFromNotes(notes: string | null | undefined) {
   if (normalized === "paid") return "Paid"
   if (normalized.includes("partial")) return "Partial"
   return "Pending"
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2
+  }).format(value)
+}
+
+function formatCompactCurrency(value: number) {
+  if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`
+  if (value >= 100000) return `₹${(value / 100000).toFixed(value % 100000 === 0 ? 0 : 1)}L`
+  if (value >= 1000) return `₹${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}K`
+  return `₹${value.toLocaleString("en-IN")}`
+}
+
+function derivePersistedPaymentSnapshot(customer: CustomerRow | null): PaymentModel {
+  const total = customer?.total_cost ?? parseAmountFromNotes(customer?.notes, "Total Amount")
+  const paid = customer?.paid_amount ?? parseAmountFromNotes(customer?.notes, "Paid Amount")
+  const remaining = Math.max(total - paid, 0)
+  const status = customer?.payment_status ?? parsePaymentStatusFromNotes(customer?.notes)
+  return {
+    total,
+    paid,
+    remaining,
+    status: status === "Paid" ? "Paid" : status === "Partial" ? "Partial" : "Pending"
+  }
 }
 
 function normalizeWorkflowStatus(status: string | null | undefined) {
@@ -460,6 +508,7 @@ export default function CustomerDetailsPage() {
   const [tasks, setTasks] = useState<TaskRow[]>([])
   const [documents, setDocuments] = useState<DocumentRow[]>([])
   const [activities, setActivities] = useState<ActivityRow[]>([])
+  const [payments, setPayments] = useState<PaymentRow[]>([])
   const [progress, setProgress] = useState<ProgressRow | null>(null)
   const [systems, setSystems] = useState<SystemAvailabilityRow[]>([])
   const [assignees, setAssignees] = useState<AssigneeRow[]>([])
@@ -496,6 +545,16 @@ export default function CustomerDetailsPage() {
   const [invoiceDoc, setInvoiceDoc] = useState<File | null>(null)
   const [completionNotes, setCompletionNotes] = useState("")
 
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false)
+  const [paymentAmount, setPaymentAmount] = useState("")
+  const [paymentDate, setPaymentDate] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("")
+  const [paymentNotes, setPaymentNotes] = useState("")
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null)
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false)
+  const [paymentError, setPaymentError] = useState("")
+
   const loadDetail = useCallback(async () => {
     if (!customerId || !validateUUID(customerId)) {
       router.replace("/customers")
@@ -506,14 +565,15 @@ export default function CustomerDetailsPage() {
     setError("")
 
     try {
-      const [{ data: customerData }, taskResult, docResult, activityResult, progressResult, systemsResult, assigneeResult] = await Promise.all([
+      const [{ data: customerData }, taskResult, docResult, activityResult, progressResult, systemsResult, assigneeResult, paymentResult] = await Promise.all([
         getCustomerById(customerId),
         getTasksByCustomerId(customerId, 100),
         listDocumentsByCustomerId(customerId, 100),
         getCustomerActivityLogs(customerId, 100),
         getCustomerProgress(customerId, 100),
         getSystemAvailability(),
-        getAssignableTaskUsers()
+        getAssignableTaskUsers(),
+        getPaymentsByInstallationId(customerId)
       ])
 
       if (!customerData) {
@@ -522,18 +582,20 @@ export default function CustomerDetailsPage() {
         return
       }
 
-      setCustomer(customerData as CustomerRow)
+      setCustomer(customerData as unknown as CustomerRow)
       setTasks((taskResult.data ?? []) as TaskRow[])
       setDocuments((docResult.data ?? []) as DocumentRow[])
       setActivities((activityResult.data ?? []) as ActivityRow[])
       setProgress((progressResult ?? null) as ProgressRow | null)
       setSystems((systemsResult.data ?? []) as SystemAvailabilityRow[])
       setAssignees((assigneeResult.data ?? []) as AssigneeRow[])
+      setPayments((paymentResult.data ?? []) as PaymentRow[])
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Operation failed")
       setTasks([])
       setDocuments([])
       setActivities([])
+      setPayments([])
       setProgress(null)
       setSystems([])
       setAssignees([])
@@ -594,6 +656,22 @@ export default function CustomerDetailsPage() {
     return "bg-slate-100 text-slate-600"
   }
 
+  function businessStageLabel() {
+    if (currentWorkflowStage === "CLOSED") return "Closed"
+    if (currentWorkflowStage === "INSTALLATION") {
+      const normalizedStatus = normalizeWorkflowStatus(customer?.status ?? "")
+      if ((normalizedStatus === "COMPLETED" || normalizedStatus === "COMPLETED_PAYMENT_PENDING") && persistedRemainingAmount > 0) {
+        return "Installation Completed • Payment Pending"
+      }
+      if (normalizedStatus === "IN_PROGRESS") return "Installation In Progress"
+      if (normalizedStatus === "COMPLETED" && persistedRemainingAmount <= 0) return "Closure Ready"
+      return "Installation"
+    }
+    if (currentWorkflowStage === "APPROVED") return "Government Approved"
+    if (currentWorkflowStage === "SUBMITTED") return "Government Approval"
+    return "Customer Created"
+  }
+
   const closeModal = () => {
     setModalState({ action: null })
     setModalError("")
@@ -625,13 +703,90 @@ export default function CustomerDetailsPage() {
     setModalAttempted(false)
 
     if (action === "CLOSE_PROJECT") {
-      const capturedTotal = parseAmountFromNotes(customer?.notes, "Total Amount")
-      const capturedPaid = parseAmountFromNotes(customer?.notes, "Paid Amount")
-      setTotalAmount(capturedTotal > 0 ? capturedTotal.toFixed(2) : "")
-      setPaidAmount(capturedPaid > 0 ? capturedPaid.toFixed(2) : "0.00")
+      const snapshot = derivePersistedPaymentSnapshot(customer)
+      setTotalAmount(snapshot.total > 0 ? snapshot.total.toFixed(2) : "")
+      setPaidAmount(snapshot.paid > 0 ? snapshot.paid.toFixed(2) : "0.00")
+    }
+
+    if (action === "MARK_INSTALLATION_COMPLETED") {
+      const snapshot = derivePersistedPaymentSnapshot(customer)
+      setInstallationTotalAmount(snapshot.total > 0 ? snapshot.total.toFixed(2) : "")
+      setInstallationPaidAmount(snapshot.paid > 0 ? snapshot.paid.toFixed(2) : "0.00")
     }
 
     setModalState({ action })
+  }
+
+  const openPaymentModal = () => {
+    setPaymentError("")
+    setPaymentAmount("")
+    setPaymentDate(new Date().toISOString().slice(0, 10))
+    setPaymentMethod("")
+    setPaymentNotes("")
+    setPaymentProofFile(null)
+    setPaymentModalOpen(true)
+  }
+
+  const closePaymentModal = () => {
+    if (paymentSubmitting) return
+    setPaymentModalOpen(false)
+    setPaymentError("")
+  }
+
+  const submitPayment = async () => {
+    if (!customer) return
+    const amountValue = Number(paymentAmount || 0)
+    if (amountValue <= 0) {
+      setPaymentError("Enter a valid payment amount.")
+      return
+    }
+    if (!paymentDate) {
+      setPaymentError("Select a payment date.")
+      return
+    }
+
+    setPaymentError("")
+    setPaymentSubmitting(true)
+
+    try {
+      // Upload proof image (non-blocking — payment records even if storage fails)
+      let proofUrl: string | null = null
+      if (paymentProofFile) {
+        proofUrl = await uploadPaymentProof(paymentProofFile, customer.id)
+      }
+
+      const created = await createPaymentForInstallation({
+        installation_id: customer.id,
+        amount: amountValue,
+        payment_date: paymentDate,
+        payment_method: paymentMethod || "Unknown",
+        notes: paymentNotes || null,
+        proof_url: proofUrl
+      })
+
+      setPayments((prev) => [created as unknown as PaymentRow, ...prev])
+      const snapshot = derivePersistedPaymentSnapshot(customer)
+      const updatedPaid = snapshot.paid + amountValue
+      const updatedRemaining = Math.max(snapshot.total - updatedPaid, 0)
+      const updatedStatus = updatedPaid >= snapshot.total && snapshot.total > 0 ? "Paid" : updatedPaid > 0 ? "Partial" : "Pending"
+
+      setCustomer((prev) =>
+        prev
+          ? {
+              ...prev,
+              paid_amount: updatedPaid,
+              pending_amount: updatedRemaining,
+              payment_status: updatedStatus
+            }
+          : prev
+      )
+      setStatusToast(updatedRemaining <= 0 ? "Balance cleared — project is ready for closure" : "Payment recorded successfully")
+      closePaymentModal()
+    } catch (paymentSubmitError) {
+      setPaymentError(paymentSubmitError instanceof Error ? paymentSubmitError.message : "Unable to create payment.")
+    } finally {
+      setPaymentSubmitting(false)
+    }
   }
 
   const textFieldClass = "input h-12"
@@ -668,10 +823,11 @@ export default function CustomerDetailsPage() {
     installationTotalAmountValue > 0 &&
     installationPaidAmountValue <= installationTotalAmountValue
 
-  const persistedTotalAmount = parseAmountFromNotes(customer?.notes, "Total Amount")
-  const persistedPaidAmount = parseAmountFromNotes(customer?.notes, "Paid Amount")
-  const persistedRemainingAmount = Math.max(persistedTotalAmount - persistedPaidAmount, 0)
-  const persistedPaymentStatus = parsePaymentStatusFromNotes(customer?.notes)
+  const persistedPaymentSnapshot = derivePersistedPaymentSnapshot(customer)
+  const persistedTotalAmount = persistedPaymentSnapshot.total
+  const persistedPaidAmount = persistedPaymentSnapshot.paid
+  const persistedRemainingAmount = persistedPaymentSnapshot.remaining
+  const persistedPaymentStatus = persistedPaymentSnapshot.status
   const paymentProgressPct = persistedTotalAmount > 0 ? Math.min(100, (persistedPaidAmount / persistedTotalAmount) * 100) : 0
 
   const paymentModel = useMemo<PaymentModel>(() => {
@@ -679,7 +835,7 @@ export default function CustomerDetailsPage() {
       total: persistedTotalAmount,
       paid: persistedPaidAmount,
       remaining: persistedRemainingAmount,
-      status: persistedPaymentStatus === "Paid" ? "Paid" : persistedPaymentStatus === "Partial" ? "Partial" : "Pending"
+      status: persistedPaymentStatus
     }
   }, [persistedTotalAmount, persistedPaidAmount, persistedRemainingAmount, persistedPaymentStatus])
 
@@ -701,9 +857,6 @@ export default function CustomerDetailsPage() {
     const meta = actionMeta(allowedActionModel.primaryAction)
     return { key: allowedActionModel.primaryAction, label: meta.label, description: meta.description }
   }, [allowedActionModel])
-
-  const isFullyPaid = paymentModel.total > 0 && paymentModel.remaining <= 0
-  const canUpdatePayment = !(isFullyPaid && currentWorkflowStage === "CLOSED")
 
   const appendNotes = (base: string | null | undefined, sectionTitle: string, lines: string[]) => {
     const nextSection = [`${sectionTitle}:`, ...lines.filter(Boolean)].join("\n")
@@ -1048,7 +1201,7 @@ export default function CustomerDetailsPage() {
               </div>
               <div className="flex shrink-0 flex-row items-center justify-end gap-2 sm:gap-3">
                 <span className={`inline-flex items-center rounded-[6px] px-2.5 py-1 text-[12px] font-medium transition-all duration-200 ${headerStageBadge(currentStage)} ${statusChipPulse ? "scale-[1.04] shadow-[0_0_0_4px_rgba(59,130,246,0.12)]" : "scale-100"}`}>
-                  {stageDefinitions.find((s) => s.key === currentStage)?.title ?? customer.status}
+                  {businessStageLabel()}
                 </span>
                 <Link
                   href={`/customers/${customer.id}/edit`}
@@ -1057,15 +1210,6 @@ export default function CustomerDetailsPage() {
                   <Pencil className="h-3.5 w-3.5" />
                   Edit
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => openActionModal("CLOSE_PROJECT")}
-                  disabled={!canUpdatePayment}
-                  className="btn btn-primary btn-compact customer-primary-btn"
-                >
-                  <CreditCard className="h-3.5 w-3.5" />
-                  Update Payment
-                </button>
               </div>
             </div>
 
@@ -1126,7 +1270,7 @@ export default function CustomerDetailsPage() {
                         <div
                           className={`workflow-step-node flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-all ${
                             visualState === "completed"
-                              ? "border-emerald-500 bg-emerald-500 text-white"
+                              ? "border-transparent bg-gradient-to-r from-blue-600 to-violet-600 text-white"
                               : visualState === "active"
                               ? "workflow-step-node-active border-transparent"
                               : visualState === "blocked"
@@ -1190,6 +1334,11 @@ export default function CustomerDetailsPage() {
                     </button>
                   ) : null}
                 </div>
+                {persistedRemainingAmount > 0 && allowedActionModel.allowedActions.includes("CLOSE_PROJECT") ? (
+                  <div className="border-t border-amber-200 bg-amber-50/60 px-5 py-3 text-[12px] font-medium text-amber-700">
+                    Outstanding payment must be collected before project closure.
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="mt-5 flex items-center gap-2.5 rounded-xl border border-emerald-100 bg-emerald-50/60 px-5 py-4">
@@ -1266,7 +1415,7 @@ export default function CustomerDetailsPage() {
                     {documents.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-5 py-10 text-center text-sm text-slate-400">
-                          No documents uploaded yet.
+                          No documents available yet. Upload documents as the project progresses.
                         </td>
                       </tr>
                     ) : (
@@ -1309,7 +1458,7 @@ export default function CustomerDetailsPage() {
                 </div>
                 <div className="divide-y divide-slate-100 md:hidden">
                   {documents.length === 0 ? (
-                    <div className="px-5 py-10 text-center text-sm text-slate-400">No documents uploaded yet.</div>
+                    <div className="px-5 py-10 text-center text-sm text-slate-400">No documents available yet. Upload documents as the project progresses.</div>
                   ) : (
                     documents.map((doc) => (
                       <div key={doc.id} className="space-y-3 px-5 py-4">
@@ -1346,45 +1495,112 @@ export default function CustomerDetailsPage() {
               </div>
             </div>
 
-            {/* ── RIGHT: Tasks + Activity ── */}
+            {/* ── RIGHT: Payment + Tasks + Activity ── */}
             <div className="space-y-5">
 
-              <div className={`sf-section-card overflow-hidden ${persistedRemainingAmount > 0 ? "border-amber-200 bg-amber-50/40" : ""}`}>
+              {/* Payment Summary */}
+              <div className="sf-section-card overflow-hidden">
                 <div className="border-b border-slate-100 px-4 py-3.5">
-                  <h2 className="text-sm font-semibold text-slate-900">Payment Overview</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">Payment Summary</h2>
                 </div>
                 <div className="space-y-3 px-4 py-3.5">
-                  <div className="grid gap-3 text-sm sm:grid-cols-3">
+                  <div className="grid gap-3 text-sm grid-cols-3">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Total</p>
-                      <p className="mt-1 font-semibold text-slate-900">{persistedTotalAmount.toFixed(2)}</p>
+                      <p className="mt-1 font-semibold text-slate-900 truncate" title={formatCurrency(persistedTotalAmount)}>{formatCompactCurrency(persistedTotalAmount)}</p>
                     </div>
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Paid</p>
-                      <p className="mt-1 font-semibold text-slate-900">{persistedPaidAmount.toFixed(2)}</p>
+                      <p className="mt-1 font-semibold text-slate-900 truncate" title={formatCurrency(persistedPaidAmount)}>{formatCompactCurrency(persistedPaidAmount)}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Remaining</p>
-                      <p className="mt-1 font-semibold text-slate-900">{persistedRemainingAmount.toFixed(2)}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Balance</p>
+                      <p className={`mt-1 font-semibold truncate ${persistedRemainingAmount > 0 ? "text-amber-600" : "text-slate-900"}`} title={formatCurrency(persistedRemainingAmount)}>{formatCompactCurrency(persistedRemainingAmount)}</p>
                     </div>
                   </div>
                   <div>
                     <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-violet-600" style={{ width: `${paymentProgressPct}%` }} />
+                      <div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-violet-600 transition-all duration-300" style={{ width: `${paymentProgressPct}%` }} />
                     </div>
                     <div className="mt-1.5 flex items-center justify-between text-xs">
-                      <span className="text-slate-500">{paymentProgressPct.toFixed(0)}% paid</span>
-                      <span className={`font-semibold ${persistedPaymentStatus.toLowerCase() === "paid" ? "text-emerald-600" : "text-amber-600"}`}>
+                      <span className="text-slate-500">{paymentProgressPct.toFixed(0)}% collected</span>
+                      <span className={`font-semibold ${persistedPaymentStatus === "Paid" ? "text-emerald-600" : persistedPaymentStatus === "Partial" ? "text-amber-600" : "text-slate-600"}`}>
                         {persistedPaymentStatus}
                       </span>
                     </div>
                   </div>
                   {persistedRemainingAmount > 0 ? (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                      Payment pending: closure is blocked until the full amount is paid.
+                    <button
+                      type="button"
+                      onClick={openPaymentModal}
+                      className="btn btn-primary w-full customer-primary-btn"
+                    >
+                      <CreditCard className="h-3.5 w-3.5" />
+                      Record Payment
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 py-2 text-[12px] font-semibold text-emerald-700">
+                      <CircleCheck className="h-3.5 w-3.5" />
+                      Payment Cleared
                     </div>
-                  ) : null}
+                  )}
                 </div>
+
+                {/* Payment History */}
+                {payments.length > 0 ? (
+                  <div className="border-t border-slate-100">
+                    <div className="px-4 py-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Recent Payments</p>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentHistoryOpen(true)}
+                          className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 transition"
+                        >
+                          View All
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {payments.slice(0, 5).map((payment) => (
+                          <div key={payment.id} className="flex items-center justify-between text-[13px]">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-slate-500 shrink-0">{formatDateTimeUTC(payment.payment_date).split(",")[0]}</span>
+                              <span className="text-slate-400 shrink-0">•</span>
+                              <span className="text-slate-500 truncate">{payment.payment_method}</span>
+                            </div>
+                            <span className="font-medium text-slate-900 shrink-0 ml-2">{formatCurrency(payment.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {payments.length > 5 ? (
+                        <button
+                          type="button"
+                          onClick={() => setPaymentHistoryOpen(true)}
+                          className="mt-2 text-[11px] font-medium text-blue-600 hover:underline"
+                        >
+                          + {payments.length - 5} more payments
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Installation Stage: Inline payment CTA */}
+                {currentWorkflowStage === "INSTALLATION" && persistedRemainingAmount > 0 ? (
+                  <div className="border-t border-slate-100 px-4 py-3">
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-center">
+                      <p className="text-[11px] font-medium text-amber-700 mb-2">Balance remaining for this installation</p>
+                      <button
+                        type="button"
+                        onClick={openPaymentModal}
+                        className="btn btn-secondary btn-compact w-full text-[12px]"
+                      >
+                        <CreditCard className="h-3 w-3" />
+                        Record Remaining Payment
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* Tasks */}
@@ -1404,8 +1620,8 @@ export default function CustomerDetailsPage() {
                 </div>
                 {tasks.length === 0 ? (
                   <div className="px-4 py-8 text-center">
-                    <p className="text-sm font-medium text-slate-500">No tasks yet</p>
-                    <p className="mt-1 text-xs text-slate-400">Create tasks to track customer progress</p>
+                    <p className="text-sm font-medium text-slate-500">No active tasks for this customer.</p>
+                    <p className="mt-1 text-xs text-slate-400">Tasks will appear here when installation begins.</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -1440,7 +1656,7 @@ export default function CustomerDetailsPage() {
                   <h2 className="text-sm font-semibold text-slate-900">Activity</h2>
                 </div>
                 {activities.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-sm text-slate-400">No activity yet</div>
+                  <div className="px-4 py-8 text-center text-sm text-slate-400">No activity recorded yet. Events will appear as the project progresses.</div>
                 ) : (
                   <div className="px-4 py-3">
                     {activities.map((activity, index) => (
@@ -1852,6 +2068,182 @@ export default function CustomerDetailsPage() {
           </div>
         </div>
       </WorkflowActionModal>
+
+      <PaymentHistoryModal
+        open={paymentHistoryOpen}
+        payments={payments as unknown as import("@/services/paymentService").PaymentRow[]}
+        onClose={() => setPaymentHistoryOpen(false)}
+      />
+
+      {/* Record Payment Modal */}
+      {paymentModalOpen ? (
+        <div className="modal-overlay fixed inset-0 z-[var(--sf-z-modal,1000)] flex items-end justify-center sm:items-center sm:p-4 modal-overlay-enter">
+          <div
+            className="modal-overlay-bg absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={closePaymentModal}
+            aria-hidden="true"
+          />
+          <div className="sf-modal-panel modal-panel-enter relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-t-xl border sm:max-h-[85vh] sm:rounded-xl" style={{ backgroundColor: "var(--sf-card-bg)", borderColor: "var(--sf-card-border)" }}>
+            {/* Header */}
+            <div className="sf-modal-header flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--sf-card-border)" }}>
+              <div>
+                <h3 className="text-[16px] font-semibold" style={{ color: "var(--sf-text)" }}>Record Payment</h3>
+                {payments.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => { closePaymentModal(); setPaymentHistoryOpen(true) }}
+                    className="mt-0.5 text-[12px] font-medium text-blue-600 hover:text-blue-500 transition"
+                  >
+                    View {payments.length} recorded {payments.length === 1 ? "payment" : "payments"} →
+                  </button>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={closePaymentModal}
+                disabled={paymentSubmitting}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
+                style={{ color: "var(--muted)" }}
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+              {paymentError ? (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+                  {paymentError}
+                </div>
+              ) : null}
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Amount (₹) <span className="text-rose-500">*</span></label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  className="input h-[44px] w-full [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  disabled={paymentSubmitting}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Payment Date <span className="text-rose-500">*</span></label>
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="input h-[44px] w-full"
+                    disabled={paymentSubmitting}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="dropdown h-[44px] w-full"
+                    disabled={paymentSubmitting}
+                  >
+                    <option value="">Select method</option>
+                    <option value="Cash">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="Card">Card</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Payment Proof <span className="text-[11px] font-normal">(optional)</span></label>
+                <div
+                  className={`file-dropzone ${paymentProofFile ? "border-emerald-400 !bg-emerald-50 dark:!bg-emerald-900/20 dark:border-emerald-600" : ""}`}
+                  onClick={() => document.getElementById("payment-proof-input")?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const file = e.dataTransfer.files?.[0]
+                    if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
+                      setPaymentProofFile(file)
+                    }
+                  }}
+                >
+                  {paymentProofFile ? (
+                    <div className="flex flex-col items-center gap-1 py-1">
+                      <div className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        <span className="text-[13px] font-medium text-emerald-700 dark:text-emerald-300 truncate max-w-[200px]">{paymentProofFile.name}</span>
+                      </div>
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400">{(paymentProofFile.size / 1024).toFixed(0)} KB</span>
+                    </div>
+                  ) : (
+                    <div className="text-center py-1">
+                      <Upload className="mx-auto h-5 w-5" style={{ color: "var(--muted)" }} />
+                      <p className="mt-1.5 text-[12px]" style={{ color: "var(--muted)" }}>Drop image/PDF or click to upload</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">JPG, PNG, PDF — max 5MB</p>
+                    </div>
+                  )}
+                </div>
+                <input
+                  id="payment-proof-input"
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null
+                    if (file && file.size > 5 * 1024 * 1024) {
+                      setPaymentError("File must be less than 5MB.")
+                      return
+                    }
+                    setPaymentProofFile(file)
+                  }}
+                  disabled={paymentSubmitting}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Notes</label>
+                <textarea
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="Optional notes"
+                  rows={2}
+                  className="textarea w-full"
+                  disabled={paymentSubmitting}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sf-modal-footer flex items-center justify-end gap-3 border-t px-5 py-4" style={{ borderColor: "var(--sf-card-border)" }}>
+              <button
+                type="button"
+                onClick={closePaymentModal}
+                disabled={paymentSubmitting}
+                className="btn btn-secondary h-[44px] px-4 text-[13px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitPayment}
+                disabled={paymentSubmitting || !paymentAmount || Number(paymentAmount) <= 0}
+                className="btn btn-primary h-[44px] px-5 text-[13px]"
+              >
+                {paymentSubmitting ? "Recording..." : "Record Payment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

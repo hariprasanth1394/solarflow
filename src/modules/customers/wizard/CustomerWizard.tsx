@@ -152,7 +152,7 @@ export default function CustomerWizard() {
         await updateCustomer(draftCustomerId, customerPayload)
       } else {
         const created = await createCustomer(customerPayload)
-        setDraftCustomerId(created.id)
+        setDraftCustomerId((created as any)?.id ?? null)
       }
       setMessage("Draft saved successfully")
     } catch {
@@ -181,7 +181,7 @@ export default function CustomerWizard() {
         await updateCustomer(customerId, customerPayload)
       } else {
         const created = await createCustomer(customerPayload)
-        customerId = created.id
+        customerId = (created as any)?.id ?? customerId
       }
 
       const uploads: Array<{ file: File | null; folder: string }> = [

@@ -14,9 +14,9 @@ type CustomerDashboardCounts = {
   closed: number
 }
 
-const CUSTOMER_WRITE_RETURN_COLUMNS = "id,name,phone,email,company,address,city,state,country,assigned_to,status,system_id,notes,created_at"
-const CUSTOMER_SELECT_WITH_STAGE = "id,name,phone,email,company,address,city,state,country,assigned_to,status,current_stage,system_id,notes,created_at"
-const CUSTOMER_SELECT_LEGACY = "id,name,phone,email,company,address,city,state,country,assigned_to,status,system_id,notes,created_at"
+const CUSTOMER_WRITE_RETURN_COLUMNS = "id,name,phone,email,company,address,city,state,country,assigned_to,status,system_id,total_cost,paid_amount,pending_amount,payment_status,notes,created_at"
+const CUSTOMER_SELECT_WITH_STAGE = "id,name,phone,email,company,address,city,state,country,assigned_to,status,current_stage,system_id,total_cost,paid_amount,pending_amount,payment_status,notes,created_at"
+const CUSTOMER_SELECT_LEGACY = "id,name,phone,email,company,address,city,state,country,assigned_to,status,system_id,total_cost,paid_amount,pending_amount,payment_status,notes,created_at"
 
 let hasCurrentStageColumn: boolean | null = null
 

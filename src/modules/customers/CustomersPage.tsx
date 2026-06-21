@@ -203,25 +203,30 @@ export default function CustomersPage() {
         initialValue={editing}
         onClose={() => { if (!saving) setModalOpen(false) }}
         onSubmit={async (payload) => {
-          setSaving(true)
-          setErrorMessage("")
-          try {
-            if (editing) {
-              await updateCustomer(editing.id, payload)
-              setSuccessMessage("Customer updated successfully")
-            } else {
-              await createCustomer(payload)
-              setSuccessMessage("Customer added successfully")
+            setSaving(true)
+            setErrorMessage("")
+            try {
+              // normalize nullable numeric fields from the form into undefined for service/repository
+              const normalized: any = { ...payload }
+              if (normalized.total_cost === null) normalized.total_cost = undefined
+              if (normalized.paid_amount === null) normalized.paid_amount = undefined
+
+              if (editing) {
+                await updateCustomer(editing.id, normalized)
+                setSuccessMessage("Customer updated successfully")
+              } else {
+                await createCustomer(normalized)
+                setSuccessMessage("Customer added successfully")
+              }
+              setModalOpen(false)
+              setEditing(null)
+              await fetchCustomers()
+            } catch (error) {
+              setErrorMessage(error instanceof Error ? error.message : "Operation failed")
+            } finally {
+              setSaving(false)
             }
-            setModalOpen(false)
-            setEditing(null)
-            await fetchCustomers()
-          } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : "Operation failed")
-          } finally {
-            setSaving(false)
-          }
-        }}
+          }}
       />
     </div>
   )

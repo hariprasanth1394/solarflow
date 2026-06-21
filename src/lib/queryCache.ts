@@ -25,3 +25,7 @@ export function invalidateQueryCacheByPrefix(prefix: string) {
     }
   }
 }
+
+export function clearQueryCache() {
+  queryCache.clear()
+}

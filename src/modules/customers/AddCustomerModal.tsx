@@ -1,6 +1,8 @@
-"use client"
+﻿"use client"
 
-import { useMemo, useState } from "react"
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
+import { AnimatePresence, motion } from "framer-motion"
+import { CheckCircle2, ChevronRight, CreditCard, Currency, Package, Sparkles, User, Zap, X } from "lucide-react"
 import LoadingButton from "../../components/ui/LoadingButton"
 import ModalPortal from "../../components/ui/ModalPortal"
 import type { AvailableSolarSystem } from "../../services/inventoryService"
@@ -16,7 +18,11 @@ type CustomerPayload = {
   system_id: string | null
   assigned_to: string | null
   status: string
+  total_cost?: number | null
+  paid_amount?: number | null
 }
+
+const PRICE_PER_KW = 30000
 
 const emptyForm: CustomerPayload = {
   name: "",
@@ -26,10 +32,44 @@ const emptyForm: CustomerPayload = {
   address: null,
   system_id: null,
   assigned_to: null,
-  status: "Created"
+  status: "Created",
+  total_cost: undefined,
+  paid_amount: undefined,
 }
 
-// Inner component - no effects, state initialized from props
+const steps = [
+  { title: "Customer", icon: User },
+  { title: "System", icon: Zap },
+  { title: "Payment", icon: CreditCard },
+]
+
+function formatCurrency(value: number | null | undefined) {
+  if (value === null || value === undefined) return "—"
+  return `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+}
+
+function KpiTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof User
+  label: string
+  value: string
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition duration-150 hover:border-slate-300 hover:shadow-sm">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 flex-shrink-0">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+        <p className="mt-0.5 truncate text-[22px] font-bold text-slate-900">{value}</p>
+      </div>
+    </div>
+  )
+}
+
 function CustomerModalForm({
   open,
   initialValue,
@@ -50,129 +90,577 @@ function CustomerModalForm({
   onSubmit: (payload: CustomerPayload) => Promise<void>
 }) {
   const [form, setForm] = useState<CustomerPayload>(initialValue ?? emptyForm)
-  const disabled = useMemo(() => !form.name.trim() || loading, [form.name, loading])
+  const [currentStep, setCurrentStep] = useState(0)
+  const [basePrice, setBasePrice] = useState<number | null>(null)
+  const [finalPrice, setFinalPrice] = useState<number | null>(null)
+  const [priceOverrideEnabled, setPriceOverrideEnabled] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [step1Attempted, setStep1Attempted] = useState(false)
+  const [step2Attempted, setStep2Attempted] = useState(false)
+
+  const nameRef = useRef<HTMLInputElement | null>(null)
+  const packageRef = useRef<HTMLSelectElement | null>(null)
+  const paidRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setCurrentStep(0)
+      setTimeout(() => nameRef.current?.focus(), 20)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    if (currentStep === 0) nameRef.current?.focus()
+    if (currentStep === 1) packageRef.current?.focus()
+    if (currentStep === 2) paidRef.current?.focus()
+  }, [currentStep, open])
+
   const selectedSystem = useMemo(
     () => availableSystems.find((system) => system.system_id === form.system_id) ?? null,
     [availableSystems, form.system_id]
   )
-  const selectedCapacity = selectedSystem?.capacity_kw ?? null
-  const noSystemsAvailable = !systemsLoading && availableSystems.length === 0
 
-  return (
-    <ModalPortal isOpen={open} onClose={onClose}>
-      <form
-        className="card relative z-10 w-full max-w-2xl p-4 shadow-2xl sm:p-5"
-        onSubmit={async (event) => {
-          event.preventDefault()
-          await onSubmit(form)
-        }}
-      >
-          <h3 className="text-lg font-semibold text-gray-900">{initialValue ? "Edit Customer" : "Add Customer"}</h3>
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input
-              value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-              placeholder="Name"
-              className="input"
-              required
-            />
-            <input
-              value={form.phone ?? ""}
-              onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value || null }))}
-              placeholder="Phone"
-              className="input"
-            />
-            <input
-              value={form.email ?? ""}
-              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value || null }))}
-              placeholder="Email"
-              className="input"
-            />
-            <input
-              value={form.company ?? ""}
-              onChange={(event) => setForm((prev) => ({ ...prev, company: event.target.value || null }))}
-              placeholder="Company"
-              className="input"
-            />
-            <input
-              value={form.address ?? ""}
-              onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value || null }))}
-              placeholder="Address"
-              className="input md:col-span-2"
-            />
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Package Type</label>
-              <p className="mb-2 text-xs text-slate-500">Available installations based on current inventory.</p>
+  const capacity = selectedSystem?.capacity_kw ?? null
+  const availableQty = selectedSystem?.available_systems ?? null
+
+  useEffect(() => {
+    if (capacity !== null) {
+      const newBasePrice = Math.round(capacity * PRICE_PER_KW)
+      setBasePrice(newBasePrice)
+      if (!priceOverrideEnabled) {
+        setFinalPrice(newBasePrice)
+        setForm((prev) => ({ ...prev, total_cost: newBasePrice }))
+      } else {
+        setForm((prev) => ({ ...prev, total_cost: finalPrice ?? newBasePrice }))
+      }
+    } else {
+      setBasePrice(null)
+      setFinalPrice(null)
+      setForm((prev) => ({ ...prev, total_cost: null }))
+    }
+  }, [capacity, finalPrice, priceOverrideEnabled])
+
+  useEffect(() => {
+    if (!toastMessage) return
+    const timer = window.setTimeout(() => setToastMessage(null), 3200)
+    return () => window.clearTimeout(timer)
+  }, [toastMessage])
+
+  const isDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(initialValue ?? emptyForm),
+    [form, initialValue]
+  )
+
+  const handleClose = () => {
+    if (loading) return
+    if (isDirty && !window.confirm("Discard changes and close the installation wizard?")) return
+    onClose()
+  }
+
+  const normalizePhone = (value: string) => {
+    // Strip everything except digits
+    const digits = value.replace(/[^0-9]/g, "")
+    // Limit to 10 digits (Indian mobile number without prefix)
+    return digits.slice(0, 10)
+  }
+
+  const phoneValue = form.phone ?? ""
+  const phoneDigits = phoneValue.replace(/[^0-9]/g, "")
+  const phoneError = phoneDigits.length > 0 && phoneDigits.length !== 10
+  const nameError = form.name.trim().length > 0 && form.name.trim().length < 3
+  const nameEmpty = form.name.trim().length === 0
+  const emailError = form.email !== null && form.email !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+  const emailEmpty = !form.email || form.email.trim() === ""
+  const addressEmpty = !form.address || form.address.trim() === ""
+  const phoneEmpty = phoneDigits.length === 0
+
+  const paid = Number(form.paid_amount ?? 0)
+  const total = finalPrice ?? 0
+  const remaining = Math.max(total - paid, 0)
+  const paymentStatus = total <= 0 ? "Pending" : paid <= 0 ? "Pending" : paid >= total ? "Paid" : "Partial"
+
+  const savings =
+    basePrice !== null && finalPrice !== null && finalPrice < basePrice
+      ? basePrice - finalPrice
+      : 0
+  const savingsPercent = basePrice && finalPrice ? Math.round(((basePrice - finalPrice) / basePrice) * 100) : 0
+
+  const stepOneValid =
+    Boolean(form.name.trim().length >= 3) &&
+    Boolean(phoneDigits.length === 10) &&
+    Boolean(form.email && !emailError) &&
+    Boolean(form.address && form.address.trim().length > 0) &&
+    !phoneError &&
+    !nameError
+
+  const stepTwoValid = Boolean(form.system_id && total > 0)
+  const stepThreeValid = Boolean(total > 0)
+
+  const canContinue = !loading && (currentStep !== 0 ? stepTwoValid : stepOneValid)
+  const canSubmit = !loading && currentStep === steps.length - 1 && stepThreeValid
+
+  const handleFinalPriceChange = (value: string) => {
+    const num = value === "" ? null : Number(value)
+    setFinalPrice(num)
+    setForm((prev) => ({ ...prev, total_cost: num }))
+  }
+
+  const handleStepChange = (index: number) => {
+    // Only allow navigating backward or to current step
+    // Forward navigation requires validation via Continue button
+    if (index <= currentStep) {
+      setCurrentStep(index)
+    }
+  }
+
+  const handleContinue = () => {
+    if (currentStep === 0) {
+      setStep1Attempted(true)
+      if (!stepOneValid) return
+    }
+    if (currentStep === 1) {
+      setStep2Attempted(true)
+      if (!stepTwoValid) return
+    }
+    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
+  }
+
+  const handleSaveDraft = async () => {
+    if (!form.name.trim()) return
+    try {
+      // Submit with current form state regardless of validation
+      const draftPayload: CustomerPayload = {
+        ...form,
+        phone: phoneDigits.length > 0 ? `+91${phoneDigits}` : null,
+        status: "Created",
+      }
+      await onSubmit(draftPayload)
+      setToastMessage("Draft saved successfully.")
+    } catch {
+      setToastMessage("Unable to save draft. Please try again.")
+    }
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!canSubmit) return
+
+    try {
+      const submitPayload: CustomerPayload = {
+        ...form,
+        phone: phoneDigits.length === 10 ? `+91${phoneDigits}` : form.phone,
+      }
+      await onSubmit(submitPayload)
+      setToastMessage("Installation created successfully.")
+      window.setTimeout(() => onClose(), 600)
+    } catch {
+      setToastMessage("Unable to create installation. Please try again.")
+    }
+  }
+
+  const renderStepContent = () => {
+    if (currentStep === 0) {
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-semibold text-slate-600">Customer Name <span className="text-rose-500">*</span></label>
+              <input
+                ref={nameRef}
+                value={form.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Full name"
+                className={`h-[44px] w-full rounded-[10px] border px-3 text-[14px] outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 ${
+                  (nameError || (nameEmpty && step1Attempted)) ? "border-rose-400" : "border-slate-200"
+                } bg-white text-slate-900`}
+                aria-invalid={nameError}
+                aria-label="Customer Name"
+              />
+              {nameEmpty && step1Attempted ? (
+                <p className="text-[12px] text-rose-600">Customer name is required.</p>
+              ) : nameError && step1Attempted ? (
+                <p className="text-[12px] text-rose-600">At least 3 characters required.</p>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-semibold text-slate-600">Phone <span className="text-rose-500">*</span></label>
+              <div className="flex">
+                <span className="inline-flex items-center rounded-l-[10px] border border-r-0 border-slate-200 bg-slate-50 px-3 text-[13px] font-medium text-slate-500">+91</span>
+                <input
+                  inputMode="tel"
+                  value={phoneDigits}
+                  onChange={(e) => setForm((prev) => ({ ...prev, phone: normalizePhone(e.target.value) }))}
+                  placeholder="9876543210"
+                  maxLength={10}
+                  className={`h-[44px] w-full rounded-r-[10px] border px-3 text-[14px] outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 ${
+                    (phoneError || (phoneEmpty && step1Attempted)) ? "border-rose-400" : "border-slate-200"
+                  } bg-white text-slate-900`}
+                  aria-label="Phone"
+                />
+              </div>
+              {phoneEmpty && step1Attempted ? (
+                <p className="text-[12px] text-rose-600">Phone number is required.</p>
+              ) : phoneError && step1Attempted ? (
+                <p className="text-[12px] text-rose-600">Enter exactly 10 digits.</p>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-semibold text-slate-600">Email <span className="text-rose-500">*</span></label>
+              <input
+                type="email"
+                value={form.email ?? ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value || null }))}
+                placeholder="email@company.com"
+                className={`h-[44px] w-full rounded-[10px] border px-3 text-[14px] outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 ${
+                  (emailError || (emailEmpty && step1Attempted)) ? "border-rose-400" : "border-slate-200"
+                } bg-white text-slate-900`}
+                aria-invalid={emailError}
+                aria-label="Email"
+              />
+              {emailEmpty && step1Attempted ? (
+                <p className="text-[12px] text-rose-600">Email is required.</p>
+              ) : emailError && step1Attempted ? (
+                <p className="text-[12px] text-rose-600">Valid email required.</p>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-semibold text-slate-600">Sales Representative</label>
               <select
-                value={form.system_id ?? ""}
-                onChange={(event) => setForm((prev) => ({ ...prev, system_id: event.target.value || null }))}
-                className="dropdown disabled:opacity-50"
-                disabled={systemsLoading || noSystemsAvailable}
+                value={form.assigned_to ?? ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, assigned_to: e.target.value || null }))}
+                className="h-[44px] w-full rounded-[10px] border border-slate-200 px-3 text-[14px] text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 bg-white"
+                aria-label="Sales Representative"
               >
-                <option value="">
-                  {systemsLoading ? "Loading available systems..." : noSystemsAvailable ? "No systems available" : "Select package"}
-                </option>
-                {availableSystems.map((system) => (
-                  <option key={system.system_id ?? `${system.system_name}-${system.capacity_kw}`} value={system.system_id ?? ""}>
-                    {`${system.system_name ?? "System"} (${system.capacity_kw ?? 0} kW) - ${system.available_systems ?? 0} available`}
+                <option value="">Select representative</option>
+                {salesReps.map((rep) => (
+                  <option key={rep.id} value={rep.id}>
+                    {rep.name || rep.email || rep.id}
                   </option>
                 ))}
               </select>
-              {noSystemsAvailable ? (
-                <p className="mt-2 text-xs text-amber-700">No solar systems available. Please update inventory.</p>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-[12px] font-semibold text-slate-600">Address <span className="text-rose-500">*</span></label>
+              <input
+                value={form.address ?? ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value || null }))}
+                placeholder="Street address"
+                className={`h-[44px] w-full rounded-[10px] border px-3 text-[14px] text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 ${
+                  addressEmpty && step1Attempted ? "border-rose-400" : "border-slate-200"
+                } bg-white`}
+                aria-label="Address"
+              />
+              {addressEmpty && step1Attempted ? (
+                <p className="text-[12px] text-rose-600">Address is required.</p>
               ) : null}
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">System Capacity</label>
-              <input
-                value={selectedCapacity !== null ? `${selectedCapacity}` : ""}
-                placeholder="Auto-filled from selected package"
-                className="input bg-slate-50"
-                readOnly
-              />
-            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (currentStep === 1) {
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-semibold text-slate-600">Package</label>
             <select
-              value={form.assigned_to ?? ""}
-              onChange={(event) => setForm((prev) => ({ ...prev, assigned_to: event.target.value || null }))}
-              className="dropdown"
+              ref={packageRef}
+              value={form.system_id ?? ""}
+              onChange={(e) => setForm((prev) => ({ ...prev, system_id: e.target.value || null }))}
+              className="h-[44px] w-full rounded-[10px] border border-slate-200 bg-white px-3 text-[14px] text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+              aria-label="Package"
             >
-              <option value="">Assign sales rep</option>
-              {salesReps.map((rep) => (
-                <option key={rep.id} value={rep.id}>
-                  {rep.name || rep.email || rep.id}
+              <option value="">{systemsLoading ? "Loading..." : availableSystems.length === 0 ? "No packages" : "Select package"}</option>
+              {availableSystems.map((system) => (
+                <option key={system.system_id ?? `${system.system_name}-${system.capacity_kw}`} value={system.system_id ?? ""}>
+                  {`${system.system_name ?? "Package"} • ${system.capacity_kw ?? 0} kW`}
                 </option>
               ))}
             </select>
-            <select
-              value={form.status}
-              onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}
-              className="dropdown"
-            >
-              <option value="Created">Created</option>
-              <option value="Govt Approval Pending">Govt Approval Pending</option>
-              <option value="Installation">Installation</option>
-              <option value="Closed">Closed</option>
-              <option value="Lead">Lead</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
           </div>
 
-          <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} className="btn btn-secondary w-full sm:w-auto">
-              Cancel
-            </button>
-            <LoadingButton
-              type="submit"
-              loading={loading}
-              loadingLabel="Saving..."
-              disabled={disabled}
-              className="btn btn-primary w-full sm:w-auto"
-            >
-              {initialValue ? "Update Customer" : "Add Customer"}
-            </LoadingButton>
+          <div className="grid grid-cols-3 gap-3">
+            <KpiTile icon={Zap} label="Capacity" value={capacity !== null ? `${capacity} kW` : "—"} />
+            <KpiTile icon={Sparkles} label="Components" value={availableQty !== null ? `${availableQty} Available` : "—"} />
+            <KpiTile icon={Currency} label="Standard Price" value={formatCurrency(basePrice)} />
           </div>
+
+          <div className={`rounded-xl border px-4 py-4 transition ${
+            priceOverrideEnabled ? "border-violet-300 bg-violet-50/30" : "border-slate-200 bg-slate-50"
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-[12px] font-semibold text-slate-700">Custom Pricing</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {priceOverrideEnabled ? "Override the standard system price" : "Enable to set a custom price"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPriceOverrideEnabled((prev) => !prev)}
+                aria-pressed={priceOverrideEnabled}
+                aria-label="Toggle custom pricing"
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${priceOverrideEnabled ? "bg-violet-500" : "bg-slate-300"}`}
+              >
+                <motion.span
+                  layout
+                  className="h-5 w-5 rounded-full bg-white shadow-sm"
+                  style={{ marginLeft: priceOverrideEnabled ? "auto" : "2px", marginRight: priceOverrideEnabled ? "2px" : "auto" }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                />
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-semibold text-slate-600">Final Price</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={finalPrice ?? ""}
+                onChange={(e) => handleFinalPriceChange(e.target.value)}
+                disabled={!priceOverrideEnabled}
+                className={`h-[44px] w-full rounded-[10px] border px-3 text-[14px] font-semibold outline-none transition [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                  priceOverrideEnabled
+                    ? "border-violet-300 bg-white text-slate-900 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                    : "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+                }`}
+                placeholder={priceOverrideEnabled ? "Enter custom price" : formatCurrency(basePrice)}
+                aria-label="Final Price"
+                aria-readonly={!priceOverrideEnabled}
+              />
+            </div>
+          </div>
+
+          {savings > 0 ? (
+            <div className="flex items-center justify-between rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-medium text-violet-700">
+              <span className="truncate">Saved {formatCurrency(savings)}</span>
+              <span className="ml-2 flex-shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-violet-700">{savingsPercent}%</span>
+            </div>
+          ) : null}
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-semibold text-slate-600">Advance Received</label>
+          <input
+            ref={paidRef}
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.paid_amount ?? ""}
+            onChange={(e) => setForm((prev) => ({ ...prev, paid_amount: e.target.value === "" ? undefined : Number(e.target.value) }))}
+            className="h-[44px] w-full rounded-[10px] border border-slate-200 bg-white px-3 text-[14px] text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            aria-label="Advance Received"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <KpiTile icon={Currency} label="Total Cost" value={formatCurrency(total)} />
+          <KpiTile icon={Package} label="Remaining" value={formatCurrency(remaining)} />
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p className="text-[12px] font-semibold text-slate-600">Payment Status</p>
+          <span
+            className={`inline-flex rounded-full px-3 py-1 text-[12px] font-semibold ${
+              paymentStatus === "Paid"
+                ? "bg-emerald-100 text-emerald-700"
+                : paymentStatus === "Partial"
+                ? "bg-amber-100 text-amber-700"
+                : "bg-slate-200 text-slate-600"
+            }`}
+          >
+            {paymentStatus}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <ModalPortal isOpen={open} onClose={handleClose}>
+      <motion.div
+        className="relative mx-auto flex h-auto max-h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:max-h-[90vh] sm:w-[min(940px,92vw)] sm:rounded-2xl"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 12 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Create Installation"
+      >
+        <form className="flex h-full flex-col" onSubmit={handleSubmit}>
+          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white px-6 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <h1 className="text-[22px] font-semibold tracking-tight text-slate-900 sm:text-[26px]">Create Installation</h1>
+                <p className="mt-0.5 text-[13px] text-slate-500">Complete the steps below to create a new installation.</p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={loading}
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </header>
+
+          <section className="relative flex items-center justify-between px-6 py-4">
+            {/* Background track line — centered through step icons */}
+            <div className="pointer-events-none absolute inset-x-6 top-1/2 -translate-y-[calc(50%+10px)]">
+              <div className="mx-auto h-[2px] bg-slate-200" style={{ width: "calc(100% - 40px)", marginLeft: "20px" }} />
+            </div>
+
+            {/* Animated progress overlay */}
+            <div className="pointer-events-none absolute inset-x-6 top-1/2 -translate-y-[calc(50%+10px)]">
+              <motion.div
+                className="h-[2px] rounded-full"
+                style={{
+                  background: "linear-gradient(to right, var(--primary-start, #7c3aed), var(--primary-end, #06b6d4))",
+                  marginLeft: "20px",
+                }}
+                animate={{
+                  width:
+                    currentStep === 0
+                      ? "0%"
+                      : currentStep === 1
+                      ? "calc(50% - 20px)"
+                      : "calc(100% - 40px)",
+                }}
+                transition={{ type: "spring", stiffness: 280, damping: 30 }}
+              />
+            </div>
+
+            {/* Step circles */}
+            <div className="relative z-10 flex w-full justify-between">
+              {steps.map((step, index) => {
+                const isDone = index < currentStep
+                const isActive = index === currentStep
+                const isFuture = index > currentStep
+                const StepIcon = step.icon
+                return (
+                  <button
+                    key={step.title}
+                    type="button"
+                    onClick={() => handleStepChange(index)}
+                    className={`flex flex-col items-center gap-1.5 transition ${isFuture ? "cursor-not-allowed opacity-60" : ""}`}
+                    disabled={loading || isFuture}
+                  >
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200 ${
+                        isDone || isActive
+                          ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white shadow-[0_4px_12px_rgba(124,58,237,0.2)]"
+                          : "border-2 border-slate-300 bg-white text-slate-400"
+                      }`}
+                    >
+                      {isDone ? <CheckCircle2 className="h-5 w-5" /> : <StepIcon className="h-4 w-4" />}
+                    </div>
+                    <p
+                      className={`text-[11px] font-semibold tracking-[0.12em] uppercase transition ${
+                        isActive ? "text-slate-900" : isDone ? "text-slate-600" : "text-slate-400"
+                      }`}
+                    >
+                      {step.title}
+                    </p>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
+          {toastMessage ? (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="mx-6 mb-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-700"
+            >
+              {toastMessage}
+            </motion.div>
+          ) : null}
+
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-4">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentStep}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="min-h-0"
+              >
+                {renderStepContent()}
+              </motion.div>
+            </AnimatePresence>
+          </main>
+
+          <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-6 py-3.5">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {currentStep > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 0))}
+                    disabled={loading}
+                    className="btn btn-secondary h-[44px] rounded-[10px] px-4 text-[13px]"
+                  >
+                    ← Back
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    disabled={loading}
+                    className="btn btn-secondary h-[44px] rounded-[10px] px-4 text-[13px]"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={loading || !form.name.trim()}
+                  className="btn btn-secondary h-[44px] w-full rounded-[10px] px-4 text-[13px] sm:w-auto"
+                >
+                  Save Draft
+                </button>
+                {currentStep < steps.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={handleContinue}
+                    disabled={!canContinue}
+                    className="h-[44px] w-full rounded-[10px] bg-gradient-to-r from-violet-500 to-cyan-500 px-5 text-[13px] font-semibold text-white transition duration-150 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  >
+                    Continue <ChevronRight className="ml-1 inline-block h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <LoadingButton
+                    type="submit"
+                    loading={loading}
+                    loadingLabel="Creating..."
+                    disabled={!canSubmit}
+                    className="h-[44px] w-full rounded-[10px] bg-gradient-to-r from-violet-500 to-cyan-500 px-5 text-[13px] font-semibold text-white transition duration-150 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  >
+                    Create Installation →
+                  </LoadingButton>
+                )}
+              </div>
+            </div>
+          </footer>
         </form>
+      </motion.div>
     </ModalPortal>
   )
 }
