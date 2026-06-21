@@ -26,6 +26,7 @@ export async function getPaymentsByInstallationId(installationId: string) {
 
 export async function createPaymentForInstallation(payload: {
   installation_id: string
+  organization_id: string
   amount: number
   payment_date: string
   payment_method?: string
@@ -34,13 +35,13 @@ export async function createPaymentForInstallation(payload: {
 }) {
   const insertPayload: Record<string, unknown> = {
     installation_id: payload.installation_id,
+    organization_id: payload.organization_id,
     amount: payload.amount,
     payment_date: payload.payment_date,
     payment_method: payload.payment_method || "Unknown",
     notes: payload.notes ?? null
   }
 
-  // Only include proof_url if it has a value (column may not exist yet)
   if (payload.proof_url) {
     insertPayload.proof_url = payload.proof_url
   }

@@ -17,12 +17,14 @@ import WorkflowStageCard from "./workflow/WorkflowStageCard"
 import FileDropInput from "./workflow/FileDropInput"
 import WorkflowActionModal from "./workflow/WorkflowActionModal"
 import PaymentHistoryModal from "./workflow/PaymentHistoryModal"
+import ModalPortal from "@/components/ui/ModalPortal"
 import Button from "@/components/ui/Button"
 import Card from "@/components/ui/Card"
 import type { StageDefinition, WorkflowActionKey, WorkflowBadgeTone, WorkflowStageKey } from "./workflow/types"
 
 type CustomerRow = {
   id: string
+  organization_id: string
   name: string
   phone: string | null
   email: string | null
@@ -757,6 +759,7 @@ export default function CustomerDetailsPage() {
 
       const created = await createPaymentForInstallation({
         installation_id: customer.id,
+        organization_id: customer.organization_id,
         amount: amountValue,
         payment_date: paymentDate,
         payment_method: paymentMethod || "Unknown",
@@ -2077,13 +2080,8 @@ export default function CustomerDetailsPage() {
 
       {/* Record Payment Modal */}
       {paymentModalOpen ? (
-        <div className="modal-overlay fixed inset-0 z-[var(--sf-z-modal,1000)] flex items-end justify-center sm:items-center sm:p-4 modal-overlay-enter">
-          <div
-            className="modal-overlay-bg absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            onClick={closePaymentModal}
-            aria-hidden="true"
-          />
-          <div className="sf-modal-panel modal-panel-enter relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-t-xl border sm:max-h-[85vh] sm:rounded-xl" style={{ backgroundColor: "var(--sf-card-bg)", borderColor: "var(--sf-card-border)" }}>
+        <ModalPortal isOpen={paymentModalOpen} onClose={closePaymentModal}>
+          <div className="sf-modal-panel modal-panel-enter relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-xl sm:max-h-[85vh]" style={{ backgroundColor: "var(--sf-card-bg)", border: "1px solid var(--sf-card-border)" }}>
             {/* Header */}
             <div className="sf-modal-header flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--sf-card-border)" }}>
               <div>
@@ -2242,7 +2240,7 @@ export default function CustomerDetailsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
     </div>
   )
