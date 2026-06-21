@@ -32,7 +32,7 @@ export default function ModalPortal({ children, isOpen, onClose, zIndex = 1000 }
     >
       {onClose && (
         <div
-          className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+          className="sf-modal-backdrop absolute inset-0"
           onClick={onClose}
         />
       )}

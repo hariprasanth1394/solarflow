@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Check, CircleCheck, Clock3, CreditCard, FileText, Flag, Loader2, Pencil, Plus, Upload, UserRound, X, Zap } from "lucide-react"
+import { ArrowLeft, Check, CircleCheck, CreditCard, FileText, Flag, Loader2, Lock, Pencil, Plus, Upload, UserRound, X, Zap } from "lucide-react"
 import { formatDateTimeUTC } from "@/utils/dateFormat"
 import { validateUUID } from "@/utils/validateUUID"
 import { getCustomerById, getCustomerProgress, updateCustomer } from "@/services/customerService"
@@ -14,12 +14,20 @@ import { getSystemAvailability } from "@/services/inventoryService"
 import { consumeReservedInventoryForInstallation } from "@/services/installationInventoryService"
 import { getPaymentsByInstallationId, createPaymentForInstallation, uploadPaymentProof } from "@/services/paymentService"
 import WorkflowStageCard from "./workflow/WorkflowStageCard"
+import { iconForStage } from "./workflow/stageIcons"
 import FileDropInput from "./workflow/FileDropInput"
 import WorkflowActionModal from "./workflow/WorkflowActionModal"
 import PaymentHistoryModal from "./workflow/PaymentHistoryModal"
-import ModalPortal from "@/components/ui/ModalPortal"
+import PaymentSummaryCards from "./workflow/PaymentSummaryCards"
+import Modal from "@/components/ui/Modal"
 import Button from "@/components/ui/Button"
 import Card from "@/components/ui/Card"
+import {
+  buildPaymentRecordNotes,
+  computeFinalBillable,
+  isInstallationCompleteStatus,
+  parseDiscountFromNotes,
+} from "./workflow/paymentHelpers"
 import type { StageDefinition, WorkflowActionKey, WorkflowBadgeTone, WorkflowStageKey } from "./workflow/types"
 
 type CustomerRow = {
@@ -168,13 +176,6 @@ const stageDefinitions: StageDefinition[] = [
   }
 ]
 
-function iconForStage(stageKey: WorkflowStageKey) {
-  if (stageKey === "CREATED") return UserRound
-  if (stageKey === "GOVERNMENT_APPROVAL") return FileText
-  if (stageKey === "INSTALLATION") return Zap
-  return Flag
-}
-
 function normalizeStageKey(input: string | null | undefined): WorkflowStageKey {
   const value = (input ?? "").toUpperCase().trim()
   if (value.includes("CLOSED") || value.includes("CLOSURE")) return "CLOSURE"
@@ -200,6 +201,26 @@ function shortStageLabel(stageKey: WorkflowStageKey) {
   if (stageKey === "INSTALLATION") return "Install"
   if (stageKey === "CLOSURE") return "Closure"
   return "Created"
+}
+
+function stepNodeClass(visualState: StepVisualState) {
+  if (visualState === "completed") return "workflow-step-node-completed"
+  if (visualState === "active") return "workflow-step-node-active"
+  if (visualState === "blocked") return "workflow-step-node-blocked"
+  return "workflow-step-node-upcoming"
+}
+
+function stepLabelClass(visualState: StepVisualState) {
+  if (visualState === "completed") return "completed"
+  if (visualState === "active") return "current"
+  if (visualState === "blocked") return "blocked"
+  return "pending"
+}
+
+function renderStepIndicator(visualState: StepVisualState, Icon: typeof UserRound) {
+  if (visualState === "completed") return <CircleCheck className="h-4 w-4" strokeWidth={2} />
+  if (visualState === "blocked") return <Lock className="h-4 w-4" strokeWidth={1.75} />
+  return <Icon className="h-4 w-4" strokeWidth={1.75} />
 }
 
 function governmentStatus(status: string) {
@@ -362,14 +383,20 @@ function buildStageStatusMap({
       ? { label: "Submitted", tone: "inProgress" }
       : { label: "Pending", tone: "pending" },
     INSTALLATION: installationCompleted
-      ? { label: "Completed", tone: "completed" }
+      ? normalizedStatus === "COMPLETED_PAYMENT_PENDING" && payment.remaining > 0
+        ? { label: "Payment Pending", tone: "pending" }
+        : { label: "Completed", tone: "completed" }
       : installationInProgress
-      ? { label: "In Progress", tone: "inProgress" }
+      ? normalizedStatus === "IN_PROGRESS"
+        ? { label: "In Progress", tone: "inProgress" }
+        : { label: "Pending", tone: "pending" }
       : { label: "Pending", tone: "pending" },
     CLOSURE: closureCompleted
-      ? { label: "Completed", tone: "completed" }
+      ? { label: "Closed", tone: "completed" }
       : closurePaymentPending
       ? { label: "Payment Pending", tone: "pending" }
+      : installationCompleted && payment.remaining <= 0
+      ? { label: "Closure Ready", tone: "inProgress" }
       : { label: "Pending", tone: "pending" },
   }
 }
@@ -400,8 +427,8 @@ function actionMeta(action: WorkflowActionKey) {
     }
   }
   return {
-    label: "Update Payment",
-    description: "Finalize payment and close the project once dues are cleared."
+    label: "Close Project",
+    description: "Payment is complete. Close and archive this installation."
   }
 }
 
@@ -469,10 +496,12 @@ function getAllowedActions(stage: WorkflowStageValue, status: string, payment: P
 
     if (normalizedStatus === "COMPLETED_PAYMENT_PENDING") {
       return {
-        allowedActions: ["CLOSE_PROJECT"],
-        primaryAction: null,
-        guidance: `Rs ${payment.remaining.toFixed(2)} remaining to complete project closure.`,
-        closureEnabled: false
+        allowedActions: closureEnabled ? ["CLOSE_PROJECT"] : [],
+        primaryAction: closureEnabled ? "CLOSE_PROJECT" : null,
+        guidance: closureEnabled
+          ? "Payment complete. Close the project to finalize."
+          : `Rs ${payment.remaining.toFixed(2)} remaining. Record payment from the sidebar to continue.`,
+        closureEnabled
       }
     }
 
@@ -481,8 +510,8 @@ function getAllowedActions(stage: WorkflowStageValue, status: string, payment: P
         allowedActions: closureEnabled ? ["CLOSE_PROJECT"] : [],
         primaryAction: closureEnabled ? "CLOSE_PROJECT" : null,
         guidance: closureEnabled
-          ? "Payment complete. Use Update Payment to finalize closure."
-          : `Rs ${payment.remaining.toFixed(2)} remaining to complete project closure.`,
+          ? "Payment complete. Close the project to finalize."
+          : `Rs ${payment.remaining.toFixed(2)} remaining. Record payment from the sidebar to continue.`,
         closureEnabled
       }
     }
@@ -539,11 +568,18 @@ export default function CustomerDetailsPage() {
   const [installationNotes, setInstallationNotes] = useState("")
   const [installationTotalAmount, setInstallationTotalAmount] = useState("")
   const [installationPaidAmount, setInstallationPaidAmount] = useState("")
+  const [contractValue, setContractValue] = useState("")
+  const [discountAmount, setDiscountAmount] = useState("")
+  const [discountReason, setDiscountReason] = useState("")
+  const [recordPaymentOnComplete, setRecordPaymentOnComplete] = useState(false)
+  const [inlineInstallPaymentAmount, setInlineInstallPaymentAmount] = useState("")
+  const [inlineInstallPaymentDate, setInlineInstallPaymentDate] = useState("")
+  const [inlineInstallPaymentMethod, setInlineInstallPaymentMethod] = useState("")
+  const [inlineInstallPaymentReference, setInlineInstallPaymentReference] = useState("")
+  const [inlineInstallPaymentCollectedBy, setInlineInstallPaymentCollectedBy] = useState("")
 
   const [installCompleteNotes, setInstallCompleteNotes] = useState("")
 
-  const [totalAmount, setTotalAmount] = useState("")
-  const [paidAmount, setPaidAmount] = useState("")
   const [invoiceDoc, setInvoiceDoc] = useState<File | null>(null)
   const [completionNotes, setCompletionNotes] = useState("")
 
@@ -554,6 +590,8 @@ export default function CustomerDetailsPage() {
   const [paymentMethod, setPaymentMethod] = useState("")
   const [paymentNotes, setPaymentNotes] = useState("")
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null)
+  const [paymentReference, setPaymentReference] = useState("")
+  const [paymentCollectedBy, setPaymentCollectedBy] = useState("")
   const [paymentSubmitting, setPaymentSubmitting] = useState(false)
   const [paymentError, setPaymentError] = useState("")
 
@@ -693,9 +731,16 @@ export default function CustomerDetailsPage() {
     setInstallationNotes("")
     setInstallationTotalAmount("")
     setInstallationPaidAmount("")
+    setContractValue("")
+    setDiscountAmount("")
+    setDiscountReason("")
+    setRecordPaymentOnComplete(false)
+    setInlineInstallPaymentAmount("")
+    setInlineInstallPaymentDate("")
+    setInlineInstallPaymentMethod("")
+    setInlineInstallPaymentReference("")
+    setInlineInstallPaymentCollectedBy("")
     setInstallCompleteNotes("")
-    setTotalAmount("")
-    setPaidAmount("")
     setCompletionNotes("")
   }
 
@@ -704,16 +749,20 @@ export default function CustomerDetailsPage() {
     setModalRetryable(false)
     setModalAttempted(false)
 
-    if (action === "CLOSE_PROJECT") {
-      const snapshot = derivePersistedPaymentSnapshot(customer)
-      setTotalAmount(snapshot.total > 0 ? snapshot.total.toFixed(2) : "")
-      setPaidAmount(snapshot.paid > 0 ? snapshot.paid.toFixed(2) : "0.00")
-    }
-
     if (action === "MARK_INSTALLATION_COMPLETED") {
       const snapshot = derivePersistedPaymentSnapshot(customer)
+      const discountMeta = parseDiscountFromNotes(customer?.notes)
+      const baseContract = discountMeta.contractValue > 0 ? discountMeta.contractValue : snapshot.total
+      setContractValue(baseContract > 0 ? baseContract.toFixed(2) : "")
+      setDiscountAmount(discountMeta.discount > 0 ? discountMeta.discount.toFixed(2) : "0")
+      setDiscountReason(discountMeta.reason)
+      setRecordPaymentOnComplete(false)
+      setInlineInstallPaymentAmount("")
+      setInlineInstallPaymentDate(new Date().toISOString().slice(0, 10))
+      setInlineInstallPaymentMethod("")
+      setInlineInstallPaymentReference("")
+      setInlineInstallPaymentCollectedBy("")
       setInstallationTotalAmount(snapshot.total > 0 ? snapshot.total.toFixed(2) : "")
-      setInstallationPaidAmount(snapshot.paid > 0 ? snapshot.paid.toFixed(2) : "0.00")
     }
 
     setModalState({ action })
@@ -721,10 +770,13 @@ export default function CustomerDetailsPage() {
 
   const openPaymentModal = () => {
     setPaymentError("")
-    setPaymentAmount("")
+    const snapshot = derivePersistedPaymentSnapshot(customer)
+    setPaymentAmount(snapshot.remaining > 0 ? snapshot.remaining.toFixed(2) : "")
     setPaymentDate(new Date().toISOString().slice(0, 10))
     setPaymentMethod("")
     setPaymentNotes("")
+    setPaymentReference("")
+    setPaymentCollectedBy("")
     setPaymentProofFile(null)
     setPaymentModalOpen(true)
   }
@@ -738,8 +790,14 @@ export default function CustomerDetailsPage() {
   const submitPayment = async () => {
     if (!customer) return
     const amountValue = Number(paymentAmount || 0)
+    const snapshot = derivePersistedPaymentSnapshot(customer)
+
     if (amountValue <= 0) {
       setPaymentError("Enter a valid payment amount.")
+      return
+    }
+    if (amountValue > snapshot.remaining) {
+      setPaymentError("Amount exceeds remaining balance.")
       return
     }
     if (!paymentDate) {
@@ -751,39 +809,51 @@ export default function CustomerDetailsPage() {
     setPaymentSubmitting(true)
 
     try {
-      // Upload proof image (non-blocking — payment records even if storage fails)
       let proofUrl: string | null = null
       if (paymentProofFile) {
         proofUrl = await uploadPaymentProof(paymentProofFile, customer.id)
       }
 
-      const created = await createPaymentForInstallation({
+      await createPaymentForInstallation({
         installation_id: customer.id,
         organization_id: customer.organization_id,
         amount: amountValue,
         payment_date: paymentDate,
         payment_method: paymentMethod || "Unknown",
-        notes: paymentNotes || null,
-        proof_url: proofUrl
+        notes: buildPaymentRecordNotes(paymentNotes, paymentReference, paymentCollectedBy),
+        proof_url: proofUrl,
       })
 
-      setPayments((prev) => [created as unknown as PaymentRow, ...prev])
-      const snapshot = derivePersistedPaymentSnapshot(customer)
-      const updatedPaid = snapshot.paid + amountValue
-      const updatedRemaining = Math.max(snapshot.total - updatedPaid, 0)
-      const updatedStatus = updatedPaid >= snapshot.total && snapshot.total > 0 ? "Paid" : updatedPaid > 0 ? "Partial" : "Pending"
+      await loadDetail()
 
-      setCustomer((prev) =>
-        prev
-          ? {
-              ...prev,
-              paid_amount: updatedPaid,
-              pending_amount: updatedRemaining,
-              payment_status: updatedStatus
-            }
-          : prev
-      )
-      setStatusToast(updatedRemaining <= 0 ? "Balance cleared — project is ready for closure" : "Payment recorded successfully")
+      const refreshed = await getCustomerById(customer.id)
+      const refreshedCustomer = refreshed.data as CustomerRow | null
+      if (refreshedCustomer) {
+        setCustomer(refreshedCustomer)
+        const refreshedSnapshot = derivePersistedPaymentSnapshot(refreshedCustomer)
+        const installComplete = isInstallationCompleteStatus(refreshedCustomer.status)
+
+        if (installComplete && refreshedSnapshot.remaining <= 0 && refreshedSnapshot.total > 0) {
+          await updateCustomer(refreshedCustomer.id, {
+            status: "Completed",
+            current_stage: refreshedCustomer.current_stage ?? "INSTALLATION",
+            notes: appendNotes(refreshedCustomer.notes, "Payment Cleared", [
+              `Payment Status: Paid`,
+              `Total Amount: ${refreshedSnapshot.total.toFixed(2)}`,
+              `Paid Amount: ${refreshedSnapshot.paid.toFixed(2)}`,
+              `Remaining Amount: 0.00`,
+              "Project is ready for closure.",
+            ]),
+          })
+          await loadDetail()
+          setStatusToast("Balance cleared — project is ready for closure")
+        } else {
+          setStatusToast("Payment recorded successfully")
+        }
+      } else {
+        setStatusToast("Payment recorded successfully")
+      }
+
       closePaymentModal()
     } catch (paymentSubmitError) {
       setPaymentError(paymentSubmitError instanceof Error ? paymentSubmitError.message : "Unable to create payment.")
@@ -802,29 +872,11 @@ export default function CustomerDetailsPage() {
     return stageDefinitions.find((stage) => stage.key === currentStage)?.title ?? "Workflow"
   }
 
-  const totalAmountValue = Number(totalAmount || 0)
-  const paidAmountValue = Number(paidAmount || 0)
-  const remainingAmountValue = Math.max(totalAmountValue - paidAmountValue, 0)
-  const autoPaymentStatus =
-    totalAmountValue <= 0 || paidAmountValue <= 0
-      ? "Pending"
-      : paidAmountValue < totalAmountValue
-      ? "Partial"
-      : "Paid"
-
   const approvalDateValid = !approvalDate.trim() || !Number.isNaN(new Date(approvalDate).getTime())
   const approvalNumberPattern = /^[A-Za-z0-9/-]{4,40}$/
   const approvalNumberValid = !approvalNumber.trim() || approvalNumberPattern.test(approvalNumber.trim())
   const submissionReferencePattern = /^[A-Za-z0-9/-]{4,40}$/
   const submissionReferenceValid = !submissionRefNumber.trim() || submissionReferencePattern.test(submissionRefNumber.trim())
-  const paymentAmountValid = !Number.isNaN(totalAmountValue) && !Number.isNaN(paidAmountValue) && paidAmountValue <= totalAmountValue
-  const installationTotalAmountValue = Number(installationTotalAmount || 0)
-  const installationPaidAmountValue = Number(installationPaidAmount || 0)
-  const installationPaymentValid =
-    !Number.isNaN(installationTotalAmountValue) &&
-    !Number.isNaN(installationPaidAmountValue) &&
-    installationTotalAmountValue > 0 &&
-    installationPaidAmountValue <= installationTotalAmountValue
 
   const persistedPaymentSnapshot = derivePersistedPaymentSnapshot(customer)
   const persistedTotalAmount = persistedPaymentSnapshot.total
@@ -832,6 +884,35 @@ export default function CustomerDetailsPage() {
   const persistedRemainingAmount = persistedPaymentSnapshot.remaining
   const persistedPaymentStatus = persistedPaymentSnapshot.status
   const paymentProgressPct = persistedTotalAmount > 0 ? Math.min(100, (persistedPaidAmount / persistedTotalAmount) * 100) : 0
+
+  const contractValueAmount = Number(contractValue || 0)
+  const discountValueAmount = Number(discountAmount || 0)
+  const installationFinalTotal = computeFinalBillable(contractValueAmount, discountValueAmount)
+  const installationPaidFromDb = persistedPaidAmount
+  const installationRemainingAmount = Math.max(installationFinalTotal - installationPaidFromDb, 0)
+  const installationOverpaid = installationPaidFromDb > installationFinalTotal && installationFinalTotal > 0
+  const installationPaymentValid =
+    !Number.isNaN(contractValueAmount) &&
+    !Number.isNaN(discountValueAmount) &&
+    contractValueAmount > 0 &&
+    discountValueAmount >= 0 &&
+    discountValueAmount <= contractValueAmount &&
+    !installationOverpaid
+  const paymentAmountValue = Number(paymentAmount || 0)
+  const paymentExceedsRemaining =
+    paymentAmountValue > persistedRemainingAmount && persistedRemainingAmount >= 0 && paymentAmountValue > 0
+  const inlineInstallPaymentAmountValue = Number(inlineInstallPaymentAmount || 0)
+  const inlineInstallPaymentExceeds =
+    recordPaymentOnComplete &&
+    inlineInstallPaymentAmountValue > installationRemainingAmount &&
+    installationRemainingAmount >= 0
+  const inlineInstallPaymentValid =
+    !recordPaymentOnComplete ||
+    (inlineInstallPaymentAmountValue > 0 &&
+      inlineInstallPaymentAmountValue <= installationRemainingAmount &&
+      Boolean(inlineInstallPaymentDate.trim()) &&
+      Boolean(inlineInstallPaymentMethod.trim()))
+  const installationSubmitValid = installationPaymentValid && inlineInstallPaymentValid
 
   const paymentModel = useMemo<PaymentModel>(() => {
     return {
@@ -934,18 +1015,25 @@ export default function CustomerDetailsPage() {
       return
     }
 
-    if (modalState.action === "CLOSE_PROJECT" && totalAmountValue <= 0) {
-      setModalError("Total amount is required to update payment.")
+    if (modalState.action === "CLOSE_PROJECT" && !completionNotes.trim()) {
+      setModalError("Completion notes are required before closing the project.")
       return
     }
 
-    if (modalState.action === "CLOSE_PROJECT" && !paymentAmountValid) {
-      setModalError("Paid amount cannot be greater than total amount.")
+    const closureSnapshotForSubmit = derivePersistedPaymentSnapshot(customer)
+    if (modalState.action === "CLOSE_PROJECT" && (closureSnapshotForSubmit.remaining > 0 || closureSnapshotForSubmit.status !== "Paid")) {
+      setModalError("Full payment is required before closing the project.")
       return
     }
 
-    if (modalState.action === "MARK_INSTALLATION_COMPLETED" && !installationPaymentValid) {
-      setModalError("Enter valid installation payment amounts")
+    if (modalState.action === "MARK_INSTALLATION_COMPLETED" && !installationSubmitValid) {
+      if (recordPaymentOnComplete && inlineInstallPaymentExceeds) {
+        setModalError("Amount exceeds remaining balance.")
+      } else if (installationOverpaid) {
+        setModalError("Paid amount cannot exceed project value.")
+      } else {
+        setModalError("Enter valid contract value and payment details.")
+      }
       return
     }
 
@@ -1059,40 +1147,101 @@ export default function CustomerDetailsPage() {
       }
 
       if (modalState.action === "MARK_INSTALLATION_COMPLETED") {
-        setActionProgressMessage("Updating workflow...")
-        const installationPaymentStatus =
-          installationPaidAmountValue <= 0
-            ? "Pending"
-            : installationPaidAmountValue < installationTotalAmountValue
-            ? "Partial"
-            : "Paid"
+        if (installationOverpaid) {
+          throw new Error("Paid amount cannot exceed project value.")
+        }
+        if (installationFinalTotal <= 0) {
+          throw new Error("Enter a valid contract value.")
+        }
+        if (recordPaymentOnComplete && inlineInstallPaymentAmountValue > installationRemainingAmount) {
+          throw new Error("Amount exceeds remaining balance.")
+        }
 
-        const nextStage = installationPaidAmountValue >= installationTotalAmountValue ? "CLOSED" : "INSTALLATION"
-        const nextStatus =
-          installationPaidAmountValue >= installationTotalAmountValue
-            ? "Completed"
-            : "Completed_Payment_Pending"
+        setActionProgressMessage("Updating workflow...")
+        let remaining = installationRemainingAmount
+        let paidAfter = installationPaidFromDb
+        const initialStatus = remaining > 0 ? "Completed_Payment_Pending" : "Completed"
 
         await runWithRetry(() =>
           updateCustomer(customer.id, {
-            status: nextStatus,
-            current_stage: nextStage,
+            status: initialStatus,
+            current_stage: "INSTALLATION",
+            total_cost: installationFinalTotal,
             notes: appendNotes(customer.notes, "Installation Completed", [
               installCompleteNotes || "Marked as completed",
-              `Total Amount: ${installationTotalAmountValue.toFixed(2)}`,
-              `Paid Amount: ${installationPaidAmountValue.toFixed(2)}`,
-              `Remaining Amount: ${(installationTotalAmountValue - installationPaidAmountValue).toFixed(2)}`,
-              `Payment Status: ${installationPaymentStatus}`,
-            ])
+              `Contract Value: ${contractValueAmount.toFixed(2)}`,
+              `Discount Amount: ${discountValueAmount.toFixed(2)}`,
+              discountReason.trim() ? `Discount Reason: ${discountReason.trim()}` : "",
+              `Total Amount: ${installationFinalTotal.toFixed(2)}`,
+              `Paid Amount: ${paidAfter.toFixed(2)}`,
+              `Remaining Amount: ${remaining.toFixed(2)}`,
+              `Payment Status: ${remaining <= 0 ? "Paid" : paidAfter > 0 ? "Partial" : "Pending"}`,
+            ]),
           })
         )
-        applyLocalStage(nextStatus, nextStage)
-        setStatusToast("Status updated successfully")
+
+        if (recordPaymentOnComplete && inlineInstallPaymentAmountValue > 0) {
+          setActionProgressMessage("Recording payment...")
+          await createPaymentForInstallation({
+            installation_id: customer.id,
+            organization_id: customer.organization_id,
+            amount: inlineInstallPaymentAmountValue,
+            payment_date: inlineInstallPaymentDate,
+            payment_method: inlineInstallPaymentMethod,
+            notes: buildPaymentRecordNotes(
+              "Payment recorded during installation completion",
+              inlineInstallPaymentReference,
+              inlineInstallPaymentCollectedBy
+            ),
+          })
+          await loadDetail()
+          const refreshed = await getCustomerById(customer.id)
+          const refreshedCustomer = refreshed.data as CustomerRow | null
+          if (refreshedCustomer) {
+            const refreshedSnapshot = derivePersistedPaymentSnapshot(refreshedCustomer)
+            remaining = refreshedSnapshot.remaining
+            paidAfter = refreshedSnapshot.paid
+          }
+        }
+
+        if (remaining <= 0 && installationFinalTotal > 0) {
+          await runWithRetry(() =>
+            updateCustomer(customer.id, {
+              status: "Completed",
+              current_stage: "INSTALLATION",
+              payment_status: "Paid",
+              total_cost: installationFinalTotal,
+              paid_amount: paidAfter,
+              pending_amount: 0,
+              notes: appendNotes(customer.notes, "Payment Cleared", [
+                `Payment Status: Paid`,
+                `Total Amount: ${installationFinalTotal.toFixed(2)}`,
+                `Paid Amount: ${paidAfter.toFixed(2)}`,
+                `Remaining Amount: 0.00`,
+                "Project is ready for closure.",
+              ]),
+            })
+          )
+          applyLocalStage("Completed", "INSTALLATION")
+          setStatusToast("Installation complete — project is ready for closure")
+        } else {
+          applyLocalStage(initialStatus, "INSTALLATION")
+          setStatusToast(
+            recordPaymentOnComplete && inlineInstallPaymentAmountValue > 0
+              ? "Installation complete — partial payment recorded"
+              : "Installation marked complete — payment pending"
+          )
+        }
       }
 
       if (modalState.action === "CLOSE_PROJECT") {
         if (!completionNotes.trim()) {
-          throw new Error("Please provide completion notes before updating payment.")
+          throw new Error("Please provide completion notes before closing the project.")
+        }
+
+        const closureSnapshot = derivePersistedPaymentSnapshot(customer)
+        if (closureSnapshot.remaining > 0 || closureSnapshot.status !== "Paid") {
+          throw new Error("Full payment is required before closing the project.")
         }
 
         if (invoiceDoc) {
@@ -1100,32 +1249,26 @@ export default function CustomerDetailsPage() {
           await runWithRetry(() => uploadDocument(invoiceDoc, "project-closure-invoice", customer.id))
         }
 
-        const shouldCloseProject = paidAmountValue >= totalAmountValue && totalAmountValue > 0
-        const nextStatus = shouldCloseProject ? "Completed" : customer.status
-        const nextStage = shouldCloseProject ? "CLOSED" : customer.current_stage ?? "INSTALLATION"
-
-        setActionProgressMessage("Validating data...")
+        setActionProgressMessage("Closing project...")
         await runWithRetry(() =>
           updateCustomer(customer.id, {
-            status: nextStatus,
-            current_stage: nextStage,
+            status: "Completed",
+            current_stage: "CLOSED",
+            payment_status: "Paid",
+            total_cost: closureSnapshot.total,
+            paid_amount: closureSnapshot.paid,
+            pending_amount: 0,
             notes: appendNotes(customer.notes, "Project Closure", [
-              `Payment Status: ${autoPaymentStatus}`,
-              `Total Amount: ${totalAmountValue.toFixed(2)}`,
-              `Paid Amount: ${paidAmountValue.toFixed(2)}`,
-              `Remaining Amount: ${remainingAmountValue.toFixed(2)}`,
-              `Completion Notes: ${completionNotes}`
-            ])
+              `Payment Status: Paid`,
+              `Total Amount: ${closureSnapshot.total.toFixed(2)}`,
+              `Paid Amount: ${closureSnapshot.paid.toFixed(2)}`,
+              `Remaining Amount: 0.00`,
+              `Completion Notes: ${completionNotes}`,
+            ]),
           })
         )
-        setActionProgressMessage("Updating workflow...")
-        if (shouldCloseProject) {
-          applyLocalStage("Completed", "CLOSED")
-          setStatusToast("Payment updated and project closed")
-        } else {
-          applyLocalStage(customer.status, customer.current_stage ?? "INSTALLATION")
-          setStatusToast("Payment updated successfully")
-        }
+        applyLocalStage("Completed", "CLOSED")
+        setStatusToast("Project closed successfully")
       }
 
       closeModal()
@@ -1246,11 +1389,13 @@ export default function CustomerDetailsPage() {
               <div className="relative px-2 sm:px-4">
                 <div className="workflow-stepper-track absolute left-[calc(12.5%+0.5rem)] right-[calc(12.5%+0.5rem)] top-5 h-0.5" />
                 <div
-                  className="workflow-stepper-progress absolute left-[calc(12.5%+0.5rem)] right-[calc(12.5%+0.5rem)] top-5 h-0.5 origin-left"
+                  className={`workflow-stepper-progress absolute left-[calc(12.5%+0.5rem)] right-[calc(12.5%+0.5rem)] top-5 h-0.5 origin-left${
+                    stageProgressPercent >= 100 ? " workflow-stepper-progress-complete" : ""
+                  }`}
                   style={{ transform: `scaleX(${stageProgressPercent / 100})` }}
                 />
                 <div className="workflow-container relative z-[2]">
-                  {stageDefinitions.map((stage, index) => {
+                  {stageDefinitions.map((stage) => {
                     const stageStatus = stageStatusMap[stage.key]
                     const isDone = stageStatus.tone === "completed"
                     const isActive = stage.key === currentStage && stageStatus.tone !== "completed"
@@ -1271,17 +1416,10 @@ export default function CustomerDetailsPage() {
                     return (
                       <div key={stage.key} className="workflow-step">
                         <div
-                          className={`workflow-step-node flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-all ${
-                            visualState === "completed"
-                              ? "border-transparent bg-gradient-to-r from-blue-600 to-violet-600 text-white"
-                              : visualState === "active"
-                              ? "workflow-step-node-active border-transparent"
-                              : visualState === "blocked"
-                              ? "border-dashed border-amber-400 bg-amber-50 text-amber-600"
-                              : "border-slate-200 bg-slate-100 text-slate-400"
-                          }`}
+                          className={`workflow-step-node flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${stepNodeClass(visualState)}`}
                         >
-                          {visualState === "completed" ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                          {visualState === "active" ? <span className="workflow-step-pulse-ring" aria-hidden /> : null}
+                          {renderStepIndicator(visualState, Icon)}
                         </div>
                       </div>
                     )
@@ -1290,7 +1428,7 @@ export default function CustomerDetailsPage() {
               </div>
               <div className="px-2 sm:px-4">
                 <div className="workflow-container mt-2 gap-1">
-                  {stageDefinitions.map((stage, index) => {
+                  {stageDefinitions.map((stage) => {
                     const stageStatus = stageStatusMap[stage.key]
                     const isDone = stageStatus.tone === "completed"
                     const isActive = stage.key === currentStage && stageStatus.tone !== "completed"
@@ -1300,12 +1438,19 @@ export default function CustomerDetailsPage() {
                       stage.key === "CLOSURE" &&
                       currentWorkflowStage === "INSTALLATION" &&
                       !allowedActionModel.closureEnabled
+                    const visualState: StepVisualState = isDone
+                      ? "completed"
+                      : isActive
+                      ? "active"
+                      : isBlocked
+                      ? "blocked"
+                      : "upcoming"
                     return (
                       <p
                         key={`${stage.key}-label`}
-                        className={`workflow-step-label ${
-                          isActive ? "current" : isDone ? "completed" : "pending"
-                        } ${isActive ? "workflow-step-label-mobile-visible" : "workflow-step-label-mobile-hidden"}`}
+                        className={`workflow-step-label ${stepLabelClass(visualState)} ${
+                          isActive ? "workflow-step-label-mobile-visible" : "workflow-step-label-mobile-hidden"
+                        }`}
                       >
                         <span className="workflow-step-label-full">{stage.title}</span>
                         <span className="workflow-step-label-short">{shortStageLabel(stage.key)}</span>
@@ -1327,7 +1472,7 @@ export default function CustomerDetailsPage() {
                     <p className="next-action-title">Next Action Required</p>
                     <p className="next-action-text mt-0.5">{allowedActionModel.guidance}</p>
                   </div>
-                  {nextActionInfo && nextActionInfo.key !== "CLOSE_PROJECT" ? (
+                  {nextActionInfo ? (
                     <button
                       type="button"
                       onClick={() => openActionModal(nextActionInfo.key)}
@@ -1335,13 +1480,12 @@ export default function CustomerDetailsPage() {
                     >
                       {nextActionInfo.label}
                     </button>
+                  ) : persistedRemainingAmount > 0 && isInstallationCompleteStatus(customer?.status) ? (
+                    <button type="button" onClick={openPaymentModal} className="btn btn-primary customer-primary-btn shrink-0">
+                      Record Payment
+                    </button>
                   ) : null}
                 </div>
-                {persistedRemainingAmount > 0 && allowedActionModel.allowedActions.includes("CLOSE_PROJECT") ? (
-                  <div className="border-t border-amber-200 bg-amber-50/60 px-5 py-3 text-[12px] font-medium text-amber-700">
-                    Outstanding payment must be collected before project closure.
-                  </div>
-                ) : null}
               </div>
             ) : (
               <div className="mt-5 flex items-center gap-2.5 rounded-xl border border-emerald-100 bg-emerald-50/60 px-5 py-4">
@@ -1913,7 +2057,7 @@ export default function CustomerDetailsPage() {
         submitLabel="Update Status"
         loading={actionLoading === "MARK_INSTALLATION_COMPLETED"}
         loadingMessage={actionProgressMessage}
-        submitDisabled={!installationPaymentValid}
+        submitDisabled={!installationSubmitValid}
         errorMessage={modalError}
         showRetry={modalRetryable}
         onClose={closeModal}
@@ -1921,12 +2065,161 @@ export default function CustomerDetailsPage() {
         onRetry={() => void runAction()}
       >
         <div className="space-y-4">
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-emerald-800">
-            <CircleCheck size={16} className="text-emerald-600" /> Complete installation for this customer.
+          <PaymentSummaryCards
+            projectValue={installationFinalTotal > 0 ? installationFinalTotal : persistedTotalAmount}
+            paidAmount={installationPaidFromDb}
+            remainingAmount={installationRemainingAmount}
+          />
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[var(--sf-text)]">Contract Value</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={contractValue}
+                onChange={(event) => setContractValue(event.target.value)}
+                className={`${textFieldClass} ${
+                  modalAttempted && contractValueAmount <= 0
+                    ? "field-shake border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100"
+                    : ""
+                }`}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-[var(--sf-text)]">Discount Amount</label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={discountAmount}
+                onChange={(event) => setDiscountAmount(event.target.value)}
+                className={textFieldClass}
+                placeholder="0.00"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Completion notes</label>
+            <label className="text-sm font-medium text-[var(--sf-text)]">Discount Reason</label>
+            <input
+              value={discountReason}
+              onChange={(event) => setDiscountReason(event.target.value)}
+              className={textFieldClass}
+              placeholder="Optional reason for discount adjustment"
+            />
+          </div>
+
+          {installationFinalTotal > 0 ? (
+            <div className="rounded-lg border border-[var(--sf-card-border)] bg-[color-mix(in_srgb,var(--sf-card-bg)_96%,var(--hover))] px-3 py-2.5 text-[13px] text-[var(--sf-muted-text)]">
+              Final billable amount: <span className="font-semibold text-[var(--sf-text)]">{formatCurrency(installationFinalTotal)}</span>
+            </div>
+          ) : null}
+
+          {installationOverpaid ? (
+            <p className="text-xs text-rose-600">Paid amount cannot exceed project value.</p>
+          ) : null}
+
+          {installationRemainingAmount > 0 ? (
+            <div className="space-y-3">
+              <div className="sf-toggle-row">
+                <label htmlFor="record-payment-on-complete">Record payment now</label>
+                <input
+                  id="record-payment-on-complete"
+                  type="checkbox"
+                  checked={recordPaymentOnComplete}
+                  onChange={(event) => setRecordPaymentOnComplete(event.target.checked)}
+                />
+              </div>
+
+              {recordPaymentOnComplete ? (
+                <div className="space-y-3 rounded-lg border border-[var(--sf-card-border)] bg-[color-mix(in_srgb,var(--sf-card-bg)_96%,var(--hover))] p-3">
+                  <p className="text-[12px] text-[var(--sf-muted-text)]">
+                    Partial payments stay in Payment Pending. Full payment marks the project ready for closure — use Close Project separately.
+                  </p>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">
+                      Amount Paying Now (₹) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      max={installationRemainingAmount > 0 ? installationRemainingAmount : undefined}
+                      value={inlineInstallPaymentAmount}
+                      onChange={(event) => setInlineInstallPaymentAmount(event.target.value)}
+                      placeholder="Enter amount"
+                      className={`input h-[44px] w-full [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                        inlineInstallPaymentExceeds ? "field-shake border-rose-300" : ""
+                      }`}
+                    />
+                    {inlineInstallPaymentExceeds ? (
+                      <p className="text-xs text-rose-600">Amount exceeds remaining balance.</p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">
+                        Payment Date <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={inlineInstallPaymentDate}
+                        onChange={(event) => setInlineInstallPaymentDate(event.target.value)}
+                        className="input h-[44px] w-full"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">
+                        Payment Method <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={inlineInstallPaymentMethod}
+                        onChange={(event) => setInlineInstallPaymentMethod(event.target.value)}
+                        className="dropdown h-[44px] w-full"
+                      >
+                        <option value="">Select method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Card">Card</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">Reference Number</label>
+                      <input
+                        value={inlineInstallPaymentReference}
+                        onChange={(event) => setInlineInstallPaymentReference(event.target.value)}
+                        className="input h-[44px] w-full"
+                        placeholder="Txn / cheque / UPI ref"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">Collected By</label>
+                      <input
+                        value={inlineInstallPaymentCollectedBy}
+                        onChange={(event) => setInlineInstallPaymentCollectedBy(event.target.value)}
+                        className="input h-[44px] w-full"
+                        placeholder="Staff name"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-[var(--sf-text)]">Completion notes</label>
             <textarea
               value={installCompleteNotes}
               onChange={(event) => setInstallCompleteNotes(event.target.value)}
@@ -1935,56 +2228,19 @@ export default function CustomerDetailsPage() {
               placeholder="Add final completion details"
             />
           </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Total Amount</label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                value={installationTotalAmount}
-                onChange={(event) => setInstallationTotalAmount(event.target.value)}
-                className={`${textFieldClass} ${
-                  modalAttempted && installationTotalAmountValue <= 0
-                    ? "field-shake border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100"
-                    : ""
-                }`}
-                placeholder="0.00"
-              />
-              {modalAttempted && installationTotalAmountValue <= 0 ? <p className="text-xs text-rose-600">Enter total amount</p> : null}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Paid Amount</label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                value={installationPaidAmount}
-                onChange={(event) => setInstallationPaidAmount(event.target.value)}
-                className={`${textFieldClass} ${
-                  modalAttempted && !installationPaymentValid
-                    ? "field-shake border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100"
-                    : ""
-                }`}
-                placeholder="0.00"
-              />
-              {modalAttempted && !installationPaymentValid ? <p className="text-xs text-rose-600">Paid amount cannot exceed total amount</p> : null}
-            </div>
-          </div>
         </div>
       </WorkflowActionModal>
 
       <WorkflowActionModal
         open={modalState.action === "CLOSE_PROJECT"}
-        title="Update Payment Status"
-        subtitle="Record payment details and close the customer workflow when everything is complete."
+        title="Close Project"
+        subtitle="Confirm closure and archive this installation. Full payment must be recorded before closing."
         customerName={customer?.name ?? "Customer"}
         stageLabel={modalStageLabel("CLOSE_PROJECT")}
-        submitLabel="Update Payment"
+        submitLabel="Close Project"
         loading={actionLoading === "CLOSE_PROJECT"}
         loadingMessage={actionProgressMessage}
-        submitDisabled={!completionNotes.trim() || totalAmountValue <= 0 || !paymentAmountValid}
+        submitDisabled={!completionNotes.trim()}
         errorMessage={modalError}
         showRetry={modalRetryable}
         onClose={closeModal}
@@ -1992,58 +2248,21 @@ export default function CustomerDetailsPage() {
         onRetry={() => void runAction()}
       >
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Total Amount</label>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={totalAmount}
-              onChange={(event) => setTotalAmount(event.target.value)}
-              className={`${textFieldClass} ${
-                modalAttempted && totalAmountValue <= 0 ? "field-shake border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100" : ""
-              }`}
-              placeholder="0.00"
-            />
-            {modalAttempted && totalAmountValue <= 0 ? <p className="text-xs text-rose-600">Total amount is required to continue.</p> : null}
-          </div>
+          <PaymentSummaryCards
+            projectValue={persistedTotalAmount}
+            paidAmount={persistedPaidAmount}
+            remainingAmount={persistedRemainingAmount}
+          />
 
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Paid Amount</label>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              value={paidAmount}
-              onChange={(event) => setPaidAmount(event.target.value)}
-              className={`${textFieldClass} ${
-                modalAttempted && !paymentAmountValid
-                  ? "field-shake border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100"
-                  : ""
-              }`}
-              placeholder="0.00"
-            />
-            {modalAttempted && !paymentAmountValid ? <p className="text-xs text-rose-600">Paid amount cannot be greater than total amount.</p> : null}
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 rounded-lg bg-slate-50 p-3 sm:grid-cols-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Remaining</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">{remainingAmountValue.toFixed(2)}</p>
+          {persistedRemainingAmount > 0 || persistedPaymentStatus !== "Paid" ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-800">
+              Outstanding balance must be cleared before closure. Use Record Payment in the sidebar.
             </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Status</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">{autoPaymentStatus}</p>
+          ) : (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-sm text-emerald-800">
+              Payment is fully collected. You can close this project now.
             </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Paid</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">{paidAmountValue.toFixed(2)}</p>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-800">
-            Original total: Rs {persistedTotalAmount.toFixed(2)}. Remaining balance: Rs {Math.max(persistedTotalAmount - paidAmountValue, 0).toFixed(2)}.
-          </div>
+          )}
 
           <FileDropInput
             label="Upload Document"
@@ -2053,7 +2272,7 @@ export default function CustomerDetailsPage() {
           />
 
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-700">Completion notes</label>
+            <label className="text-sm font-medium text-[var(--sf-text)]">Completion notes</label>
             <textarea
               value={completionNotes}
               onChange={(event) => setCompletionNotes(event.target.value)}
@@ -2061,13 +2280,9 @@ export default function CustomerDetailsPage() {
               className={`${areaFieldClass} ${
                 modalAttempted && !completionNotes.trim() ? "field-shake border-rose-300 bg-rose-50 focus:border-rose-400 focus:ring-rose-100" : ""
               }`}
-              placeholder="Summarize closure and payment details"
+              placeholder="Summarize closure details"
             />
             {modalAttempted && !completionNotes.trim() ? <p className="text-xs text-rose-600">Completion notes are required.</p> : null}
-          </div>
-
-          <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-800">
-            <Clock3 size={16} className="text-blue-600" /> Project will be marked as closed only after full payment is recorded.
           </div>
         </div>
       </WorkflowActionModal>
@@ -2078,170 +2293,190 @@ export default function CustomerDetailsPage() {
         onClose={() => setPaymentHistoryOpen(false)}
       />
 
-      {/* Record Payment Modal */}
-      {paymentModalOpen ? (
-        <ModalPortal isOpen={paymentModalOpen} onClose={closePaymentModal}>
-          <div className="sf-modal-panel modal-panel-enter relative z-10 flex w-full max-w-lg flex-col overflow-hidden rounded-xl sm:max-h-[85vh]" style={{ backgroundColor: "var(--sf-card-bg)", border: "1px solid var(--sf-card-border)" }}>
-            {/* Header */}
-            <div className="sf-modal-header flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--sf-card-border)" }}>
-              <div>
-                <h3 className="text-[16px] font-semibold" style={{ color: "var(--sf-text)" }}>Record Payment</h3>
-                {payments.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => { closePaymentModal(); setPaymentHistoryOpen(true) }}
-                    className="mt-0.5 text-[12px] font-medium text-blue-600 hover:text-blue-500 transition"
-                  >
-                    View {payments.length} recorded {payments.length === 1 ? "payment" : "payments"} →
-                  </button>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={closePaymentModal}
-                disabled={paymentSubmitting}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-slate-100 dark:hover:bg-slate-800"
-                style={{ color: "var(--muted)" }}
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
-              {paymentError ? (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[13px] text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-                  {paymentError}
-                </div>
-              ) : null}
-
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Amount (₹) <span className="text-rose-500">*</span></label>
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder="Enter amount"
-                  className="input h-[44px] w-full [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  disabled={paymentSubmitting}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Payment Date <span className="text-rose-500">*</span></label>
-                  <input
-                    type="date"
-                    value={paymentDate}
-                    onChange={(e) => setPaymentDate(e.target.value)}
-                    className="input h-[44px] w-full"
-                    disabled={paymentSubmitting}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Payment Method</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="dropdown h-[44px] w-full"
-                    disabled={paymentSubmitting}
-                  >
-                    <option value="">Select method</option>
-                    <option value="Cash">Cash</option>
-                    <option value="UPI">UPI</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                    <option value="Cheque">Cheque</option>
-                    <option value="Card">Card</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Payment Proof <span className="text-[11px] font-normal">(optional)</span></label>
-                <div
-                  className={`file-dropzone ${paymentProofFile ? "border-emerald-400 !bg-emerald-50 dark:!bg-emerald-900/20 dark:border-emerald-600" : ""}`}
-                  onClick={() => document.getElementById("payment-proof-input")?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    const file = e.dataTransfer.files?.[0]
-                    if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
-                      setPaymentProofFile(file)
-                    }
-                  }}
-                >
-                  {paymentProofFile ? (
-                    <div className="flex flex-col items-center gap-1 py-1">
-                      <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span className="text-[13px] font-medium text-emerald-700 dark:text-emerald-300 truncate max-w-[200px]">{paymentProofFile.name}</span>
-                      </div>
-                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400">{(paymentProofFile.size / 1024).toFixed(0)} KB</span>
-                    </div>
-                  ) : (
-                    <div className="text-center py-1">
-                      <Upload className="mx-auto h-5 w-5" style={{ color: "var(--muted)" }} />
-                      <p className="mt-1.5 text-[12px]" style={{ color: "var(--muted)" }}>Drop image/PDF or click to upload</p>
-                      <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">JPG, PNG, PDF — max 5MB</p>
-                    </div>
-                  )}
-                </div>
-                <input
-                  id="payment-proof-input"
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null
-                    if (file && file.size > 5 * 1024 * 1024) {
-                      setPaymentError("File must be less than 5MB.")
-                      return
-                    }
-                    setPaymentProofFile(file)
-                  }}
-                  disabled={paymentSubmitting}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>Notes</label>
-                <textarea
-                  value={paymentNotes}
-                  onChange={(e) => setPaymentNotes(e.target.value)}
-                  placeholder="Optional notes"
-                  rows={2}
-                  className="textarea w-full"
-                  disabled={paymentSubmitting}
-                />
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="sf-modal-footer flex items-center justify-end gap-3 border-t px-5 py-4" style={{ borderColor: "var(--sf-card-border)" }}>
-              <button
-                type="button"
-                onClick={closePaymentModal}
-                disabled={paymentSubmitting}
-                className="btn btn-secondary h-[44px] px-4 text-[13px]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitPayment}
-                disabled={paymentSubmitting || !paymentAmount || Number(paymentAmount) <= 0}
-                className="btn btn-primary h-[44px] px-5 text-[13px]"
-              >
-                {paymentSubmitting ? "Recording..." : "Record Payment"}
-              </button>
-            </div>
+      <Modal
+        open={paymentModalOpen}
+        title="Record Payment"
+        subtitle={
+          payments.length > 0
+            ? `${payments.length} ${payments.length === 1 ? "payment" : "payments"} recorded`
+            : undefined
+        }
+        showCloseButton
+        panelClassName="sf-modal-panel-wide"
+        onClose={closePaymentModal}
+        bodyClassName="space-y-4"
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <button type="button" onClick={closePaymentModal} disabled={paymentSubmitting} className="btn btn-secondary h-[44px] px-4 text-[13px]">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void submitPayment()}
+              disabled={paymentSubmitting || !paymentAmount || Number(paymentAmount) <= 0 || paymentExceedsRemaining}
+              className="btn btn-primary h-[44px] px-5 text-[13px]"
+            >
+              {paymentSubmitting ? "Recording..." : "Record Payment"}
+            </button>
           </div>
-        </ModalPortal>
-      ) : null}
+        }
+      >
+        {payments.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              closePaymentModal()
+              setPaymentHistoryOpen(true)
+            }}
+            className="text-[12px] font-medium text-[var(--sf-primary-start)] hover:underline"
+          >
+            View payment history →
+          </button>
+        ) : null}
+
+        {paymentError ? <div className="sf-modal-alert">{paymentError}</div> : null}
+
+        <PaymentSummaryCards
+          projectValue={persistedTotalAmount}
+          paidAmount={persistedPaidAmount}
+          remainingAmount={persistedRemainingAmount}
+        />
+
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">
+            Amount Paying Now (₹) <span className="text-rose-500">*</span>
+          </label>
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            max={persistedRemainingAmount > 0 ? persistedRemainingAmount : undefined}
+            value={paymentAmount}
+            onChange={(e) => setPaymentAmount(e.target.value)}
+            placeholder="Enter amount"
+            className={`input h-[44px] w-full [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+              paymentExceedsRemaining ? "field-shake border-rose-300" : ""
+            }`}
+            disabled={paymentSubmitting}
+          />
+          {paymentExceedsRemaining ? <p className="text-xs text-rose-600">Amount exceeds remaining balance.</p> : null}
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">
+              Payment Date <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={(e) => setPaymentDate(e.target.value)}
+              className="input h-[44px] w-full"
+              disabled={paymentSubmitting}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">Payment Method</label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="dropdown h-[44px] w-full"
+              disabled={paymentSubmitting}
+            >
+              <option value="">Select method</option>
+              <option value="Cash">Cash</option>
+              <option value="UPI">UPI</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Card">Card</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">Reference Number</label>
+            <input
+              value={paymentReference}
+              onChange={(e) => setPaymentReference(e.target.value)}
+              className="input h-[44px] w-full"
+              placeholder="Txn / cheque / UPI ref"
+              disabled={paymentSubmitting}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">Collected By</label>
+            <input
+              value={paymentCollectedBy}
+              onChange={(e) => setPaymentCollectedBy(e.target.value)}
+              className="input h-[44px] w-full"
+              placeholder="Team member name"
+              disabled={paymentSubmitting}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">
+            Payment Proof <span className="text-[11px] font-normal">(optional)</span>
+          </label>
+          <div
+            className={`file-dropzone ${paymentProofFile ? "drag-active" : ""}`}
+            onClick={() => document.getElementById("payment-proof-input")?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault()
+              const file = e.dataTransfer.files?.[0]
+              if (file && (file.type.startsWith("image/") || file.type === "application/pdf")) {
+                setPaymentProofFile(file)
+              }
+            }}
+          >
+            {paymentProofFile ? (
+              <div className="flex flex-col items-center gap-1 py-1">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 shrink-0 text-[var(--sf-primary-start)]" />
+                  <span className="max-w-[200px] truncate text-[13px] font-medium text-[var(--sf-text)]">{paymentProofFile.name}</span>
+                </div>
+                <span className="text-[11px] text-[var(--sf-muted-text)]">{(paymentProofFile.size / 1024).toFixed(0)} KB</span>
+              </div>
+            ) : (
+              <div className="py-1 text-center">
+                <Upload className="mx-auto h-5 w-5 text-[var(--sf-muted-text)]" />
+                <p className="mt-1.5 text-[12px] text-[var(--sf-muted-text)]">Drop image/PDF or click to upload</p>
+              </div>
+            )}
+          </div>
+          <input
+            id="payment-proof-input"
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null
+              if (file && file.size > 5 * 1024 * 1024) {
+                setPaymentError("File must be less than 5MB.")
+                return
+              }
+              setPaymentProofFile(file)
+            }}
+            disabled={paymentSubmitting}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-semibold text-[var(--sf-muted-text)]">Notes</label>
+          <textarea
+            value={paymentNotes}
+            onChange={(e) => setPaymentNotes(e.target.value)}
+            placeholder="Optional notes"
+            rows={2}
+            className="textarea w-full"
+            disabled={paymentSubmitting}
+          />
+        </div>
+      </Modal>
     </div>
   )
 }

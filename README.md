@@ -1,5 +1,32 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## AI Context & Cursor Rules
+
+The following folders are **gitignored by default** so local AI edits do not show up in `git status` during normal development:
+
+| Folder | Purpose |
+|--------|---------|
+| `.cursor/rules/` | Cursor steering rules (project conventions, business rules, coding standards) |
+| `ai-context/` | Extended AI documentation and reference material |
+
+### Commit manually when ready
+
+When you want to save or share updates to these folders, force-add and commit them explicitly:
+
+```bash
+git add -f .cursor/ ai-context/
+git commit -m "Update AI steering rules and context docs"
+```
+
+To stop tracking these folders if they were previously committed (one-time setup):
+
+```bash
+git rm -r --cached .cursor ai-context
+git commit -m "Stop tracking local AI context folders"
+```
+
+After that, only manual `git add -f` commits will include changes from these directories.
+
 ## Getting Started
 
 First, run the development server:

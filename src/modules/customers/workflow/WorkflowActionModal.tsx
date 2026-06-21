@@ -49,7 +49,7 @@ export default function WorkflowActionModal({
       title={title}
       subtitle={subtitle}
       showCloseButton
-      panelClassName="max-w-2xl"
+      panelClassName="sf-modal-panel-wide"
       bodyClassName="space-y-5"
       mobileFullscreen
       onClose={onClose}
@@ -76,11 +76,11 @@ export default function WorkflowActionModal({
 
       <div className={loading ? "pointer-events-none opacity-75" : ""}>{children}</div>
 
-      {loading && loadingMessage ? <p className="text-xs font-medium text-blue-600">{loadingMessage}</p> : null}
+      {loading && loadingMessage ? <p className="sf-modal-loading">{loadingMessage}</p> : null}
 
       {errorMessage ? (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700" role="alert" aria-live="assertive">
-          <div className="flex items-start gap-2">
+        <div className="sf-modal-alert" role="alert" aria-live="assertive">
+          <div className="flex items-start gap-2.5">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="min-w-0 flex-1 space-y-2">
               <p>{errorMessage}</p>
@@ -89,7 +89,7 @@ export default function WorkflowActionModal({
                   type="button"
                   onClick={onRetry}
                   disabled={loading || submitDisabled}
-                  className="btn btn-secondary btn-compact h-9 border-rose-300 text-rose-700 hover:bg-rose-100"
+                  className="btn btn-secondary btn-compact h-9"
                 >
                   Retry
                 </button>

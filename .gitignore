@@ -40,6 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# AI context and steering files
-/.kiro/
+# AI steering & context (commit manually when ready — see README.md)
+/.cursor/
 /ai-context/

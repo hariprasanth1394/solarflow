@@ -5,29 +5,16 @@ import Image from "next/image"
 import { useEffect, useState } from "react"
 import UserDropdown from "@/components/ui/UserDropdown"
 import { supabase } from "@/lib/supabaseClient"
+import { toggleTheme } from "@/lib/theme"
 
 type HeaderProps = {
   onMenuClick?: () => void
-  dark?: boolean
-  onToggleTheme?: () => void
 }
 
-export default function Header({ onMenuClick, dark: controlledDark, onToggleTheme }: HeaderProps) {
-  const [internalDark, setInternalDark] = useState(false)
+export default function Header({ onMenuClick }: HeaderProps) {
   const [userName, setUserName] = useState("Admin")
   const [userAvatar, setUserAvatar] = useState<string | null>(null)
 
-  const dark = typeof controlledDark === "boolean" ? controlledDark : internalDark
-
-  useEffect(() => {
-    if (typeof controlledDark === "boolean") return
-    const savedTheme = window.localStorage.getItem("solarflow-theme")
-    if (savedTheme === "dark") {
-      setInternalDark(true)
-    }
-  }, [controlledDark])
-
-  // Load user data
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -56,35 +43,16 @@ export default function Header({ onMenuClick, dark: controlledDark, onToggleThem
     void loadUser()
   }, [])
 
-  const handleThemeToggle = () => {
-    if (onToggleTheme) {
-      onToggleTheme()
-      return
-    }
-
-    setInternalDark((prev) => {
-      const next = !prev
-      if (next) {
-        document.documentElement.classList.add("theme-dark")
-        window.localStorage.setItem("solarflow-theme", "dark")
-      } else {
-        document.documentElement.classList.remove("theme-dark")
-        window.localStorage.setItem("solarflow-theme", "light")
-      }
-      return next
-    })
-  }
-
   return (
     <header
       data-app-header="true"
-      className={`sf-sticky-header border-b px-4 py-3 md:px-6 ${dark ? "border-slate-800 bg-slate-900/90 text-slate-100" : "border-slate-200 bg-white/90"}`}
+      className="sf-sticky-header border-b border-slate-200 bg-white/90 px-4 py-3 text-slate-900 dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-100 md:px-6"
     >
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onMenuClick}
-          className={`rounded-lg p-2 lg:hidden ${dark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
+          className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
           aria-label="Open sidebar"
         >
           <Menu className="h-5 w-5" />
@@ -104,29 +72,29 @@ export default function Header({ onMenuClick, dark: controlledDark, onToggleThem
         <div className="ml-auto flex items-center gap-2 md:gap-3">
           <button
             type="button"
-            className={`relative rounded-lg p-2 ${dark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
+            className="relative rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800"
             aria-label="Notifications"
           >
-            <Bell className={`h-5 w-5 ${dark ? "text-slate-300" : "text-slate-600"}`} />
+            <Bell className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-rose-500" />
           </button>
 
           <button
             type="button"
-            onClick={handleThemeToggle}
-            className={`rounded-lg p-2 ${dark ? "hover:bg-slate-800" : "hover:bg-slate-100"}`}
+            onClick={toggleTheme}
+            className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800"
             aria-label="Toggle theme"
             title="Theme toggle"
           >
-            {dark ? <Moon className="h-5 w-5 text-slate-300" /> : <Sun className="h-5 w-5 text-slate-600" />}
+            <Sun className="h-5 w-5 text-slate-600 dark:hidden" />
+            <Moon className="hidden h-5 w-5 text-slate-300 dark:block" />
           </button>
 
           <div className="relative">
-            <UserDropdown name={userName} avatar={userAvatar} dark={dark} />
+            <UserDropdown name={userName} avatar={userAvatar} />
           </div>
         </div>
       </div>
-
     </header>
   )
 }

@@ -3,19 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
+    "dev": "node scripts/dev-clean.js",
     "dev:raw": "next dev",
-    "dev:clean": "powershell -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
+    "dev:clean": "node scripts/dev-clean.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.4.0",
     "framer-motion": "^12.34.5",
     "lucide-react": "^0.576.0",
-    "next": "16.1.6",
+    "next": "^16.2.9",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-select": "^5.10.2",

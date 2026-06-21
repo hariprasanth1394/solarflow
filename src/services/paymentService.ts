@@ -33,24 +33,17 @@ export async function createPaymentForInstallation(payload: {
   notes?: string | null
   proof_url?: string | null
 }) {
-  const insertPayload: Record<string, unknown> = {
+  const insertPayload = {
     installation_id: payload.installation_id,
     organization_id: payload.organization_id,
     amount: payload.amount,
     payment_date: payload.payment_date,
     payment_method: payload.payment_method || "Unknown",
-    notes: payload.notes ?? null
+    notes: payload.notes ?? null,
+    ...(payload.proof_url ? { proof_url: payload.proof_url } : {}),
   }
 
-  if (payload.proof_url) {
-    insertPayload.proof_url = payload.proof_url
-  }
-
-  const { data, error } = await supabase
-    .from("payments")
-    .insert([insertPayload])
-    .select()
-    .single()
+  const { data, error } = await supabase.from("payments").insert(insertPayload).select().single()
 
   if (error) throw error
   return data as PaymentRow

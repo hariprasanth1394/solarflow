@@ -30,7 +30,7 @@ export default function FileDropInput({
 
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-slate-700">{label}</label>
+      <label className="text-sm font-medium text-[var(--sf-text)]">{label}</label>
       <div
         role="button"
         tabIndex={0}
@@ -59,19 +59,19 @@ export default function FileDropInput({
 
         {file ? (
           <div className="flex items-center gap-2 text-left">
-            <FileText className="h-4 w-4 text-blue-600" />
+            <FileText className="h-4 w-4 text-[var(--sf-primary-start)]" />
             <div>
-              <p className="text-sm font-medium text-slate-800">{file.name}</p>
-              <p className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+              <p className="text-sm font-medium text-[var(--sf-text)]">{file.name}</p>
+              <p className="text-xs text-[var(--sf-muted-text)]">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
             </div>
           </div>
         ) : (
           <div className="space-y-1">
-            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--sf-primary-start)_14%,var(--sf-card-bg))] text-[var(--sf-primary-start)]">
               <UploadCloud className="h-4 w-4" />
             </div>
-            <p className="text-sm font-medium text-slate-700">Drag and drop file here</p>
-            <p className="text-xs text-slate-500">{helperText}</p>
+            <p className="text-sm font-medium text-[var(--sf-text)]">Drag and drop file here</p>
+            <p className="text-xs text-[var(--sf-muted-text)]">{helperText}</p>
           </div>
         )}
       </div>

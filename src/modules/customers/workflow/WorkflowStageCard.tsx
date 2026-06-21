@@ -1,5 +1,7 @@
-import { Check, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
+import { ChevronDown, ChevronRight, CircleCheck, Loader2 } from "lucide-react"
 import type { StageAction, StageDefinition, WorkflowBadgeTone } from "./types"
+import { iconForStage } from "./stageIcons"
+import { workflowStatusBadgeClass, workflowStatusBadgeShowsCheck } from "./workflowStatusBadge"
 
 type WorkflowStageCardProps = {
   stage: StageDefinition
@@ -12,11 +14,10 @@ type WorkflowStageCardProps = {
   loadingActionKey: string | null
 }
 
-function toneBadgeClass(tone: WorkflowBadgeTone) {
-  if (tone === "pending") return "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
-  if (tone === "inProgress") return "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200"
-  if (tone === "approved") return "bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200"
-  return "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+function stageIndicatorClass(current: boolean, isCompleted: boolean) {
+  if (current) return "workflow-stage-indicator-active"
+  if (isCompleted) return "workflow-stage-indicator-completed"
+  return "workflow-stage-indicator-upcoming"
 }
 
 export default function WorkflowStageCard({
@@ -30,9 +31,9 @@ export default function WorkflowStageCard({
   loadingActionKey,
 }: WorkflowStageCardProps) {
   const isCompleted = statusTone === "completed" && !current
-  const isUpcoming = !current && !isCompleted
   const primaryAction = stage.actions[0] ?? null
   const secondaryActions = stage.actions.slice(1)
+  const StageIcon = iconForStage(stage.key)
 
   return (
     <div
@@ -53,27 +54,29 @@ export default function WorkflowStageCard({
         }`}
       >
         <div className="flex items-center gap-3.5">
-          {/* Step circle */}
           <div
-            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-200 ${
-              current
-                ? "bg-violet-600 text-white shadow-[0_0_0_4px_rgba(124,58,237,0.2)]"
-                : isCompleted
-                ? "bg-emerald-600 text-white"
-                : "bg-slate-100 text-slate-400"
-            }`}
+            className={`workflow-stage-indicator flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-200 ${stageIndicatorClass(current, isCompleted)}`}
           >
-            {isCompleted ? <Check className="h-3.5 w-3.5" /> : stage.order}
+            {current ? (
+              <>
+                <span className="workflow-step-pulse-ring" aria-hidden />
+                <StageIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </>
+            ) : isCompleted ? (
+              <CircleCheck className="h-3.5 w-3.5" strokeWidth={2} />
+            ) : (
+              <StageIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
+            )}
           </div>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400">Stage {stage.order}</p>
             <h3
               className={`font-semibold leading-tight transition-all ${
                 current
-                  ? "text-[15px] text-violet-500"
+                  ? "text-[15px] text-[var(--sf-primary-start)]"
                   : isCompleted
-                  ? "text-[13px] text-emerald-600"
-                  : "text-[13px] text-slate-400"
+                  ? "text-[13px] font-medium text-[var(--sf-text)]"
+                  : "text-[13px] font-normal text-[var(--sf-muted-text)]"
               }`}
             >
               {stage.title}
@@ -81,7 +84,10 @@ export default function WorkflowStageCard({
           </div>
         </div>
         <div className="flex items-center gap-2.5">
-          <span className={`inline-flex items-center rounded-[6px] px-2.5 py-1 text-[11px] font-semibold ${toneBadgeClass(statusTone)}`}>
+          <span className={workflowStatusBadgeClass(statusTone, statusLabel)}>
+            {workflowStatusBadgeShowsCheck(statusTone, statusLabel) ? (
+              <CircleCheck className="h-3 w-3 shrink-0" strokeWidth={2} />
+            ) : null}
             {statusLabel}
           </span>
           {expanded ? (
@@ -136,7 +142,7 @@ export default function WorkflowStageCard({
             </>
           ) : (
             <p className="stage-description">
-              {isCompleted ? "This stage is complete ✓" : "No actions required at this time."}
+              {isCompleted ? "This stage is complete." : "No actions required at this time."}
             </p>
           )}
         </div>

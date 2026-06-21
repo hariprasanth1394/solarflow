@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
-import { CheckCircle2, ChevronRight, CreditCard, Currency, Package, Sparkles, User, Zap, X } from "lucide-react"
+import { CheckCircle2, ChevronRight, CreditCard, IndianRupee, Package, Sparkles, User, Zap, X } from "lucide-react"
 import LoadingButton from "../../components/ui/LoadingButton"
 import ModalPortal from "../../components/ui/ModalPortal"
 import type { AvailableSolarSystem } from "../../services/inventoryService"
@@ -58,13 +58,13 @@ function KpiTile({
   value: string
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition duration-150 hover:border-slate-300 hover:shadow-sm">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 flex-shrink-0">
+    <div className="sf-installation-kpi flex items-center gap-3 rounded-xl px-4 py-3 transition duration-150">
+      <div className="sf-installation-kpi-icon flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg">
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-        <p className="mt-0.5 truncate text-[22px] font-bold text-slate-900">{value}</p>
+        <p className="sf-installation-kpi-label text-[11px] font-semibold uppercase tracking-[0.18em]">{label}</p>
+        <p className="sf-installation-kpi-value mt-0.5 truncate text-[22px] font-bold">{value}</p>
       </div>
     </div>
   )
@@ -260,20 +260,21 @@ function CustomerModalForm({
   }
 
   const renderStepContent = () => {
+    const inputClass = (hasError: boolean, extra = "") =>
+      `sf-wizard-input ${hasError ? "border-rose-400" : ""} ${extra}`.trim()
+
     if (currentStep === 0) {
       return (
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-slate-600">Customer Name <span className="text-rose-500">*</span></label>
+              <label className="sf-wizard-label">Customer Name <span className="text-rose-500">*</span></label>
               <input
                 ref={nameRef}
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="Full name"
-                className={`h-[44px] w-full rounded-[10px] border px-3 text-[14px] outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 ${
-                  (nameError || (nameEmpty && step1Attempted)) ? "border-rose-400" : "border-slate-200"
-                } bg-white text-slate-900`}
+                className={inputClass(nameError || (nameEmpty && step1Attempted))}
                 aria-invalid={nameError}
                 aria-label="Customer Name"
               />
@@ -284,18 +285,16 @@ function CustomerModalForm({
               ) : null}
             </div>
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-slate-600">Phone <span className="text-rose-500">*</span></label>
+              <label className="sf-wizard-label">Phone <span className="text-rose-500">*</span></label>
               <div className="flex">
-                <span className="inline-flex items-center rounded-l-[10px] border border-r-0 border-slate-200 bg-slate-50 px-3 text-[13px] font-medium text-slate-500">+91</span>
+                <span className="sf-wizard-phone-prefix">+91</span>
                 <input
                   inputMode="tel"
                   value={phoneDigits}
                   onChange={(e) => setForm((prev) => ({ ...prev, phone: normalizePhone(e.target.value) }))}
                   placeholder="9876543210"
                   maxLength={10}
-                  className={`h-[44px] w-full rounded-r-[10px] border px-3 text-[14px] outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 ${
-                    (phoneError || (phoneEmpty && step1Attempted)) ? "border-rose-400" : "border-slate-200"
-                  } bg-white text-slate-900`}
+                  className={`${inputClass(phoneError || (phoneEmpty && step1Attempted))} rounded-l-none rounded-r-[10px]`}
                   aria-label="Phone"
                 />
               </div>
@@ -306,15 +305,13 @@ function CustomerModalForm({
               ) : null}
             </div>
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-slate-600">Email <span className="text-rose-500">*</span></label>
+              <label className="sf-wizard-label">Email <span className="text-rose-500">*</span></label>
               <input
                 type="email"
                 value={form.email ?? ""}
                 onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value || null }))}
                 placeholder="email@company.com"
-                className={`h-[44px] w-full rounded-[10px] border px-3 text-[14px] outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 ${
-                  (emailError || (emailEmpty && step1Attempted)) ? "border-rose-400" : "border-slate-200"
-                } bg-white text-slate-900`}
+                className={inputClass(emailError || (emailEmpty && step1Attempted))}
                 aria-invalid={emailError}
                 aria-label="Email"
               />
@@ -325,11 +322,11 @@ function CustomerModalForm({
               ) : null}
             </div>
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-slate-600">Sales Representative</label>
+              <label className="sf-wizard-label">Sales Representative</label>
               <select
                 value={form.assigned_to ?? ""}
                 onChange={(e) => setForm((prev) => ({ ...prev, assigned_to: e.target.value || null }))}
-                className="h-[44px] w-full rounded-[10px] border border-slate-200 px-3 text-[14px] text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 bg-white"
+                className="sf-wizard-select"
                 aria-label="Sales Representative"
               >
                 <option value="">Select representative</option>
@@ -341,14 +338,12 @@ function CustomerModalForm({
               </select>
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-[12px] font-semibold text-slate-600">Address <span className="text-rose-500">*</span></label>
+              <label className="sf-wizard-label">Address <span className="text-rose-500">*</span></label>
               <input
                 value={form.address ?? ""}
                 onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value || null }))}
                 placeholder="Street address"
-                className={`h-[44px] w-full rounded-[10px] border px-3 text-[14px] text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 ${
-                  addressEmpty && step1Attempted ? "border-rose-400" : "border-slate-200"
-                } bg-white`}
+                className={inputClass(addressEmpty && step1Attempted)}
                 aria-label="Address"
               />
               {addressEmpty && step1Attempted ? (
@@ -364,12 +359,12 @@ function CustomerModalForm({
       return (
         <div className="flex flex-col gap-4">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-semibold text-slate-600">Package</label>
+            <label className="sf-wizard-label">Package</label>
             <select
               ref={packageRef}
               value={form.system_id ?? ""}
               onChange={(e) => setForm((prev) => ({ ...prev, system_id: e.target.value || null }))}
-              className="h-[44px] w-full rounded-[10px] border border-slate-200 bg-white px-3 text-[14px] text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+              className="sf-wizard-select"
               aria-label="Package"
             >
               <option value="">{systemsLoading ? "Loading..." : availableSystems.length === 0 ? "No packages" : "Select package"}</option>
@@ -384,16 +379,14 @@ function CustomerModalForm({
           <div className="grid grid-cols-3 gap-3">
             <KpiTile icon={Zap} label="Capacity" value={capacity !== null ? `${capacity} kW` : "—"} />
             <KpiTile icon={Sparkles} label="Components" value={availableQty !== null ? `${availableQty} Available` : "—"} />
-            <KpiTile icon={Currency} label="Standard Price" value={formatCurrency(basePrice)} />
+            <KpiTile icon={IndianRupee} label="Standard Price" value={formatCurrency(basePrice)} />
           </div>
 
-          <div className={`rounded-xl border px-4 py-4 transition ${
-            priceOverrideEnabled ? "border-violet-300 bg-violet-50/30" : "border-slate-200 bg-slate-50"
-          }`}>
-            <div className="flex items-center justify-between mb-3">
+          <div className={`sf-wizard-panel px-4 py-4 transition ${priceOverrideEnabled ? "sf-wizard-panel-active" : ""}`}>
+            <div className="mb-3 flex items-center justify-between">
               <div>
-                <p className="text-[12px] font-semibold text-slate-700">Custom Pricing</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className="text-[12px] font-semibold text-[var(--sf-text)]">Custom Pricing</p>
+                <p className="mt-0.5 text-[11px] text-[var(--sf-muted-text)]">
                   {priceOverrideEnabled ? "Override the standard system price" : "Enable to set a custom price"}
                 </p>
               </div>
@@ -402,18 +395,20 @@ function CustomerModalForm({
                 onClick={() => setPriceOverrideEnabled((prev) => !prev)}
                 aria-pressed={priceOverrideEnabled}
                 aria-label="Toggle custom pricing"
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${priceOverrideEnabled ? "bg-violet-500" : "bg-slate-300"}`}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-200 ${
+                  priceOverrideEnabled ? "bg-violet-500" : "bg-[color-mix(in_srgb,var(--sf-muted-text)_35%,var(--sf-card-border))]"
+                }`}
               >
                 <motion.span
                   layout
-                  className="h-5 w-5 rounded-full bg-white shadow-sm"
+                  className="h-5 w-5 rounded-full bg-[var(--sf-card-bg)] shadow-sm"
                   style={{ marginLeft: priceOverrideEnabled ? "auto" : "2px", marginRight: priceOverrideEnabled ? "2px" : "auto" }}
                   transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 />
               </button>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-slate-600">Final Price</label>
+              <label className="sf-wizard-label">Final Price</label>
               <input
                 type="number"
                 min={0}
@@ -421,10 +416,8 @@ function CustomerModalForm({
                 value={finalPrice ?? ""}
                 onChange={(e) => handleFinalPriceChange(e.target.value)}
                 disabled={!priceOverrideEnabled}
-                className={`h-[44px] w-full rounded-[10px] border px-3 text-[14px] font-semibold outline-none transition [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                  priceOverrideEnabled
-                    ? "border-violet-300 bg-white text-slate-900 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
-                    : "border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed"
+                className={`sf-wizard-input font-semibold [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                  priceOverrideEnabled ? "" : "cursor-not-allowed opacity-80"
                 }`}
                 placeholder={priceOverrideEnabled ? "Enter custom price" : formatCurrency(basePrice)}
                 aria-label="Final Price"
@@ -434,9 +427,9 @@ function CustomerModalForm({
           </div>
 
           {savings > 0 ? (
-            <div className="flex items-center justify-between rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-[13px] font-medium text-violet-700">
+            <div className="sf-wizard-savings flex items-center justify-between px-4 py-2.5 text-[13px] font-medium">
               <span className="truncate">Saved {formatCurrency(savings)}</span>
-              <span className="ml-2 flex-shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-violet-700">{savingsPercent}%</span>
+              <span className="ml-2 flex-shrink-0 rounded-full bg-[var(--sf-card-bg)] px-2 py-0.5 text-[11px] font-semibold">{savingsPercent}%</span>
             </div>
           ) : null}
         </div>
@@ -446,7 +439,7 @@ function CustomerModalForm({
     return (
       <div className="flex flex-col gap-4">
         <div className="space-y-1.5">
-          <label className="text-[12px] font-semibold text-slate-600">Advance Received</label>
+          <label className="sf-wizard-label">Advance Received</label>
           <input
             ref={paidRef}
             type="number"
@@ -454,25 +447,25 @@ function CustomerModalForm({
             step="0.01"
             value={form.paid_amount ?? ""}
             onChange={(e) => setForm((prev) => ({ ...prev, paid_amount: e.target.value === "" ? undefined : Number(e.target.value) }))}
-            className="h-[44px] w-full rounded-[10px] border border-slate-200 bg-white px-3 text-[14px] text-slate-900 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            className="sf-wizard-input [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             aria-label="Advance Received"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <KpiTile icon={Currency} label="Total Cost" value={formatCurrency(total)} />
+          <KpiTile icon={IndianRupee} label="Total Cost" value={formatCurrency(total)} />
           <KpiTile icon={Package} label="Remaining" value={formatCurrency(remaining)} />
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-[12px] font-semibold text-slate-600">Payment Status</p>
+        <div className="sf-wizard-status-row">
+          <p className="sf-wizard-label">Payment Status</p>
           <span
             className={`inline-flex rounded-full px-3 py-1 text-[12px] font-semibold ${
               paymentStatus === "Paid"
-                ? "bg-emerald-100 text-emerald-700"
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
                 : paymentStatus === "Partial"
-                ? "bg-amber-100 text-amber-700"
-                : "bg-slate-200 text-slate-600"
+                ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                : "bg-[color-mix(in_srgb,var(--sf-muted-text)_18%,var(--sf-card-bg))] text-[var(--sf-muted-text)]"
             }`}
           >
             {paymentStatus}
@@ -485,7 +478,7 @@ function CustomerModalForm({
   return (
     <ModalPortal isOpen={open} onClose={handleClose}>
       <motion.div
-        className="relative mx-auto flex h-auto max-h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:max-h-[90vh] sm:w-[min(940px,92vw)] sm:rounded-2xl"
+        className="sf-installation-wizard relative mx-auto flex h-auto max-h-[100dvh] w-full flex-col overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:max-h-[90vh] sm:w-[min(940px,92vw)] sm:rounded-2xl"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 12 }}
@@ -495,18 +488,18 @@ function CustomerModalForm({
         aria-label="Create Installation"
       >
         <form className="flex h-full flex-col" onSubmit={handleSubmit}>
-          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white px-6 py-4">
+          <header className="sf-installation-wizard-header sticky top-0 z-20 px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
-                <h1 className="text-[22px] font-semibold tracking-tight text-slate-900 sm:text-[26px]">Create Installation</h1>
-                <p className="mt-0.5 text-[13px] text-slate-500">Complete the steps below to create a new installation.</p>
+                <h1 className="text-[22px] font-semibold tracking-tight text-[var(--sf-text)] sm:text-[26px]">Create Installation</h1>
+                <p className="mt-0.5 text-[13px] text-[var(--sf-muted-text)]">Complete the steps below to create a new installation.</p>
               </div>
 
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={loading}
-                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="sf-modal-close inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -517,7 +510,7 @@ function CustomerModalForm({
           <section className="relative flex items-center justify-between px-6 py-4">
             {/* Background track line — centered through step icons */}
             <div className="pointer-events-none absolute inset-x-6 top-1/2 -translate-y-[calc(50%+10px)]">
-              <div className="mx-auto h-[2px] bg-slate-200" style={{ width: "calc(100% - 40px)", marginLeft: "20px" }} />
+              <div className="mx-auto h-[2px] bg-[var(--sf-card-border)]" style={{ width: "calc(100% - 40px)", marginLeft: "20px" }} />
             </div>
 
             {/* Animated progress overlay */}
@@ -559,14 +552,14 @@ function CustomerModalForm({
                       className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200 ${
                         isDone || isActive
                           ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white shadow-[0_4px_12px_rgba(124,58,237,0.2)]"
-                          : "border-2 border-slate-300 bg-white text-slate-400"
+                          : "border-2 border-[var(--sf-card-border)] bg-[var(--sf-card-bg)] text-[var(--sf-muted-text)]"
                       }`}
                     >
                       {isDone ? <CheckCircle2 className="h-5 w-5" /> : <StepIcon className="h-4 w-4" />}
                     </div>
                     <p
                       className={`text-[11px] font-semibold tracking-[0.12em] uppercase transition ${
-                        isActive ? "text-slate-900" : isDone ? "text-slate-600" : "text-slate-400"
+                        isActive ? "text-[var(--sf-text)]" : isDone ? "text-[var(--sf-muted-text)]" : "text-[var(--sf-muted-text)]"
                       }`}
                     >
                       {step.title}
@@ -582,7 +575,7 @@ function CustomerModalForm({
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="mx-6 mb-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-700"
+              className="sf-installation-wizard-toast mx-6 mb-3 rounded-xl px-4 py-2.5 text-[13px]"
             >
               {toastMessage}
             </motion.div>
@@ -603,7 +596,7 @@ function CustomerModalForm({
             </AnimatePresence>
           </main>
 
-          <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-6 py-3.5">
+          <footer className="sf-installation-wizard-footer sticky bottom-0 z-20 px-6 py-3.5">
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 {currentStep > 0 ? (

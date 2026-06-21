@@ -63,6 +63,27 @@ function derivePaymentSnapshot(notes: string | null | undefined): PaymentSnapsho
   return { total, paid, remaining, status: "Pending" }
 }
 
+function resolvePaymentSnapshot(payload: CustomerUpdate): PaymentSnapshot {
+  const total =
+    payload.total_cost !== undefined && payload.total_cost !== null
+      ? Number(payload.total_cost)
+      : parseLatestAmount(payload.notes, "Total Amount")
+  const paid =
+    payload.paid_amount !== undefined && payload.paid_amount !== null
+      ? Number(payload.paid_amount)
+      : parseLatestAmount(payload.notes, "Paid Amount")
+  const remaining = Math.max(total - paid, 0)
+  const normalizedStatus = String(payload.payment_status ?? extractPaymentStatus(payload.notes)).toLowerCase()
+
+  if (normalizedStatus === "paid" || (total > 0 && paid >= total)) {
+    return { total, paid, remaining: 0, status: "Paid" }
+  }
+  if (normalizedStatus.includes("partial") || paid > 0) {
+    return { total, paid, remaining, status: "Partial" }
+  }
+  return { total, paid, remaining, status: "Pending" }
+}
+
 async function resolveActorName(organizationId: string, userId: string) {
   try {
     const users = await fetchAssignableUsers(organizationId)
@@ -90,7 +111,7 @@ function validateWorkflowTransition(currentStage: WorkflowStage | undefined, nex
 
   if (source === nextStage) {
     if (nextStage === "CLOSED") {
-      const payment = derivePaymentSnapshot(payload.notes)
+      const payment = resolvePaymentSnapshot(payload)
       if (payment.status !== "Paid") {
         throw new Error("Invalid workflow transition: cannot move to Closure without full payment")
       }
@@ -138,7 +159,7 @@ function validateWorkflowTransition(currentStage: WorkflowStage | undefined, nex
   }
 
   if (nextStage === "CLOSED") {
-    const payment = derivePaymentSnapshot(payload.notes)
+    const payment = resolvePaymentSnapshot(payload)
     if (source !== "INSTALLATION") {
       throw new Error("Invalid workflow transition: closure must follow installation")
     }
