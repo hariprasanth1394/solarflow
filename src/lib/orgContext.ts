@@ -2,10 +2,14 @@ import { supabase } from "./supabaseClient"
 import { validateUUID } from "../utils/validateUUID"
 import { createClient } from "@supabase/supabase-js"
 import { Database } from "../types/database.types"
+import { normalizeRole, type UserRole } from "./rbac/roles"
 
 export type RequestContext = {
   organizationId: string
   userId: string
+  authUserId: string
+  role: UserRole
+  email: string | null
 }
 
 const REQUEST_CONTEXT_CACHE_TTL_MS = 2000
@@ -37,70 +41,62 @@ function getRequestScopedSupabase(accessToken: string | null) {
   return createClient<Database>(supabaseUrl, supabaseAnonKey, {
     global: {
       headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
+        Authorization: `Bearer ${accessToken}`,
+      },
     },
     auth: {
       persistSession: false,
       autoRefreshToken: false,
-      detectSessionInUrl: false
-    }
+      detectSessionInUrl: false,
+    },
   })
 }
 
 async function resolveRequestContext(): Promise<RequestContext> {
-  try {
-    const accessToken = await getAccessTokenFromCookies()
-    const requestSupabase = getRequestScopedSupabase(accessToken)
-    const { data: userData, error } = accessToken
-      ? await requestSupabase.auth.getUser(accessToken)
-      : await requestSupabase.auth.getUser()
+  const accessToken = await getAccessTokenFromCookies()
+  const requestSupabase = getRequestScopedSupabase(accessToken)
+  const { data: userData, error } = accessToken
+    ? await requestSupabase.auth.getUser(accessToken)
+    : await requestSupabase.auth.getUser()
 
-    if (error || !userData.user) {
-      throw new Error("User not authenticated")
-    }
+  if (error || !userData.user) {
+    throw new Error("User not authenticated")
+  }
 
-  // Validate user ID is a valid UUID
   if (!validateUUID(userData.user.id)) {
     throw new Error(`Invalid user ID from auth: ${userData.user.id}`)
   }
 
   const { data, error: userError } = await requestSupabase
     .from("users")
-    .select("organization_id")
-    .eq("id", userData.user.id)
+    .select("id, organization_id, role, email, status, is_active")
+    .eq("auth_user_id", userData.user.id)
     .limit(1)
     .maybeSingle()
 
-    if (userError) {
-      throw userError
-    }
+  if (userError) {
+    throw userError
+  }
 
-    let organizationId = data?.organization_id || null
+  if (!data?.organization_id || !data.id) {
+    throw new Error("Provisioned user profile not found")
+  }
 
-    if (!organizationId) {
-      const { data: orgIdFromRpc, error: rpcError } = await (requestSupabase as any).rpc("current_user_org_id")
-      if (rpcError) {
-        throw rpcError
-      }
+  const role = normalizeRole(data.role)
+  if (!role) {
+    throw new Error("Invalid user role")
+  }
 
-      if (typeof orgIdFromRpc === "string" && orgIdFromRpc.trim()) {
-        organizationId = orgIdFromRpc
-      }
-    }
+  if (data.status !== "ACTIVE" || data.is_active === false) {
+    throw new Error("User account is not active")
+  }
 
-    if (!organizationId) {
-      throw new Error("User organization not found")
-    }
-
-    return {
-      organizationId,
-      userId: userData.user.id
-    }
-  } catch (error) {
-    // Silently handle auth errors during initial load
-    // This can happen when user is not logged in
-    throw error
+  return {
+    organizationId: data.organization_id,
+    userId: data.id,
+    authUserId: userData.user.id,
+    role,
+    email: data.email,
   }
 }
 
@@ -118,7 +114,7 @@ export async function getRequestContext(): Promise<RequestContext> {
     .then((context) => {
       cachedRequestContext = {
         value: context,
-        expiresAt: Date.now() + REQUEST_CONTEXT_CACHE_TTL_MS
+        expiresAt: Date.now() + REQUEST_CONTEXT_CACHE_TTL_MS,
       }
       return context
     })

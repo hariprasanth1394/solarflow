@@ -812,36 +812,61 @@ export type Database = {
       }
       users: {
         Row: {
+          auth_user_id: string | null
           avatar_url: string | null
           created_at: string
-          email: string | null
+          created_by: string | null
+          email: string
+          full_name: string | null
           id: string
+          is_active: boolean
+          last_login_at: string | null
           name: string | null
           organization_id: string
           role: string
           status: string
+          updated_at: string
         }
         Insert: {
+          auth_user_id?: string | null
           avatar_url?: string | null
           created_at?: string
-          email?: string | null
-          id: string
+          created_by?: string | null
+          email: string
+          full_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
           name?: string | null
           organization_id: string
           role?: string
           status?: string
+          updated_at?: string
         }
         Update: {
+          auth_user_id?: string | null
           avatar_url?: string | null
           created_at?: string
-          email?: string | null
+          created_by?: string | null
+          email?: string
+          full_name?: string | null
           id?: string
+          is_active?: boolean
+          last_login_at?: string | null
           name?: string | null
           organization_id?: string
           role?: string
           status?: string
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "users_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "users_organization_id_fkey"
             columns: ["organization_id"]
@@ -850,6 +875,100 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_key: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_key: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      login_audit: {
+        Row: {
+          created_at: string
+          email: string | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          metadata: Json
+          provider: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          provider?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json
+          provider?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_audit_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          created_at: string
+          description: string | null
+          key: string
+          label: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          key: string
+          label: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          key?: string
+          label?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -875,6 +994,28 @@ export type Database = {
       }
       current_user_org_id: { Args: never; Returns: string }
       current_user_role: { Args: never; Returns: string }
+      current_app_user_id: { Args: never; Returns: string }
+      get_my_profile: { Args: never; Returns: Json }
+      log_auth_event: {
+        Args: {
+          p_email?: string | null
+          p_event_type: string
+          p_ip_address?: string | null
+          p_metadata?: Json
+          p_provider?: string | null
+          p_user_agent?: string | null
+          p_user_id?: string | null
+        }
+        Returns: string
+      }
+      validate_and_link_provisioned_user: {
+        Args: {
+          p_ip_address?: string | null
+          p_provider?: string | null
+          p_user_agent?: string | null
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

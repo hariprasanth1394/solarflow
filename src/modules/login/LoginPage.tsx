@@ -58,9 +58,17 @@ export default function LoginPage() {
     return candidate
   }, [searchParams])
 
+  const provisionError = searchParams.get("error")
+
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (provisionError) {
+      setErrorMessage(provisionError)
+    }
+  }, [provisionError])
 
   useEffect(() => {
     if (!mounted) return
@@ -132,8 +140,7 @@ export default function LoginPage() {
 
     try {
       persistSessionPreference(rememberMe)
-      const oauthRedirectTo = `${window.location.origin}${redirectTo}`
-      await loginWithGoogle(oauthRedirectTo)
+      await loginWithGoogle(redirectTo)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Google sign-in is unavailable right now")
       setGoogleLoading(false)

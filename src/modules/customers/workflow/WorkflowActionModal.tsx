@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import { AlertTriangle } from "lucide-react"
 import Modal from "@/components/ui/Modal"
+import ModalFooterActions from "@/components/ui/ModalFooterActions"
 
 type WorkflowActionModalProps = {
   open: boolean
@@ -19,12 +20,6 @@ type WorkflowActionModalProps = {
   onSubmit: () => void
   onRetry?: () => void
 }
-
-const primaryButtonClass =
-  "btn btn-primary"
-
-const secondaryButtonClass =
-  "btn btn-secondary"
 
 export default function WorkflowActionModal({
   open,
@@ -52,16 +47,20 @@ export default function WorkflowActionModal({
       panelClassName="sf-modal-panel-wide"
       bodyClassName="space-y-5"
       mobileFullscreen
+      busy={loading}
+      busyMessage={loadingMessage || "Processing..."}
+      preventCloseWhile={loading}
       onClose={onClose}
       footer={
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={onClose} className={secondaryButtonClass} disabled={loading}>
-            Cancel
-          </button>
-          <button type="button" onClick={onSubmit} className={primaryButtonClass} disabled={loading || submitDisabled}>
-            {loading ? loadingMessage || "Updating workflow..." : submitLabel}
-          </button>
-        </div>
+        <ModalFooterActions
+          onCancel={onClose}
+          cancelDisabled={loading}
+          submitLabel={submitLabel}
+          loading={loading}
+          useOverlayLoader
+          submitDisabled={submitDisabled}
+          onSubmit={onSubmit}
+        />
       }
     >
       <div className="modal-action-context">
@@ -74,9 +73,7 @@ export default function WorkflowActionModal({
         </p>
       </div>
 
-      <div className={loading ? "pointer-events-none opacity-75" : ""}>{children}</div>
-
-      {loading && loadingMessage ? <p className="sf-modal-loading">{loadingMessage}</p> : null}
+      <div className="min-w-0 space-y-5">{children}</div>
 
       {errorMessage ? (
         <div className="sf-modal-alert" role="alert" aria-live="assertive">

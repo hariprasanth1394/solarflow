@@ -101,12 +101,14 @@ export default function PaymentHistoryModal({ open, payments, onClose }: Payment
       subtitle={`${payments.length} ${payments.length === 1 ? "payment" : "payments"} recorded`}
       showCloseButton
       panelClassName="sf-modal-panel-wide"
+      mobileFullscreen
       onClose={onClose}
+      bodyClassName="p-0"
     >
       {sortedPayments.length === 0 ? (
-        <div className="py-10 text-center text-sm text-[var(--sf-muted-text)]">No payments have been recorded yet.</div>
+        <div className="sf-payment-history-empty">No payments have been recorded yet.</div>
       ) : (
-        <div className="payment-history-timeline">
+        <div className="payment-history-timeline sf-payment-history-scroll sf-scroll-area px-6 py-4">
           {sortedPayments.map((payment) => {
             const reference = parsePaymentReference(payment.notes)
             const collectedBy = parsePaymentCollectedBy(payment.notes)

@@ -18,8 +18,10 @@ import { iconForStage } from "./workflow/stageIcons"
 import FileDropInput from "./workflow/FileDropInput"
 import WorkflowActionModal from "./workflow/WorkflowActionModal"
 import PaymentHistoryModal from "./workflow/PaymentHistoryModal"
+import ActivityLogModal from "./workflow/ActivityLogModal"
 import PaymentSummaryCards from "./workflow/PaymentSummaryCards"
 import Modal from "@/components/ui/Modal"
+import ModalFooterActions from "@/components/ui/ModalFooterActions"
 import Button from "@/components/ui/Button"
 import Card from "@/components/ui/Card"
 import {
@@ -585,6 +587,7 @@ export default function CustomerDetailsPage() {
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false)
+  const [activityLogOpen, setActivityLogOpen] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState("")
   const [paymentDate, setPaymentDate] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("")
@@ -1161,12 +1164,16 @@ export default function CustomerDetailsPage() {
         let remaining = installationRemainingAmount
         let paidAfter = installationPaidFromDb
         const initialStatus = remaining > 0 ? "Completed_Payment_Pending" : "Completed"
+        const initialPaymentStatus = remaining <= 0 ? "Paid" : paidAfter > 0 ? "Partial" : "Pending"
 
         await runWithRetry(() =>
           updateCustomer(customer.id, {
             status: initialStatus,
             current_stage: "INSTALLATION",
             total_cost: installationFinalTotal,
+            paid_amount: paidAfter,
+            pending_amount: remaining,
+            payment_status: initialPaymentStatus,
             notes: appendNotes(customer.notes, "Installation Completed", [
               installCompleteNotes || "Marked as completed",
               `Contract Value: ${contractValueAmount.toFixed(2)}`,
@@ -1175,7 +1182,7 @@ export default function CustomerDetailsPage() {
               `Total Amount: ${installationFinalTotal.toFixed(2)}`,
               `Paid Amount: ${paidAfter.toFixed(2)}`,
               `Remaining Amount: ${remaining.toFixed(2)}`,
-              `Payment Status: ${remaining <= 0 ? "Paid" : paidAfter > 0 ? "Partial" : "Pending"}`,
+              `Payment Status: ${initialPaymentStatus}`,
             ]),
           })
         )
@@ -1694,43 +1701,39 @@ export default function CustomerDetailsPage() {
                 </div>
 
                 {/* Payment History */}
-                {payments.length > 0 ? (
-                  <div className="border-t border-slate-100">
-                    <div className="px-4 py-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Recent Payments</p>
-                        <button
-                          type="button"
-                          onClick={() => setPaymentHistoryOpen(true)}
-                          className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 transition"
-                        >
-                          View All
-                        </button>
-                      </div>
+                <div className="border-t border-[var(--sf-card-border)]">
+                  <div className="sf-widget-header">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="sf-widget-header-title">Payment History</p>
+                      <span className="sf-widget-count-badge">{payments.length}</span>
+                    </div>
+                    {payments.length > 0 ? (
+                      <button type="button" onClick={() => setPaymentHistoryOpen(true)} className="sf-widget-link shrink-0">
+                        View All
+                      </button>
+                    ) : null}
+                  </div>
+                  {payments.length === 0 ? (
+                    <div className="sf-payment-history-empty">No payments recorded yet.</div>
+                  ) : (
+                    <div className="sf-payment-history-preview sf-scroll-area px-4 py-3">
                       <div className="space-y-2">
-                        {payments.slice(0, 5).map((payment) => (
-                          <div key={payment.id} className="flex items-center justify-between text-[13px]">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-slate-500 shrink-0">{formatDateTimeUTC(payment.payment_date).split(",")[0]}</span>
-                              <span className="text-slate-400 shrink-0">•</span>
-                              <span className="text-slate-500 truncate">{payment.payment_method}</span>
+                        {payments.map((payment) => (
+                          <div key={payment.id} className="flex items-center justify-between gap-3 text-[13px]">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span className="shrink-0 text-[var(--sf-muted-text)]">
+                                {formatDateTimeUTC(payment.payment_date).split(",")[0]}
+                              </span>
+                              <span className="shrink-0 text-[var(--sf-muted-text)]">•</span>
+                              <span className="truncate text-[var(--sf-muted-text)]">{payment.payment_method}</span>
                             </div>
-                            <span className="font-medium text-slate-900 shrink-0 ml-2">{formatCurrency(payment.amount)}</span>
+                            <span className="ml-2 shrink-0 font-medium text-[var(--sf-text)]">{formatCurrency(payment.amount)}</span>
                           </div>
                         ))}
                       </div>
-                      {payments.length > 5 ? (
-                        <button
-                          type="button"
-                          onClick={() => setPaymentHistoryOpen(true)}
-                          className="mt-2 text-[11px] font-medium text-blue-600 hover:underline"
-                        >
-                          + {payments.length - 5} more payments
-                        </button>
-                      ) : null}
                     </div>
-                  </div>
-                ) : null}
+                  )}
+                </div>
 
                 {/* Installation Stage: Inline payment CTA */}
                 {currentWorkflowStage === "INSTALLATION" && persistedRemainingAmount > 0 ? (
@@ -1799,25 +1802,35 @@ export default function CustomerDetailsPage() {
 
               {/* Activity Timeline */}
               <div className="sf-section-card overflow-hidden">
-                <div className="border-b border-slate-100 px-4 py-3.5">
-                  <h2 className="text-sm font-semibold text-slate-900">Activity</h2>
+                <div className="sf-widget-header">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h2 className="sf-widget-header-title">Activity</h2>
+                    <span className="sf-widget-count-badge">{activities.length}</span>
+                  </div>
+                  {activities.length > 0 ? (
+                    <button type="button" onClick={() => setActivityLogOpen(true)} className="sf-widget-link shrink-0">
+                      View All
+                    </button>
+                  ) : null}
                 </div>
                 {activities.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-sm text-slate-400">No activity recorded yet. Events will appear as the project progresses.</div>
+                  <div className="px-4 py-8 text-center text-sm text-[var(--sf-muted-text)]">
+                    No activity recorded yet. Events will appear as the project progresses.
+                  </div>
                 ) : (
-                  <div className="px-4 py-3">
+                  <div className="sf-widget-scroll sf-scroll-area px-4 py-3">
                     {activities.map((activity, index) => (
-                      <div key={activity.id} className="flex gap-3">
+                      <div key={activity.id} className="sf-activity-item flex gap-3">
                         <div className="flex flex-col items-center">
-                          <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                          <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--sf-primary-start)]" />
                           {index < activities.length - 1 ? (
-                            <div className="mt-1 w-px flex-1 bg-slate-100" />
+                            <div className="mt-1 w-px flex-1 bg-[var(--sf-card-border)]" />
                           ) : null}
                         </div>
-                        <div className="pb-4">
-                          <p className="text-sm text-slate-800">{activity.action}</p>
+                        <div className="min-w-0 pb-4">
+                          <p className="text-sm text-[var(--sf-text)]">{activity.action}</p>
                           {activity.details && typeof activity.details === "object" ? (
-                            <div className="mt-1 space-y-0.5 text-[11px] text-slate-500">
+                            <div className="mt-1 space-y-0.5 text-[11px] text-[var(--sf-muted-text)]">
                               {"actor" in (activity.details as Record<string, unknown>) ? (
                                 <p>By: {String((activity.details as Record<string, unknown>).actor)}</p>
                               ) : null}
@@ -1833,7 +1846,7 @@ export default function CustomerDetailsPage() {
                               ) : null}
                             </div>
                           ) : null}
-                          <p className="mt-0.5 text-[11px] text-slate-400">{formatDateTimeUTC(activity.created_at)}</p>
+                          <p className="mt-0.5 text-[11px] text-[var(--sf-muted-text)]">{formatDateTimeUTC(activity.created_at)}</p>
                         </div>
                       </div>
                     ))}
@@ -2293,6 +2306,8 @@ export default function CustomerDetailsPage() {
         onClose={() => setPaymentHistoryOpen(false)}
       />
 
+      <ActivityLogModal open={activityLogOpen} activities={activities} onClose={() => setActivityLogOpen(false)} />
+
       <Modal
         open={paymentModalOpen}
         title="Record Payment"
@@ -2303,24 +2318,25 @@ export default function CustomerDetailsPage() {
         }
         showCloseButton
         panelClassName="sf-modal-panel-wide"
+        mobileFullscreen
+        busy={paymentSubmitting}
+        busyMessage="Recording payment..."
+        preventCloseWhile={paymentSubmitting}
         onClose={closePaymentModal}
         bodyClassName="space-y-4"
         footer={
-          <div className="flex items-center justify-end gap-3">
-            <button type="button" onClick={closePaymentModal} disabled={paymentSubmitting} className="btn btn-secondary h-[44px] px-4 text-[13px]">
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void submitPayment()}
-              disabled={paymentSubmitting || !paymentAmount || Number(paymentAmount) <= 0 || paymentExceedsRemaining}
-              className="btn btn-primary h-[44px] px-5 text-[13px]"
-            >
-              {paymentSubmitting ? "Recording..." : "Record Payment"}
-            </button>
-          </div>
+          <ModalFooterActions
+            onCancel={closePaymentModal}
+            cancelDisabled={paymentSubmitting}
+            submitLabel="Record Payment"
+            loading={paymentSubmitting}
+            useOverlayLoader
+            submitDisabled={!paymentAmount || Number(paymentAmount) <= 0 || paymentExceedsRemaining}
+            onSubmit={() => void submitPayment()}
+          />
         }
       >
+        <div className="space-y-4">
         {payments.length > 0 ? (
           <button
             type="button"
@@ -2475,6 +2491,7 @@ export default function CustomerDetailsPage() {
             className="textarea w-full"
             disabled={paymentSubmitting}
           />
+        </div>
         </div>
       </Modal>
     </div>

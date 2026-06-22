@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { CheckCircle2, ChevronRight, CreditCard, IndianRupee, Package, Sparkles, User, Zap, X } from "lucide-react"
-import LoadingButton from "../../components/ui/LoadingButton"
+import ModalBusyOverlay from "../../components/ui/ModalBusyOverlay"
 import ModalPortal from "../../components/ui/ModalPortal"
 import type { AvailableSolarSystem } from "../../services/inventoryService"
 
@@ -58,13 +58,15 @@ function KpiTile({
   value: string
 }) {
   return (
-    <div className="sf-installation-kpi flex items-center gap-3 rounded-xl px-4 py-3 transition duration-150">
-      <div className="sf-installation-kpi-icon flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg">
+    <div className="sf-installation-kpi flex min-w-0 items-center gap-3 rounded-xl px-4 py-3 transition duration-150">
+      <div className="sf-installation-kpi-icon flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg">
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="sf-installation-kpi-label text-[11px] font-semibold uppercase tracking-[0.18em]">{label}</p>
-        <p className="sf-installation-kpi-value mt-0.5 truncate text-[22px] font-bold">{value}</p>
+        <p className="sf-installation-kpi-label text-[10px] font-semibold uppercase leading-snug tracking-[0.06em] sm:text-[11px] sm:tracking-[0.1em]">
+          {label}
+        </p>
+        <p className="sf-installation-kpi-value mt-1 truncate text-lg font-bold sm:text-[22px]">{value}</p>
       </div>
     </div>
   )
@@ -97,6 +99,7 @@ function CustomerModalForm({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [step1Attempted, setStep1Attempted] = useState(false)
   const [step2Attempted, setStep2Attempted] = useState(false)
+  const [finalStepReady, setFinalStepReady] = useState(false)
 
   const nameRef = useRef<HTMLInputElement | null>(null)
   const packageRef = useRef<HTMLSelectElement | null>(null)
@@ -105,6 +108,7 @@ function CustomerModalForm({
   useEffect(() => {
     if (open) {
       setCurrentStep(0)
+      setFinalStepReady(false)
       setTimeout(() => nameRef.current?.focus(), 20)
     }
   }, [open])
@@ -115,6 +119,16 @@ function CustomerModalForm({
     if (currentStep === 1) packageRef.current?.focus()
     if (currentStep === 2) paidRef.current?.focus()
   }, [currentStep, open])
+
+  useEffect(() => {
+    if (currentStep !== steps.length - 1) {
+      setFinalStepReady(false)
+      return
+    }
+
+    const timer = window.setTimeout(() => setFinalStepReady(true), 400)
+    return () => window.clearTimeout(timer)
+  }, [currentStep])
 
   const selectedSystem = useMemo(
     () => availableSystems.find((system) => system.system_id === form.system_id) ?? null,
@@ -197,8 +211,8 @@ function CustomerModalForm({
   const stepTwoValid = Boolean(form.system_id && total > 0)
   const stepThreeValid = Boolean(total > 0)
 
-  const canContinue = !loading && (currentStep !== 0 ? stepTwoValid : stepOneValid)
-  const canSubmit = !loading && currentStep === steps.length - 1 && stepThreeValid
+  const canContinue = !loading && (currentStep === 0 ? stepOneValid : currentStep === 1 ? stepTwoValid : false)
+  const canSubmit = !loading && currentStep === steps.length - 1 && stepThreeValid && finalStepReady
 
   const handleFinalPriceChange = (value: string) => {
     const num = value === "" ? null : Number(value)
@@ -223,7 +237,8 @@ function CustomerModalForm({
       setStep2Attempted(true)
       if (!stepTwoValid) return
     }
-    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
+    if (currentStep >= steps.length - 1) return
+    setCurrentStep((prev) => prev + 1)
   }
 
   const handleSaveDraft = async () => {
@@ -244,6 +259,12 @@ function CustomerModalForm({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+
+    if (currentStep < steps.length - 1) {
+      handleContinue()
+      return
+    }
+
     if (!canSubmit) return
 
     try {
@@ -376,9 +397,9 @@ function CustomerModalForm({
             </select>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <KpiTile icon={Zap} label="Capacity" value={capacity !== null ? `${capacity} kW` : "—"} />
-            <KpiTile icon={Sparkles} label="Components" value={availableQty !== null ? `${availableQty} Available` : "—"} />
+            <KpiTile icon={Sparkles} label="Components" value={availableQty !== null ? `${availableQty} available` : "—"} />
             <KpiTile icon={IndianRupee} label="Standard Price" value={formatCurrency(basePrice)} />
           </div>
 
@@ -452,7 +473,7 @@ function CustomerModalForm({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <KpiTile icon={IndianRupee} label="Total Cost" value={formatCurrency(total)} />
           <KpiTile icon={Package} label="Remaining" value={formatCurrency(remaining)} />
         </div>
@@ -476,9 +497,9 @@ function CustomerModalForm({
   }
 
   return (
-    <ModalPortal isOpen={open} onClose={handleClose}>
+    <ModalPortal isOpen={open} onClose={handleClose} preventCloseWhile={loading}>
       <motion.div
-        className="sf-installation-wizard relative mx-auto flex h-auto max-h-[100dvh] w-full flex-col overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:max-h-[90vh] sm:w-[min(940px,92vw)] sm:rounded-2xl"
+        className="sf-installation-wizard relative mx-auto w-full shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:w-[min(940px,92vw)] sm:rounded-2xl"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 12 }}
@@ -487,8 +508,8 @@ function CustomerModalForm({
         aria-modal="true"
         aria-label="Create Installation"
       >
-        <form className="flex h-full flex-col" onSubmit={handleSubmit}>
-          <header className="sf-installation-wizard-header sticky top-0 z-20 px-6 py-4">
+        <form className="relative flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <header className="sf-installation-wizard-header shrink-0 px-6 py-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <h1 className="text-[22px] font-semibold tracking-tight text-[var(--sf-text)] sm:text-[26px]">Create Installation</h1>
@@ -507,7 +528,7 @@ function CustomerModalForm({
             </div>
           </header>
 
-          <section className="relative flex items-center justify-between px-6 py-4">
+          <section className="relative flex shrink-0 items-center justify-between px-6 py-4">
             {/* Background track line — centered through step icons */}
             <div className="pointer-events-none absolute inset-x-6 top-1/2 -translate-y-[calc(50%+10px)]">
               <div className="mx-auto h-[2px] bg-[var(--sf-card-border)]" style={{ width: "calc(100% - 40px)", marginLeft: "20px" }} />
@@ -581,7 +602,7 @@ function CustomerModalForm({
             </motion.div>
           ) : null}
 
-          <main className="flex-1 overflow-y-auto overflow-x-hidden px-6 pb-4">
+          <main className="sf-installation-wizard-main sf-scroll-area px-6 pb-4">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
@@ -596,15 +617,15 @@ function CustomerModalForm({
             </AnimatePresence>
           </main>
 
-          <footer className="sf-installation-wizard-footer sticky bottom-0 z-20 px-6 py-3.5">
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+          <footer className="sf-installation-wizard-footer shrink-0 px-6 py-3.5">
+            <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="w-full sm:w-auto">
                 {currentStep > 0 ? (
                   <button
                     type="button"
                     onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 0))}
                     disabled={loading}
-                    className="btn btn-secondary h-[44px] rounded-[10px] px-4 text-[13px]"
+                    className="btn btn-secondary h-[44px] w-full rounded-[10px] px-4 text-[13px] sm:w-auto"
                   >
                     ← Back
                   </button>
@@ -613,14 +634,14 @@ function CustomerModalForm({
                     type="button"
                     onClick={handleClose}
                     disabled={loading}
-                    className="btn btn-secondary h-[44px] rounded-[10px] px-4 text-[13px]"
+                    className="btn btn-secondary h-[44px] w-full rounded-[10px] px-4 text-[13px] sm:w-auto"
                   >
                     Cancel
                   </button>
                 )}
               </div>
 
-              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center">
                 <button
                   type="button"
                   onClick={handleSaveDraft}
@@ -632,26 +653,31 @@ function CustomerModalForm({
                 {currentStep < steps.length - 1 ? (
                   <button
                     type="button"
-                    onClick={handleContinue}
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      handleContinue()
+                    }}
                     disabled={!canContinue}
                     className="h-[44px] w-full rounded-[10px] bg-gradient-to-r from-violet-500 to-cyan-500 px-5 text-[13px] font-semibold text-white transition duration-150 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   >
                     Continue <ChevronRight className="ml-1 inline-block h-3.5 w-3.5" />
                   </button>
                 ) : (
-                  <LoadingButton
+                  <button
                     type="submit"
-                    loading={loading}
-                    loadingLabel="Creating..."
-                    disabled={!canSubmit}
+                    name="create-installation"
+                    disabled={!canSubmit || loading}
                     className="h-[44px] w-full rounded-[10px] bg-gradient-to-r from-violet-500 to-cyan-500 px-5 text-[13px] font-semibold text-white transition duration-150 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   >
-                    Create Installation →
-                  </LoadingButton>
+                    {finalStepReady ? "Create Installation →" : "Review payment..."}
+                  </button>
                 )}
               </div>
             </div>
           </footer>
+
+          {loading ? <ModalBusyOverlay message="Creating installation..." /> : null}
         </form>
       </motion.div>
     </ModalPortal>

@@ -8,7 +8,8 @@
     "dev:clean": "node scripts/dev-clean.js",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:push": "node scripts/db-push.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",

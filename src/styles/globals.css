@@ -580,6 +580,19 @@ html.dark .payment-summary-value-warning,
   background: var(--sf-card-bg);
   border: 1px solid var(--sf-card-border);
   color: var(--sf-text);
+  display: flex;
+  flex-direction: column;
+  height: min(90vh, 100dvh);
+  max-height: min(90vh, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sf-installation-wizard-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sf-installation-wizard-header,
@@ -594,6 +607,9 @@ html.dark .payment-summary-value-warning,
 
 .sf-installation-wizard-footer {
   border-top: 1px solid var(--sf-card-border);
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
 }
 
 .sf-installation-wizard-toast {
@@ -1417,8 +1433,8 @@ html.dark .sf-modal-panel,
 
 .sf-modal-panel-mobile-fullscreen {
   width: 100%;
-  max-height: 100dvh;
-  min-height: 100dvh;
+  max-height: 90vh;
+  min-height: 0;
   border-radius: 0;
 }
 
@@ -1510,6 +1526,207 @@ html.dark .sf-modal-panel,
   font-size: 12px;
   font-weight: 500;
   color: var(--sf-primary-start);
+}
+
+.sf-modal-body-busy {
+  pointer-events: none;
+  opacity: 0.72;
+}
+
+.sf-modal-busy-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: color-mix(in srgb, var(--sf-card-bg) 86%, var(--sf-primary-start) 6%);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: all;
+}
+
+.sf-modal-busy-spinner {
+  position: relative;
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--sf-primary-start) 18%, transparent) 0deg,
+    var(--sf-primary-start) 120deg,
+    var(--sf-primary-end) 240deg,
+    color-mix(in srgb, var(--sf-primary-end) 18%, transparent) 300deg,
+    transparent 360deg
+  );
+  animation: sf-modal-busy-spin 0.85s linear infinite;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--sf-primary-start) 16%, transparent),
+    0 0 18px color-mix(in srgb, var(--sf-primary-start) 28%, transparent);
+}
+
+.sf-modal-busy-spinner::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  background: var(--sf-card-bg);
+}
+
+.sf-modal-busy-message {
+  margin: 0;
+  max-width: 260px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  background: linear-gradient(135deg, var(--sf-primary-start), var(--sf-primary-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@keyframes sf-modal-busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-modal-busy-spinner {
+    animation: none;
+  }
+}
+
+.sf-modal-footer-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
+.sf-modal-footer-actions {
+  display: flex;
+  width: 100%;
+  flex-direction: column-reverse;
+  gap: 10px;
+}
+
+.sf-modal-footer-actions .btn {
+  width: 100%;
+  min-height: 44px;
+}
+
+@media (min-width: 640px) {
+  .sf-modal-footer-actions {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .sf-modal-footer-actions .btn {
+    width: auto;
+  }
+
+  .sf-modal-footer-actions .btn-primary {
+    margin-left: auto;
+  }
+}
+
+.sf-scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sf-muted-text) 35%, transparent) transparent;
+}
+
+.sf-scroll-area::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.sf-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sf-scroll-area::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--sf-muted-text) 28%, transparent);
+}
+
+.sf-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--sf-muted-text) 42%, transparent);
+}
+
+.sf-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--sf-card-border);
+  background: var(--sf-card-bg);
+  padding: 14px 16px;
+}
+
+.sf-widget-header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sf-text);
+}
+
+.sf-widget-count-badge {
+  display: inline-flex;
+  min-width: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--sf-primary-start) 12%, var(--sf-card-bg));
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sf-primary-start);
+}
+
+.sf-widget-link {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sf-primary-start);
+  transition: opacity 160ms ease;
+}
+
+.sf-widget-link:hover {
+  opacity: 0.8;
+}
+
+.sf-widget-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sf-payment-history-preview {
+  max-height: 350px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sf-activity-timeline,
+.sf-payment-history-scroll {
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.sf-activity-item:last-child .pb-4 {
+  padding-bottom: 0;
+}
+
+.sf-payment-history-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--sf-muted-text);
 }
 
 .sf-modal-body label {

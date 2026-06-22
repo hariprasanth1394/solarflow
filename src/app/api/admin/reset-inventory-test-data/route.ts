@@ -189,7 +189,7 @@ export async function POST() {
     const { data: userRow, error: roleError } = await client
       .from('users')
       .select('role')
-      .eq('id', userData.user.id)
+      .eq('auth_user_id', userData.user.id)
       .eq('organization_id', organizationId)
       .limit(1)
       .maybeSingle()
@@ -207,7 +207,7 @@ export async function POST() {
       )
     }
 
-    if (!userRow || userRow.role !== 'admin') {
+    if (!userRow || !["SUPER_ADMIN", "ADMIN"].includes(userRow.role)) {
       return NextResponse.json(
         {
           success: false,

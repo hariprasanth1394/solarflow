@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabaseClient"
 import { clearQueryCache } from "../lib/queryCache"
 import { logError, logInfo } from "../utils/logger"
+import { denyUnprovisionedSession, validateProvisionedAccess, logAuthEvent } from "./userProvisionService"
 
 const ACCESS_COOKIE = "sb-access-token"
 
@@ -13,6 +14,14 @@ function setAccessCookie(token: string) {
 function clearAccessCookie() {
   if (typeof document === "undefined") return
   document.cookie = `${ACCESS_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`
+}
+
+function clearClientState() {
+  clearAccessCookie()
+  clearQueryCache()
+  if (typeof window === "undefined") return
+  localStorage.removeItem("solarflow.rememberMe")
+  localStorage.removeItem("solarflow.sessionTimeoutMs")
 }
 
 function toAuthError(error: unknown) {
@@ -46,30 +55,8 @@ export async function getCurrentSession() {
   return data.session
 }
 
-export async function signUp(email: string, password: string, name: string) {
-  if (!email?.trim() || !password?.trim() || !name?.trim()) {
-    throw new Error("Operation failed")
-  }
-
-  try {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name
-        }
-      }
-    })
-
-    if (error) throw error
-
-    logInfo("Auth sign-up completed", { service: "authService", email })
-    return data
-  } catch (error) {
-    logError("Auth sign-up failed", error, { service: "authService", email })
-    throw new Error("Operation failed")
-  }
+export async function signUp() {
+  throw new Error("Self-registration is disabled. Contact your administrator for access.")
 }
 
 export async function login(email: string, password: string) {
@@ -80,7 +67,7 @@ export async function login(email: string, password: string) {
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      password
+      password,
     })
 
     if (error) throw error
@@ -89,58 +76,66 @@ export async function login(email: string, password: string) {
       setAccessCookie(data.session.access_token)
     }
 
+    const validation = await validateProvisionedAccess("email")
+    if (!validation.allowed) {
+      await denyUnprovisionedSession("email", validation.reason)
+      throw new Error(validation.message)
+    }
+
     logInfo("Auth login completed", { service: "authService", email })
     return data
   } catch (error) {
+    await logAuthEvent("LOGIN_FAILED", { email, provider: "email" })
     logError("Auth login failed", error, { service: "authService", email })
-    throw toAuthError(error)
+    throw error instanceof Error && error.message.includes("provisioned") ? error : toAuthError(error)
   }
 }
 
-export async function loginWithGoogle(redirectTo: string) {
+export async function loginWithGoogle(redirectPath = "/dashboard") {
   try {
+    const callbackUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo
-      }
+        redirectTo: callbackUrl,
+        queryParams: {
+          prompt: "select_account",
+        },
+      },
     })
 
     if (error) throw error
 
     logInfo("Google OAuth initiated", {
       service: "authService",
-      provider: "google"
+      provider: "google",
     })
 
     return data
   } catch (error) {
     logError("Google OAuth failed to start", error, {
       service: "authService",
-      provider: "google"
+      provider: "google",
     })
     throw toAuthError(error)
   }
 }
 
 export async function logout() {
-  console.log("Signing out...")
-
   try {
+    const session = await getCurrentSession().catch(() => null)
     const { error } = await supabase.auth.signOut()
 
     if (error) throw error
 
-    clearAccessCookie()
-    clearQueryCache()
+    await logAuthEvent("LOGOUT", {
+      email: session?.user?.email ?? null,
+      provider: "email",
+    })
 
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("solarflow.rememberMe")
-      localStorage.removeItem("solarflow.sessionTimeoutMs")
-    }
+    clearClientState()
 
     logInfo("Auth logout completed", { service: "authService" })
-    console.log("Session cleared")
   } catch (error) {
     logError("Auth logout failed", error, { service: "authService" })
     throw new Error("Operation failed")

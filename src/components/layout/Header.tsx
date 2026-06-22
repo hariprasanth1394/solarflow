@@ -23,14 +23,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         const { data: profileData } = await supabase
           .from("users")
-          .select("first_name, last_name, avatar_url")
-          .eq("id", authData.user.id)
+          .select("full_name, name, avatar_url")
+          .eq("auth_user_id", authData.user.id)
           .single()
 
         if (profileData) {
-          const profile = profileData as { first_name?: string; last_name?: string; avatar_url?: string }
-          const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-          setUserName(fullName || authData.user.email || "User")
+          const profile = profileData as { full_name?: string; name?: string; avatar_url?: string }
+          const fullName = profile.full_name || profile.name || authData.user.email || "User"
+          setUserName(fullName)
           if (profile.avatar_url) {
             setUserAvatar(profile.avatar_url)
           }

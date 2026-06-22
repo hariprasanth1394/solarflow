@@ -65,7 +65,7 @@ export default function SettingsPage() {
 
         if (!active) return
 
-        setIsAdmin(userRow?.role === "admin")
+        setIsAdmin(userRow?.role === "SUPER_ADMIN" || userRow?.role === "ADMIN")
       } finally {
         if (active) setCheckingRole(false)
       }
