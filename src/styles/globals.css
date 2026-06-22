@@ -1697,6 +1697,7 @@ html.dark .sf-modal-panel,
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
+  opacity: 0.65;
 }
 
 .sf-modal-footer-busy {
@@ -1721,7 +1722,6 @@ html.dark .sf-modal-panel,
   gap: 14px;
   background: color-mix(in srgb, var(--sf-card-bg) 96%, #7c3aed 4%);
   pointer-events: all;
-  contain: layout style paint;
 }
 
 html.theme-dark .sf-modal-busy-overlay,
@@ -1733,8 +1733,9 @@ html.dark .sf-modal-busy-overlay,
 .sf-spinner {
   display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   line-height: 0;
-  contain: layout style;
 }
 
 .sf-spinner--xs {
@@ -1762,16 +1763,31 @@ html.dark .sf-modal-busy-overlay,
   height: 48px;
 }
 
+.sf-spinner__rotor {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  animation: sf-spinner-rotate 0.85s linear infinite;
+  -webkit-animation: sf-spinner-rotate 0.85s linear infinite;
+  will-change: transform, rotate;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+@supports (rotate: 0deg) {
+  .sf-spinner__rotor {
+    animation-name: sf-spinner-rotate-modern;
+    -webkit-animation-name: sf-spinner-rotate-modern;
+    will-change: rotate;
+  }
+}
+
 .sf-spinner svg {
   width: 100%;
   height: 100%;
   display: block;
   overflow: visible;
-}
-
-.sf-spinner__rotor {
-  transform-origin: 12px 12px;
-  transform-box: fill-box;
 }
 
 .sf-spinner__track {
@@ -1875,15 +1891,40 @@ html.dark .sf-page-busy-message,
 }
 
 @keyframes sf-spinner-rotate {
+  from {
+    transform: rotate(0deg);
+  }
   to {
     transform: rotate(360deg);
   }
 }
 
 @-webkit-keyframes sf-spinner-rotate {
+  from {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
   to {
     -webkit-transform: rotate(360deg);
     transform: rotate(360deg);
+  }
+}
+
+@keyframes sf-spinner-rotate-modern {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: 360deg;
+  }
+}
+
+@-webkit-keyframes sf-spinner-rotate-modern {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: 360deg;
   }
 }
 
@@ -1912,6 +1953,11 @@ html.dark .sf-page-busy-message,
   .sf-modal-busy-spinner-icon {
     animation: none;
     -webkit-animation: none;
+  }
+
+  .sf-spinner__rotor {
+    animation-duration: 1.4s;
+    -webkit-animation-duration: 1.4s;
   }
 }
 

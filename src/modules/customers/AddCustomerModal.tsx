@@ -499,29 +499,28 @@ function CustomerModalForm({
 
   return (
     <ModalPortal isOpen={open} onClose={handleClose} preventCloseWhile={loading}>
-      <div className="relative mx-auto w-full sm:w-[min(940px,92vw)]">
-        <motion.div
-          ref={wizardPanelRef}
-          className="sf-installation-wizard sf-modal-panel-interactive relative mx-auto w-full shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:rounded-2xl"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 12 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          onAnimationComplete={() => {
-            if (wizardPanelRef.current) {
-              wizardPanelRef.current.style.transform = "none"
-            }
-          }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Create Installation"
-          aria-busy={loading}
-          onClick={(event) => event.stopPropagation()}
+      <motion.div
+        ref={wizardPanelRef}
+        className="sf-installation-wizard sf-modal-panel-interactive relative mx-auto w-full shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:w-[min(940px,92vw)] sm:rounded-2xl"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 12 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        onAnimationComplete={() => {
+          if (wizardPanelRef.current) {
+            wizardPanelRef.current.style.transform = "none"
+          }
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Create Installation"
+        aria-busy={loading}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <form
+          className={`relative flex min-h-0 flex-1 flex-col ${loading ? "sf-modal-content-busy" : ""}`}
+          onSubmit={handleSubmit}
         >
-          <form
-            className={`relative flex min-h-0 flex-1 flex-col ${loading ? "sf-modal-content-busy" : ""}`}
-            onSubmit={handleSubmit}
-          >
           <header className="sf-installation-wizard-header shrink-0 px-6 py-4 sm:px-6">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -701,11 +700,10 @@ function CustomerModalForm({
               )}
             </div>
           </footer>
-        </form>
-        </motion.div>
 
-        {loading ? <ModalBusyOverlay message="Creating..." /> : null}
-      </div>
+          {loading ? <ModalBusyOverlay message="Creating..." /> : null}
+        </form>
+      </motion.div>
     </ModalPortal>
   )
 }

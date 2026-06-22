@@ -20,9 +20,10 @@ type AppSpinnerProps = {
 }
 
 /**
- * iOS-safe spinner. Rotation uses SVG SMIL (animateTransform) so animation
- * keeps running inside modal portals, Framer Motion parents, and during
- * React re-renders — CSS transform animations freeze in those cases on WebKit.
+ * Cross-browser spinner. A static outer shell holds an inner rotor div that
+ * alone receives the CSS rotation keyframes — never combine translateZ and
+ * rotate on the same element (breaks WebKit). Works in Chrome, Firefox,
+ * Safari, iOS, and Android.
  */
 export default function AppSpinner({
   size = "md",
@@ -42,21 +43,12 @@ export default function AppSpinner({
       aria-label={label}
       aria-live="polite"
     >
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle className="sf-spinner__track" cx="12" cy="12" r="9.5" />
-        <g className="sf-spinner__rotor">
+      <span className="sf-spinner__rotor" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle className="sf-spinner__track" cx="12" cy="12" r="9.5" />
           <path className="sf-spinner__arc" d="M12 2.5a9.5 9.5 0 0 1 9.5 9.5" />
-          <animateTransform
-            attributeName="transform"
-            attributeType="XML"
-            type="rotate"
-            from="0 12 12"
-            to="360 12 12"
-            dur="0.85s"
-            repeatCount="indefinite"
-          />
-        </g>
-      </svg>
+        </svg>
+      </span>
     </span>
   )
 }
