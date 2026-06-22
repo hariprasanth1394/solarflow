@@ -8,13 +8,13 @@ import {
   Download,
   Eye,
   FileUp,
-  Loader,
   Plus,
   Trash2,
   X,
   ChevronDown,
   BarChart3
 } from 'lucide-react'
+import AppSpinner from '@/components/ui/AppSpinner'
 import SuccessScreen from './components/SuccessScreen'
 import ErrorScreen from './components/ErrorScreen'
 import SystemAvailabilityDisplay from './components/SystemAvailabilityDisplay'
@@ -130,7 +130,7 @@ export default function InventoryImportPage() {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="text-center">
-          <Loader className="h-12 w-12 animate-spin text-violet-600 mx-auto mb-4" />
+          <AppSpinner size="xl" className="mx-auto mb-4" label="Verifying session" />
           <p className="text-gray-600">Verifying your session...</p>
         </div>
       </div>
@@ -731,7 +731,7 @@ export default function InventoryImportPage() {
           >
             {status === 'validating' ? (
               <>
-                <Loader className="mr-2 inline h-4 w-4 animate-spin" />
+                <AppSpinner size="sm" className="mr-2 inline" label="Processing" />
                 Validating...
               </>
             ) : (
@@ -754,7 +754,7 @@ export default function InventoryImportPage() {
 
         {status === 'validating' && (
           <div className="card flex items-center justify-center gap-3 bg-blue-50 p-8">
-            <Loader className="h-5 w-5 animate-spin text-blue-600" />
+            <AppSpinner size="md" label="Loading" />
             <p className="text-blue-700">Calculating system availability...</p>
           </div>
         )}
@@ -776,7 +776,7 @@ export default function InventoryImportPage() {
               >
                 {status === 'processing' ? (
                   <>
-                    <Loader className="mr-2 inline h-4 w-4 animate-spin" />
+                    <AppSpinner size="sm" className="mr-2 inline" label="Processing" />
                     Processing...
                   </>
                 ) : (

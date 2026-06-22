@@ -1,10 +1,10 @@
 "use client"
 
 import { Suspense, useEffect } from "react"
-import { Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { Session } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabaseClient"
+import PageLoadingState from "@/components/ui/PageLoadingState"
 import { denyUnprovisionedSession, validateProvisionedAccess } from "@/services/userProvisionService"
 
 const ACCESS_COOKIE = "sb-access-token"
@@ -17,10 +17,7 @@ function setAccessCookie(token: string) {
 function AuthCallbackFallback() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--sf-bg)]">
-      <div className="sf-page-busy-state" role="status" aria-live="polite" aria-busy="true">
-        <Loader2 className="sf-modal-busy-spinner-icon" strokeWidth={2.5} aria-hidden="true" />
-        <p className="sf-modal-busy-message">Signing in...</p>
-      </div>
+      <PageLoadingState message="Signing in..." />
     </div>
   )
 }

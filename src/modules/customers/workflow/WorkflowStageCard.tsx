@@ -1,4 +1,5 @@
-import { ChevronDown, ChevronRight, CircleCheck, Loader2 } from "lucide-react"
+import { ChevronDown, ChevronRight, CircleCheck } from "lucide-react"
+import AppSpinner from "@/components/ui/AppSpinner"
 import type { StageAction, StageDefinition, WorkflowBadgeTone } from "./types"
 import { iconForStage } from "./stageIcons"
 import { workflowStatusBadgeClass, workflowStatusBadgeShowsCheck } from "./workflowStatusBadge"
@@ -115,7 +116,7 @@ export default function WorkflowStageCard({
                 >
                   {loadingActionKey === primaryAction.key ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <AppSpinner size="xs" label="Saving" />
                       Saving…
                     </>
                   ) : (

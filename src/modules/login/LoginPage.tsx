@@ -4,6 +4,7 @@ import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { FormEvent, useEffect, useMemo, useState } from "react"
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"
+import AppSpinner from "../../components/ui/AppSpinner"
 import { getCurrentSession, login, loginWithGoogle } from "../../services/authService"
 
 const SLIDE_INTERVAL_MS = 5000
@@ -149,8 +150,8 @@ export default function LoginPage() {
 
   if (checkingSession) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-slate-900">
+        <AppSpinner size="lg" label="Checking session" />
       </div>
     )
   }
@@ -339,7 +340,7 @@ export default function LoginPage() {
             >
               {submitting ? (
                 <span className="inline-flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                  <AppSpinner size="sm" variant="onPrimary" label="Signing in" />
                   Signing in...
                 </span>
               ) : (

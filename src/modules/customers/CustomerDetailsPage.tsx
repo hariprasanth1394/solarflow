@@ -3,7 +3,8 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Check, CircleCheck, CreditCard, FileText, Flag, Loader2, Lock, Pencil, Plus, Upload, UserRound, X, Zap } from "lucide-react"
+import { ArrowLeft, Check, CircleCheck, CreditCard, FileText, Flag, Lock, Pencil, Plus, Upload, UserRound, X, Zap } from "lucide-react"
+import AppSpinner from "@/components/ui/AppSpinner"
 import { formatDateTimeUTC } from "@/utils/dateFormat"
 import { validateUUID } from "@/utils/validateUUID"
 import { getCustomerById, getCustomerProgress, updateCustomer } from "@/services/customerService"
@@ -1314,7 +1315,7 @@ export default function CustomerDetailsPage() {
       {/* ── Loading ── */}
       {loading ? (
         <div className="sf-section-card flex items-center gap-2.5 p-5 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading customer details…
+          <AppSpinner size="sm" label="Loading customer details" /> Loading customer details…
         </div>
       ) : null}
 

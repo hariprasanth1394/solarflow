@@ -7,12 +7,12 @@ import {
   Download,
   Eye,
   FileUp,
-  Loader,
   Plus,
   Trash2,
 
   X
 } from 'lucide-react'
+import AppSpinner from '@/components/ui/AppSpinner'
 
 type ValidationStatus = 'idle' | 'uploading' | 'validating' | 'previewing' | 'confirming' | 'processing' | 'completed'
 
@@ -277,7 +277,7 @@ export default function InventoryImportPage() {
       {/* LOADING STATES */}
       {(status === 'uploading' || status === 'validating') && (
         <div className="card flex flex-col items-center justify-center gap-4 p-12">
-          <Loader className="h-8 w-8 animate-spin text-blue-600" />
+          <AppSpinner size="lg" label="Loading" />
           <p className="text-slate-600">
             {status === 'uploading' ? 'Uploading file...' : 'Validating data...'}
           </p>
@@ -395,7 +395,7 @@ export default function InventoryImportPage() {
             >
               {status === 'confirming' ? (
                 <>
-                  <Loader className="mr-2 inline h-4 w-4 animate-spin" />
+                  <AppSpinner size="sm" className="mr-2 inline" label="Processing" />
                   Processing...
                 </>
               ) : (

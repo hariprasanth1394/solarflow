@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import AppSpinner from '@/components/ui/AppSpinner'
 import { useRouter } from 'next/navigation'
 import FileUploadDropzone from './components/FileUploadDropzone'
 import PreviewTable from './components/PreviewTable'
@@ -672,7 +672,7 @@ export default function InventoryImportExportPage() {
                 <button onClick={() => void confirmImport()} disabled={confirming} className="btn btn-primary ml-auto disabled:opacity-40">
                   {confirming ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <AppSpinner size="sm" label="Applying changes" />
                       Applying changes...
                     </>
                   ) : (

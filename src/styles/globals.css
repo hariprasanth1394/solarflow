@@ -1701,16 +1701,96 @@ html.dark .sf-modal-panel,
 .sf-modal-busy-overlay {
   position: absolute;
   inset: 0;
-  z-index: 20;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  background: color-mix(in srgb, var(--sf-card-bg) 86%, var(--sf-primary-start) 6%);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: color-mix(in srgb, var(--sf-card-bg) 96%, #7c3aed 4%);
   pointer-events: all;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+html.theme-dark .sf-modal-busy-overlay,
+html.dark .sf-modal-busy-overlay,
+.dark .sf-modal-busy-overlay {
+  background: color-mix(in srgb, var(--sf-card-bg) 96%, #7c3aed 6%);
+}
+
+.sf-spinner {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+  animation: sf-spinner-rotate 0.85s linear infinite;
+  -webkit-animation: sf-spinner-rotate 0.85s linear infinite;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+
+.sf-spinner--xs {
+  width: 14px;
+  height: 14px;
+}
+
+.sf-spinner--sm {
+  width: 16px;
+  height: 16px;
+}
+
+.sf-spinner--md {
+  width: 20px;
+  height: 20px;
+}
+
+.sf-spinner--lg {
+  width: 40px;
+  height: 40px;
+}
+
+.sf-spinner--xl {
+  width: 48px;
+  height: 48px;
+}
+
+.sf-spinner svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.sf-spinner__track {
+  fill: none;
+  stroke: #ddd6fe;
+  stroke-width: 2.5;
+}
+
+.sf-spinner__arc {
+  fill: none;
+  stroke: #7c3aed;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+html.theme-dark .sf-spinner__track,
+html.dark .sf-spinner__track,
+.dark .sf-spinner__track {
+  stroke: #4c1d95;
+}
+
+html.theme-dark .sf-spinner__arc,
+html.dark .sf-spinner__arc,
+.dark .sf-spinner__arc {
+  stroke: #a78bfa;
+}
+
+.sf-spinner--on-primary .sf-spinner__track {
+  stroke: rgba(255, 255, 255, 0.35);
+}
+
+.sf-spinner--on-primary .sf-spinner__arc {
+  stroke: #ffffff;
 }
 
 .sf-modal-busy-spinner-icon {
@@ -1746,10 +1826,13 @@ html.dark .sf-modal-panel,
   font-size: 14px;
   font-weight: 600;
   line-height: 1.45;
-  background: linear-gradient(135deg, var(--sf-primary-start), var(--sf-primary-end));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #7c3aed;
+}
+
+html.theme-dark .sf-modal-busy-message,
+html.dark .sf-modal-busy-message,
+.dark .sf-modal-busy-message {
+  color: #a78bfa;
 }
 
 .sf-page-busy-state {
@@ -1759,6 +1842,35 @@ html.dark .sf-modal-panel,
   justify-content: center;
   gap: 14px;
   padding: 24px;
+}
+
+.sf-page-busy-message {
+  margin: 0;
+  max-width: 280px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #7c3aed;
+}
+
+html.theme-dark .sf-page-busy-message,
+html.dark .sf-page-busy-message,
+.dark .sf-page-busy-message {
+  color: #a78bfa;
+}
+
+@keyframes sf-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@-webkit-keyframes sf-spinner-rotate {
+  to {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes sf-modal-busy-spin {
@@ -1786,6 +1898,10 @@ html.dark .sf-modal-panel,
   .sf-modal-busy-spinner-icon {
     animation: none;
     -webkit-animation: none;
+  }
+
+  .sf-spinner {
+    animation-duration: 1.4s;
   }
 }
 
