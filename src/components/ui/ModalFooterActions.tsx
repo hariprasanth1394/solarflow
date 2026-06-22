@@ -34,18 +34,24 @@ export default function ModalFooterActions({
     <div className="sf-modal-footer-actions">
       <button
         type="button"
-        onClick={onCancel}
+        onClick={(event) => {
+          event.stopPropagation()
+          onCancel()
+        }}
         disabled={cancelDisabled || loading}
-        className="btn btn-secondary"
+        className="btn btn-secondary sf-modal-secondary-action"
       >
         {cancelLabel}
       </button>
       <button
         type={submitType}
         form={submitForm}
-        onClick={onSubmit}
+        onClick={(event) => {
+          event.stopPropagation()
+          onSubmit?.()
+        }}
         disabled={loading || submitDisabled}
-        className="btn btn-primary"
+        className="btn btn-primary sf-modal-primary-action"
       >
         {loading && !useOverlayLoader ? (
           <>

@@ -133,16 +133,14 @@ export default function Modal({
       role="dialog"
       aria-modal="true"
       aria-labelledby={title ? "sf-modal-title" : undefined}
-      onTouchMove={(event) => {
-        if (event.target === event.currentTarget) event.preventDefault()
-      }}
     >
       <div className="sf-modal-backdrop" onClick={handleBackdropClose} aria-hidden="true" />
       <div
         ref={panelRef}
-        className={`sf-modal-panel modal-panel-enter ${panelSizeClass(panelClassName)} ${
+        className={`sf-modal-panel sf-modal-panel-interactive modal-panel-enter ${panelSizeClass(panelClassName)} ${
           mobileFullscreen ? "sf-modal-panel-mobile-fullscreen" : ""
         } ${panelClassName ?? ""}`}
+        onClick={(event) => event.stopPropagation()}
       >
         {title || subtitle || showCloseButton ? (
           <div className={`sf-modal-header ${headerClassName ?? ""}`}>
@@ -159,9 +157,12 @@ export default function Modal({
                 <button
                   type="button"
                   aria-label="Close"
-                  onClick={handleCloseClick}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleCloseClick()
+                  }}
                   disabled={!canClose}
-                  className="sf-modal-close disabled:cursor-not-allowed disabled:opacity-50"
+                  className="sf-modal-close sf-modal-close-touch disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -171,7 +172,7 @@ export default function Modal({
         ) : null}
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <div
-            className={`sf-modal-body sf-scroll-area sf-modal-scroll-surface ${mobileFullscreen ? "pb-24" : ""} ${bodyClassName ?? ""}`}
+            className={`sf-modal-body sf-scroll-area sf-modal-scroll-surface ${bodyClassName ?? ""}`}
           >
             {children}
           </div>

@@ -499,7 +499,7 @@ function CustomerModalForm({
   return (
     <ModalPortal isOpen={open} onClose={handleClose} preventCloseWhile={loading}>
       <motion.div
-        className="sf-installation-wizard relative mx-auto w-full shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:w-[min(940px,92vw)] sm:rounded-2xl"
+        className="sf-installation-wizard sf-modal-panel-interactive relative mx-auto w-full shadow-[0_20px_60px_rgba(0,0,0,0.12)] sm:w-[min(940px,92vw)] sm:rounded-2xl"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 12 }}
@@ -507,6 +507,7 @@ function CustomerModalForm({
         role="dialog"
         aria-modal="true"
         aria-label="Create Installation"
+        onClick={(event) => event.stopPropagation()}
       >
         <form className="relative flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <header className="sf-installation-wizard-header shrink-0 px-6 py-4 sm:px-6">
@@ -518,9 +519,12 @@ function CustomerModalForm({
 
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  handleClose()
+                }}
                 disabled={loading}
-                className="sf-modal-close inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg disabled:cursor-not-allowed disabled:opacity-50"
+                className="sf-modal-close sf-modal-close-touch inline-flex flex-shrink-0 items-center justify-center rounded-lg disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />
@@ -617,63 +621,70 @@ function CustomerModalForm({
             </AnimatePresence>
           </main>
 
-          <footer className="sf-installation-wizard-footer shrink-0 px-6 py-3.5">
-            <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="w-full sm:w-auto">
-                {currentStep > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 0))}
-                    disabled={loading}
-                    className="btn btn-secondary h-[44px] w-full rounded-[10px] px-4 text-[13px] sm:w-auto"
-                  >
-                    ← Back
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleClose}
-                    disabled={loading}
-                    className="btn btn-secondary h-[44px] w-full rounded-[10px] px-4 text-[13px] sm:w-auto"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-
-              <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row sm:items-center">
+          <footer className="sf-installation-wizard-footer sf-modal-footer-compact shrink-0">
+            <div className="sf-modal-footer-secondary">
+              {currentStep > 0 ? (
                 <button
                   type="button"
-                  onClick={handleSaveDraft}
-                  disabled={loading || !form.name.trim()}
-                  className="btn btn-secondary h-[44px] w-full rounded-[10px] px-4 text-[13px] sm:w-auto"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setCurrentStep((prev) => Math.max(prev - 1, 0))
+                  }}
+                  disabled={loading}
+                  className="btn btn-secondary sf-modal-secondary-action"
                 >
-                  Save Draft
+                  ← Back
                 </button>
-                {currentStep < steps.length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      handleContinue()
-                    }}
-                    disabled={!canContinue}
-                    className="h-[44px] w-full rounded-[10px] bg-gradient-to-r from-violet-500 to-cyan-500 px-5 text-[13px] font-semibold text-white transition duration-150 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                  >
-                    Continue <ChevronRight className="ml-1 inline-block h-3.5 w-3.5" />
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    name="create-installation"
-                    disabled={!canSubmit || loading}
-                    className="h-[44px] w-full rounded-[10px] bg-gradient-to-r from-violet-500 to-cyan-500 px-5 text-[13px] font-semibold text-white transition duration-150 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-                  >
-                    {finalStepReady ? "Create Installation →" : "Review payment..."}
-                  </button>
-                )}
-              </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleClose()
+                  }}
+                  disabled={loading}
+                  className="btn btn-secondary sf-modal-secondary-action"
+                >
+                  Cancel
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  handleSaveDraft()
+                }}
+                disabled={loading || !form.name.trim()}
+                className="btn btn-secondary sf-modal-secondary-action"
+              >
+                Save Draft
+              </button>
+            </div>
+
+            <div className="sf-modal-footer-primary">
+              {currentStep < steps.length - 1 ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    handleContinue()
+                  }}
+                  disabled={!canContinue}
+                  className="btn btn-primary sf-modal-primary-action h-[42px] w-full rounded-[10px] text-[13px] font-semibold"
+                >
+                  Continue <ChevronRight className="ml-1 inline-block h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  name="create-installation"
+                  disabled={!canSubmit || loading}
+                  className="btn btn-primary sf-modal-primary-action h-[42px] w-full rounded-[10px] bg-gradient-to-r from-violet-500 to-cyan-500 text-[13px] font-semibold text-white"
+                >
+                  {finalStepReady ? "Create Installation →" : "Review payment..."}
+                </button>
+              )}
             </div>
           </footer>
 

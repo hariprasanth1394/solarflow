@@ -607,9 +607,8 @@ html.dark .payment-summary-value-warning,
 
 .sf-installation-wizard-footer {
   border-top: 1px solid var(--sf-card-border);
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  position: relative;
+  z-index: 3;
 }
 
 .sf-installation-wizard-title {
@@ -675,7 +674,12 @@ html.dark .payment-summary-value-warning,
   }
 
   .sf-installation-wizard-footer {
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .sf-installation-wizard-header {
+    position: relative;
+    z-index: 3;
   }
 
   .sf-installation-wizard-main {
@@ -708,7 +712,12 @@ html.dark .payment-summary-value-warning,
   }
 
   .sf-modal-footer {
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .sf-modal-close-touch {
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .sf-modal-body {
@@ -1501,7 +1510,7 @@ html.dark .btn-primary {
   max-height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
-  touch-action: none;
+  touch-action: manipulation;
 }
 
 .sf-modal-portal-shell {
@@ -1525,9 +1534,18 @@ html.dark .btn-primary {
 .sf-modal-backdrop {
   position: absolute;
   inset: 0;
+  z-index: 0;
   background: color-mix(in srgb, #0f172a 72%, transparent);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  touch-action: none;
+}
+
+.sf-modal-panel-interactive {
+  position: relative;
+  z-index: 2;
+  touch-action: manipulation;
+  pointer-events: auto;
 }
 
 html.theme-dark .sf-modal-backdrop,
@@ -1538,7 +1556,7 @@ html.dark .sf-modal-backdrop,
 
 .sf-modal-panel {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   width: min(520px, 92vw);
   max-height: 90vh;
@@ -1638,7 +1656,19 @@ html.dark .sf-modal-panel,
   border-radius: 8px;
   border: 1px solid transparent;
   color: var(--sf-muted-text);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.sf-modal-close-touch {
+  position: relative;
+  z-index: 4;
+  min-height: 44px;
+  min-width: 44px;
+  height: 44px;
+  width: 44px;
 }
 
 .sf-modal-close:hover {
@@ -1681,6 +1711,17 @@ html.dark .sf-modal-panel,
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   pointer-events: all;
+}
+
+.sf-modal-busy-spinner-icon {
+  display: block;
+  height: 40px;
+  width: 40px;
+  flex-shrink: 0;
+  color: var(--sf-primary-start);
+  animation: sf-modal-busy-spin 0.85s linear infinite;
+  -webkit-animation: sf-modal-busy-spin 0.85s linear infinite;
+  will-change: transform;
 }
 
 .sf-modal-busy-spinner {
@@ -1741,27 +1782,114 @@ html.dark .sf-modal-panel,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sf-modal-busy-spinner {
+  .sf-modal-busy-spinner,
+  .sf-modal-busy-spinner-icon {
     animation: none;
+    -webkit-animation: none;
   }
 }
 
 .sf-modal-footer-sticky {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  position: relative;
+  z-index: 3;
+}
+
+@media (min-width: 640px) {
+  .sf-modal-footer-sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+  }
+}
+
+.sf-modal-footer-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+}
+
+.sf-modal-footer-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sf-modal-footer-primary {
+  width: 100%;
+}
+
+.sf-modal-secondary-action {
+  min-height: 40px;
+  height: 40px;
+  width: 100%;
+  font-size: 12px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.sf-modal-primary-action {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+@media (min-width: 640px) {
+  .sf-installation-wizard-footer.sf-modal-footer-compact {
+    padding: 14px 24px;
+  }
+
+  .sf-modal-footer-compact {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 24px;
+  }
+
+  .sf-modal-footer-secondary {
+    display: flex;
+    order: 1;
+    gap: 10px;
+  }
+
+  .sf-modal-footer-primary {
+    order: 2;
+    width: auto;
+    margin-left: auto;
+  }
+
+  .sf-modal-secondary-action {
+    width: auto;
+    min-height: 44px;
+    height: 44px;
+    font-size: 13px;
+  }
 }
 
 .sf-modal-footer-actions {
   display: flex;
   width: 100%;
-  flex-direction: column-reverse;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .sf-modal-footer-actions .btn {
   width: 100%;
-  min-height: 44px;
+  min-height: 40px;
+  height: 40px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.sf-modal-footer-actions .btn-primary {
+  order: 2;
+}
+
+.sf-modal-footer-actions .btn-secondary {
+  order: 1;
 }
 
 @media (min-width: 640px) {
@@ -1774,6 +1902,9 @@ html.dark .sf-modal-panel,
 
   .sf-modal-footer-actions .btn {
     width: auto;
+    min-height: 44px;
+    height: 44px;
+    order: unset;
   }
 
   .sf-modal-footer-actions .btn-primary {
