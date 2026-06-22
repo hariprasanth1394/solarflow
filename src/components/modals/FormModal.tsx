@@ -17,9 +17,12 @@ export default function FormModal({ open, title, loading = false, onClose, onSub
       open={open}
       title={title}
       onClose={onClose}
+      busy={loading}
+      busyMessage="Saving..."
+      preventCloseWhile={loading}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={onSubmit} disabled={loading}>

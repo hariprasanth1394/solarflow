@@ -5,12 +5,14 @@ import { cn } from "../../lib/utils"
 type LoadingButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   loading?: boolean
   loadingLabel?: string
+  showSpinner?: boolean
   children: ReactNode
 }
 
 export default function LoadingButton({
   loading = false,
   loadingLabel,
+  showSpinner = true,
   disabled,
   className,
   children,
@@ -25,7 +27,7 @@ export default function LoadingButton({
         className
       )}
     >
-      {loading ? <Spinner /> : null}
+      {loading && showSpinner ? <Spinner /> : null}
       <span>{loading ? loadingLabel ?? children : children}</span>
     </button>
   )

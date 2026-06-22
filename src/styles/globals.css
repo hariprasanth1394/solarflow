@@ -1695,7 +1695,19 @@ html.dark .sf-modal-panel,
 
 .sf-modal-body-busy {
   pointer-events: none;
-  opacity: 0.72;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sf-modal-footer-busy {
+  pointer-events: none;
+}
+
+.sf-modal-content-busy input,
+.sf-modal-content-busy select,
+.sf-modal-content-busy textarea,
+.sf-modal-content-busy button {
+  pointer-events: none;
 }
 
 .sf-modal-busy-overlay {
@@ -1709,8 +1721,7 @@ html.dark .sf-modal-panel,
   gap: 14px;
   background: color-mix(in srgb, var(--sf-card-bg) 96%, #7c3aed 4%);
   pointer-events: all;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  contain: layout style paint;
 }
 
 html.theme-dark .sf-modal-busy-overlay,
@@ -1723,10 +1734,7 @@ html.dark .sf-modal-busy-overlay,
   display: inline-flex;
   flex-shrink: 0;
   line-height: 0;
-  animation: sf-spinner-rotate 0.85s linear infinite;
-  -webkit-animation: sf-spinner-rotate 0.85s linear infinite;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  contain: layout style;
 }
 
 .sf-spinner--xs {
@@ -1758,6 +1766,12 @@ html.dark .sf-modal-busy-overlay,
   width: 100%;
   height: 100%;
   display: block;
+  overflow: visible;
+}
+
+.sf-spinner__rotor {
+  transform-origin: 12px 12px;
+  transform-box: fill-box;
 }
 
 .sf-spinner__track {
@@ -1898,10 +1912,6 @@ html.dark .sf-page-busy-message,
   .sf-modal-busy-spinner-icon {
     animation: none;
     -webkit-animation: none;
-  }
-
-  .sf-spinner {
-    animation-duration: 1.4s;
   }
 }
 

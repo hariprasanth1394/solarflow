@@ -117,6 +117,23 @@ export default function Modal({
     return () => document.removeEventListener("keydown", onKeyDown)
   }, [open, closeOnEscape, canClose])
 
+  // Clear enter-animation transform on iOS so nested loaders can animate reliably.
+  useEffect(() => {
+    if (!open) return
+
+    const panel = panelRef.current
+    if (!panel) return
+
+    const timer = window.setTimeout(() => {
+      panel.style.transform = "none"
+    }, 280)
+
+    return () => {
+      window.clearTimeout(timer)
+      panel.style.transform = ""
+    }
+  }, [open])
+
   if (!open) return null
 
   const handleBackdropClose = () => {
@@ -170,14 +187,21 @@ export default function Modal({
             </div>
           </div>
         ) : null}
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
+          className={`relative flex min-h-0 flex-1 flex-col overflow-hidden ${busy ? "sf-modal-content-busy" : ""}`}
+          aria-busy={busy}
+        >
           <div
-            className={`sf-modal-body sf-scroll-area sf-modal-scroll-surface ${bodyClassName ?? ""}`}
+            className={`sf-modal-body sf-scroll-area sf-modal-scroll-surface ${busy ? "sf-modal-body-busy" : ""} ${bodyClassName ?? ""}`}
           >
             {children}
           </div>
           {footer ? (
-            <div className={`sf-modal-footer sf-modal-footer-sticky ${footerClassName ?? ""}`}>{footer}</div>
+            <div
+              className={`sf-modal-footer sf-modal-footer-sticky ${busy ? "sf-modal-footer-busy" : ""} ${footerClassName ?? ""}`}
+            >
+              {footer}
+            </div>
           ) : null}
           {busy ? <ModalBusyOverlay message={busyMessage} /> : null}
         </div>
