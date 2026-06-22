@@ -6,9 +6,6 @@ import ModalFooterActions from "@/components/ui/ModalFooterActions"
 type WorkflowActionModalProps = {
   open: boolean
   title: string
-  subtitle: string
-  customerName: string
-  stageLabel: string
   submitLabel: string
   loading: boolean
   loadingMessage?: string
@@ -24,9 +21,6 @@ type WorkflowActionModalProps = {
 export default function WorkflowActionModal({
   open,
   title,
-  subtitle,
-  customerName,
-  stageLabel,
   submitLabel,
   loading,
   loadingMessage,
@@ -42,10 +36,9 @@ export default function WorkflowActionModal({
     <Modal
       open={open}
       title={title}
-      subtitle={subtitle}
       showCloseButton
-      panelClassName="sf-modal-panel-wide"
-      bodyClassName="space-y-5"
+      panelClassName="sf-modal-panel-wide sf-modal-panel-action"
+      bodyClassName="space-y-4"
       mobileFullscreen
       busy={loading}
       busyMessage={loadingMessage || "Processing..."}
@@ -63,17 +56,7 @@ export default function WorkflowActionModal({
         />
       }
     >
-      <div className="modal-action-context">
-        <p className="context-tag">Action Context</p>
-        <p className="context-line">
-          <strong>Customer:</strong> {customerName}
-        </p>
-        <p className="context-line">
-          <strong>Stage:</strong> {stageLabel}
-        </p>
-      </div>
-
-      <div className="min-w-0 space-y-5">{children}</div>
+      <div className="min-w-0 space-y-4">{children}</div>
 
       {errorMessage ? (
         <div className="sf-modal-alert" role="alert" aria-live="assertive">

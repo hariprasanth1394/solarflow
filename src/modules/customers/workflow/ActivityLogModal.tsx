@@ -39,7 +39,6 @@ export default function ActivityLogModal({ open, activities, onClose }: Activity
     <Modal
       open={open}
       title="Activity Log"
-      subtitle={`${activities.length} ${activities.length === 1 ? "event" : "events"} recorded`}
       showCloseButton
       panelClassName="sf-modal-panel-wide"
       mobileFullscreen

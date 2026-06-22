@@ -159,17 +159,16 @@ export default function Modal({
         } ${panelClassName ?? ""}`}
         onClick={(event) => event.stopPropagation()}
       >
-        {title || subtitle || showCloseButton ? (
+        {title || showCloseButton ? (
           <div className={`sf-modal-header ${headerClassName ?? ""}`}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                {title ? (
-                  <h3 id="sf-modal-title" className="sf-modal-title">
-                    {title}
-                  </h3>
-                ) : null}
-                {subtitle ? <p className="sf-modal-subtitle">{subtitle}</p> : null}
-              </div>
+            <div className="sf-modal-header-inner">
+              {title ? (
+                <h3 id="sf-modal-title" className="sf-modal-title">
+                  {title}
+                </h3>
+              ) : (
+                <span className="min-w-0 flex-1" />
+              )}
               {showCloseButton ? (
                 <button
                   type="button"
@@ -185,6 +184,7 @@ export default function Modal({
                 </button>
               ) : null}
             </div>
+            {subtitle ? <p className="sf-modal-subtitle">{subtitle}</p> : null}
           </div>
         ) : null}
         <div

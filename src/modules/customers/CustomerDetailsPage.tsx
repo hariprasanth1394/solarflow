@@ -869,13 +869,6 @@ export default function CustomerDetailsPage() {
   const textFieldClass = "input h-12"
   const areaFieldClass = "textarea"
 
-  function modalStageLabel(action: WorkflowActionKey | null) {
-    if (action === "SUBMIT_APPROVAL_DOCUMENTS" || action === "MARK_GOVERNMENT_APPROVED") return "Government Approval"
-    if (action === "START_INSTALLATION" || action === "MARK_INSTALLATION_COMPLETED") return "Installation"
-    if (action === "CLOSE_PROJECT") return "Closure"
-    return stageDefinitions.find((stage) => stage.key === currentStage)?.title ?? "Workflow"
-  }
-
   const approvalDateValid = !approvalDate.trim() || !Number.isNaN(new Date(approvalDate).getTime())
   const approvalNumberPattern = /^[A-Za-z0-9/-]{4,40}$/
   const approvalNumberValid = !approvalNumber.trim() || approvalNumberPattern.test(approvalNumber.trim())
@@ -1861,10 +1854,7 @@ export default function CustomerDetailsPage() {
 
       <WorkflowActionModal
         open={modalState.action === "SUBMIT_APPROVAL_DOCUMENTS"}
-        title="Submit Government Documents"
-        subtitle="Upload the submission package and add a reference to move this customer into approval review."
-        customerName={customer?.name ?? "Customer"}
-        stageLabel={modalStageLabel("SUBMIT_APPROVAL_DOCUMENTS")}
+        title="Submit Documents"
         submitLabel="Submit for Approval"
         loading={actionLoading === "SUBMIT_APPROVAL_DOCUMENTS"}
         loadingMessage={actionProgressMessage}
@@ -1918,10 +1908,7 @@ export default function CustomerDetailsPage() {
 
       <WorkflowActionModal
         open={modalState.action === "MARK_GOVERNMENT_APPROVED"}
-        title="Approve Government Submission"
-        subtitle="Confirm approval details and move the customer into the installation stage."
-        customerName={customer?.name ?? "Customer"}
-        stageLabel={modalStageLabel("MARK_GOVERNMENT_APPROVED")}
+        title="Government Approval"
         submitLabel="Approve & Continue"
         loading={actionLoading === "MARK_GOVERNMENT_APPROVED"}
         loadingMessage={actionProgressMessage}
@@ -1984,9 +1971,6 @@ export default function CustomerDetailsPage() {
       <WorkflowActionModal
         open={modalState.action === "START_INSTALLATION"}
         title="Start Installation"
-        subtitle="Create the installation task and assign ownership to begin execution."
-        customerName={customer?.name ?? "Customer"}
-        stageLabel={modalStageLabel("START_INSTALLATION")}
         submitLabel="Start Installation"
         loading={actionLoading === "START_INSTALLATION"}
         loadingMessage={actionProgressMessage}
@@ -2065,9 +2049,6 @@ export default function CustomerDetailsPage() {
       <WorkflowActionModal
         open={modalState.action === "MARK_INSTALLATION_COMPLETED"}
         title="Complete Installation"
-        subtitle="Confirm completion and move this project into closure and payment finalization."
-        customerName={customer?.name ?? "Customer"}
-        stageLabel={modalStageLabel("MARK_INSTALLATION_COMPLETED")}
         submitLabel="Update Status"
         loading={actionLoading === "MARK_INSTALLATION_COMPLETED"}
         loadingMessage={actionProgressMessage}
@@ -2248,9 +2229,6 @@ export default function CustomerDetailsPage() {
       <WorkflowActionModal
         open={modalState.action === "CLOSE_PROJECT"}
         title="Close Project"
-        subtitle="Confirm closure and archive this installation. Full payment must be recorded before closing."
-        customerName={customer?.name ?? "Customer"}
-        stageLabel={modalStageLabel("CLOSE_PROJECT")}
         submitLabel="Close Project"
         loading={actionLoading === "CLOSE_PROJECT"}
         loadingMessage={actionProgressMessage}
@@ -2312,11 +2290,6 @@ export default function CustomerDetailsPage() {
       <Modal
         open={paymentModalOpen}
         title="Record Payment"
-        subtitle={
-          payments.length > 0
-            ? `${payments.length} ${payments.length === 1 ? "payment" : "payments"} recorded`
-            : undefined
-        }
         showCloseButton
         panelClassName="sf-modal-panel-wide"
         mobileFullscreen

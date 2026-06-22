@@ -98,7 +98,6 @@ export default function PaymentHistoryModal({ open, payments, onClose }: Payment
     <Modal
       open={open}
       title="Payment History"
-      subtitle={`${payments.length} ${payments.length === 1 ? "payment" : "payments"} recorded`}
       showCloseButton
       panelClassName="sf-modal-panel-wide"
       mobileFullscreen
