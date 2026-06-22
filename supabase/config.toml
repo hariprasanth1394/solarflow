@@ -20,5 +20,8 @@ port = 54323
 
 [auth]
 enabled = true
+# Local dev defaults — set production Site URL + redirect URLs in Supabase Dashboard:
+#   Site URL: https://your-production-domain.com
+#   Redirect URLs: https://your-production-domain.com/auth/callback
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["http://localhost:3000/auth/callback"]

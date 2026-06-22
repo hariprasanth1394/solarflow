@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import type { Session } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabaseClient"
 import { denyUnprovisionedSession, validateProvisionedAccess } from "@/services/userProvisionService"
 
@@ -14,10 +15,10 @@ function setAccessCookie(token: string) {
 
 function AuthCallbackFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-      <div className="text-center">
-        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-300 border-t-violet-500" />
-        <p className="text-sm text-slate-600 dark:text-slate-300">Verifying your SolarFlow access…</p>
+    <div className="flex min-h-screen items-center justify-center bg-[var(--sf-bg)]">
+      <div className="sf-page-busy-state" role="status" aria-live="polite" aria-busy="true">
+        <div className="sf-modal-busy-spinner" aria-hidden="true" />
+        <p className="sf-modal-busy-message">Signing in...</p>
       </div>
     </div>
   )
@@ -34,16 +35,41 @@ function AuthCallbackContent() {
       const redirectTo = searchParams.get("redirect")
       const safeRedirect = redirectTo && redirectTo.startsWith("/") ? redirectTo : "/dashboard"
 
-      const { data, error } = await supabase.auth.getSession()
+      const code = searchParams.get("code")
+      if (code) {
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+        if (!active) return
+        if (exchangeError) {
+          router.replace("/login?error=Authentication%20failed.%20Please%20try%20again.")
+          return
+        }
+      }
+
+      let session = (await supabase.auth.getSession()).data.session
+      if (!session) {
+        session = await new Promise<Session | null>((resolve) => {
+          const timeout = window.setTimeout(() => resolve(null), 4000)
+          const {
+            data: { subscription },
+          } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+            if (nextSession) {
+              window.clearTimeout(timeout)
+              subscription.unsubscribe()
+              resolve(nextSession)
+            }
+          })
+        })
+      }
+
       if (!active) return
 
-      if (error || !data.session) {
+      if (!session) {
         router.replace("/login?error=Authentication%20failed.%20Please%20try%20again.")
         return
       }
 
-      if (data.session.access_token) {
-        setAccessCookie(data.session.access_token)
+      if (session.access_token) {
+        setAccessCookie(session.access_token)
       }
 
       const validation = await validateProvisionedAccess("google")

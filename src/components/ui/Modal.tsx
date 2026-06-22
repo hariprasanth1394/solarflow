@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import { useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { X } from "lucide-react"
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock"
 import ModalBusyOverlay from "./ModalBusyOverlay"
 
 type ModalProps = {
@@ -62,38 +63,41 @@ export default function Modal({
   busyMessage = "Processing...",
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
   const canClose = !preventCloseWhile && !busy
 
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
+  onCloseRef.current = onClose
 
-    return () => {
-      document.body.style.overflow = ""
-    }
+  useBodyScrollLock(open)
+
+  // Initial focus only when the modal opens — never on parent re-renders (fixes mobile input focus loss).
+  useEffect(() => {
+    if (!open) return
+
+    const panel = panelRef.current
+    if (!panel) return
+
+    const frame = window.requestAnimationFrame(() => {
+      const focusable = getFocusableElements(panel)
+      focusable[0]?.focus()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
   }, [open])
 
   useEffect(() => {
     if (!open) return
 
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    const panel = panelRef.current
-    const focusable = panel ? getFocusableElements(panel) : []
-    focusable[0]?.focus()
-
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && closeOnEscape && canClose) {
         event.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
 
-      if (event.key !== "Tab" || !panel) return
+      if (event.key !== "Tab" || !panelRef.current) return
 
-      const nodes = getFocusableElements(panel)
+      const nodes = getFocusableElements(panelRef.current)
       if (nodes.length === 0) return
 
       const first = nodes[0]
@@ -110,25 +114,29 @@ export default function Modal({
     }
 
     document.addEventListener("keydown", onKeyDown)
-
-    return () => {
-      document.removeEventListener("keydown", onKeyDown)
-      previouslyFocused?.focus()
-    }
-  }, [open, onClose, closeOnEscape, canClose])
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [open, closeOnEscape, canClose])
 
   if (!open) return null
 
   const handleBackdropClose = () => {
-    if (closeOnBackdrop && canClose) onClose()
+    if (closeOnBackdrop && canClose) onCloseRef.current()
   }
 
   const handleCloseClick = () => {
-    if (canClose) onClose()
+    if (canClose) onCloseRef.current()
   }
 
   const modalContent = (
-    <div className="sf-modal-overlay modal-overlay-enter" role="dialog" aria-modal="true" aria-labelledby={title ? "sf-modal-title" : undefined}>
+    <div
+      className="sf-modal-overlay modal-overlay-enter"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={title ? "sf-modal-title" : undefined}
+      onTouchMove={(event) => {
+        if (event.target === event.currentTarget) event.preventDefault()
+      }}
+    >
       <div className="sf-modal-backdrop" onClick={handleBackdropClose} aria-hidden="true" />
       <div
         ref={panelRef}
@@ -162,7 +170,9 @@ export default function Modal({
           </div>
         ) : null}
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className={`sf-modal-body sf-scroll-area ${mobileFullscreen ? "pb-24" : ""} ${bodyClassName ?? ""}`}>
+          <div
+            className={`sf-modal-body sf-scroll-area sf-modal-scroll-surface ${mobileFullscreen ? "pb-24" : ""} ${bodyClassName ?? ""}`}
+          >
             {children}
           </div>
           {footer ? (

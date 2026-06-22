@@ -1,4 +1,5 @@
 import { supabase } from "../lib/supabaseClient"
+import { getAuthCallbackUrl } from "../lib/appOrigin"
 import { clearQueryCache } from "../lib/queryCache"
 import { logError, logInfo } from "../utils/logger"
 import { denyUnprovisionedSession, validateProvisionedAccess, logAuthEvent } from "./userProvisionService"
@@ -93,7 +94,7 @@ export async function login(email: string, password: string) {
 
 export async function loginWithGoogle(redirectPath = "/dashboard") {
   try {
-    const callbackUrl = `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`
+    const callbackUrl = getAuthCallbackUrl(redirectPath)
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

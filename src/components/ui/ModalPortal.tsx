@@ -1,7 +1,8 @@
 "use client"
 
-import { ReactNode, useEffect } from "react"
+import { ReactNode, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock"
 
 type ModalPortalProps = {
   children: ReactNode
@@ -22,19 +23,12 @@ export default function ModalPortal({
   closeOnBackdrop = true,
   preventCloseWhile = false,
 }: ModalPortalProps) {
+  const onCloseRef = useRef(onClose)
   const canClose = !preventCloseWhile
 
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden"
-    } else {
-      document.body.style.overflow = ""
-    }
+  onCloseRef.current = onClose
 
-    return () => {
-      document.body.style.overflow = ""
-    }
-  }, [isOpen])
+  useBodyScrollLock(isOpen)
 
   useEffect(() => {
     if (!isOpen || !onClose) return
@@ -42,7 +36,7 @@ export default function ModalPortal({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && closeOnEscape && canClose) {
         event.preventDefault()
-        onClose()
+        onCloseRef.current?.()
       }
     }
 
@@ -53,13 +47,22 @@ export default function ModalPortal({
   if (!isOpen) return null
 
   const handleBackdropClose = () => {
-    if (onClose && closeOnBackdrop && canClose) onClose()
+    if (onClose && closeOnBackdrop && canClose) onCloseRef.current?.()
   }
 
   return createPortal(
-    <div className="sf-modal-overlay modal-overlay-enter" style={{ zIndex }} role="presentation">
+    <div
+      className="sf-modal-overlay modal-overlay-enter sf-modal-portal-shell"
+      style={{ zIndex }}
+      role="presentation"
+      onTouchMove={(event) => {
+        if (event.target === event.currentTarget) event.preventDefault()
+      }}
+    >
       {onClose ? <div className="sf-modal-backdrop absolute inset-0" onClick={handleBackdropClose} aria-hidden="true" /> : null}
-      <div className="relative z-[1] flex h-full w-full items-end justify-center p-0 sm:items-center sm:p-4">{children}</div>
+      <div className="sf-modal-portal-content relative z-[1] flex h-full w-full items-end justify-center p-0 sm:items-center sm:p-4">
+        {children}
+      </div>
     </div>,
     document.body
   )

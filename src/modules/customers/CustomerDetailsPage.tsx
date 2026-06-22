@@ -1064,9 +1064,9 @@ export default function CustomerDetailsPage() {
           throw new Error("Please upload document and enter reference number")
         }
 
-        setActionProgressMessage("Uploading document...")
+        setActionProgressMessage("Uploading...")
         await runWithRetry(() => uploadDocument(submissionDoc, "government-approval-submission", customer.id))
-        setActionProgressMessage("Validating data...")
+        setActionProgressMessage("Validating...")
         await runWithRetry(() =>
           updateCustomer(customer.id, {
             status: "Approval Submitted",
@@ -1077,7 +1077,7 @@ export default function CustomerDetailsPage() {
             ])
           })
         )
-        setActionProgressMessage("Updating workflow...")
+        setActionProgressMessage("Updating...")
         applyLocalStage("Approval Submitted", "SUBMITTED")
         setStatusToast("Approval submitted successfully")
       }
@@ -1087,9 +1087,9 @@ export default function CustomerDetailsPage() {
           throw new Error("Please complete all approval fields")
         }
 
-        setActionProgressMessage("Uploading document...")
+        setActionProgressMessage("Uploading...")
         await runWithRetry(() => uploadDocument(approvalDoc, "government-approved", customer.id))
-        setActionProgressMessage("Validating data...")
+        setActionProgressMessage("Validating...")
         await runWithRetry(() =>
           updateCustomer(customer.id, {
             status: "Government Approved",
@@ -1097,7 +1097,7 @@ export default function CustomerDetailsPage() {
             notes: appendNotes(customer.notes, "Government Approval", [`Approval No: ${approvalNumber}`, `Date: ${approvalDate}`])
           })
         )
-        setActionProgressMessage("Updating workflow...")
+        setActionProgressMessage("Updating...")
         applyLocalStage("Government Approved", "APPROVED")
         setStatusToast("Status updated successfully")
       }
@@ -1110,7 +1110,7 @@ export default function CustomerDetailsPage() {
         const dueDate = new Date(startDate)
         dueDate.setDate(dueDate.getDate() + Number(estimatedDays || 0))
 
-        setActionProgressMessage("Validating data...")
+        setActionProgressMessage("Validating...")
         await runWithRetry(() =>
           createTask({
             title: `Installation - ${customer.name}`,
@@ -1123,7 +1123,7 @@ export default function CustomerDetailsPage() {
           })
         )
 
-        setActionProgressMessage("Updating workflow...")
+        setActionProgressMessage("Updating...")
         await runWithRetry(() =>
           updateCustomer(customer.id, {
             status: "In Progress",
@@ -1141,7 +1141,7 @@ export default function CustomerDetailsPage() {
 
         if (customer.system_id) {
           try {
-            setActionProgressMessage("Updating workflow...")
+            setActionProgressMessage("Updating...")
             await consumeReservedInventoryForInstallation({ customerId: customer.id, systemId: customer.system_id })
           } catch (inventoryError) {
             console.warn("Installation inventory sync skipped", inventoryError)
@@ -1160,7 +1160,7 @@ export default function CustomerDetailsPage() {
           throw new Error("Amount exceeds remaining balance.")
         }
 
-        setActionProgressMessage("Updating workflow...")
+        setActionProgressMessage("Updating...")
         let remaining = installationRemainingAmount
         let paidAfter = installationPaidFromDb
         const initialStatus = remaining > 0 ? "Completed_Payment_Pending" : "Completed"
@@ -1188,7 +1188,7 @@ export default function CustomerDetailsPage() {
         )
 
         if (recordPaymentOnComplete && inlineInstallPaymentAmountValue > 0) {
-          setActionProgressMessage("Recording payment...")
+          setActionProgressMessage("Recording...")
           await createPaymentForInstallation({
             installation_id: customer.id,
             organization_id: customer.organization_id,
@@ -1252,11 +1252,11 @@ export default function CustomerDetailsPage() {
         }
 
         if (invoiceDoc) {
-          setActionProgressMessage("Uploading document...")
+          setActionProgressMessage("Uploading...")
           await runWithRetry(() => uploadDocument(invoiceDoc, "project-closure-invoice", customer.id))
         }
 
-        setActionProgressMessage("Closing project...")
+        setActionProgressMessage("Closing...")
         await runWithRetry(() =>
           updateCustomer(customer.id, {
             status: "Completed",
@@ -2320,7 +2320,7 @@ export default function CustomerDetailsPage() {
         panelClassName="sf-modal-panel-wide"
         mobileFullscreen
         busy={paymentSubmitting}
-        busyMessage="Recording payment..."
+        busyMessage="Recording..."
         preventCloseWhile={paymentSubmitting}
         onClose={closePaymentModal}
         bodyClassName="space-y-4"

@@ -509,11 +509,11 @@ function CustomerModalForm({
         aria-label="Create Installation"
       >
         <form className="relative flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-          <header className="sf-installation-wizard-header shrink-0 px-6 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex-1">
-                <h1 className="text-[22px] font-semibold tracking-tight text-[var(--sf-text)] sm:text-[26px]">Create Installation</h1>
-                <p className="mt-0.5 text-[13px] text-[var(--sf-muted-text)]">Complete the steps below to create a new installation.</p>
+          <header className="sf-installation-wizard-header shrink-0 px-6 py-4 sm:px-6">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h1 className="sf-installation-wizard-title">Add Customer</h1>
+                <p className="sf-installation-wizard-subtitle">Customer, system, and payment details.</p>
               </div>
 
               <button
@@ -528,7 +528,7 @@ function CustomerModalForm({
             </div>
           </header>
 
-          <section className="relative flex shrink-0 items-center justify-between px-6 py-4">
+          <section className="sf-installation-wizard-stepper">
             {/* Background track line — centered through step icons */}
             <div className="pointer-events-none absolute inset-x-6 top-1/2 -translate-y-[calc(50%+10px)]">
               <div className="mx-auto h-[2px] bg-[var(--sf-card-border)]" style={{ width: "calc(100% - 40px)", marginLeft: "20px" }} />
@@ -570,7 +570,7 @@ function CustomerModalForm({
                     disabled={loading || isFuture}
                   >
                     <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200 ${
+                      className={`sf-installation-wizard-step-icon flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200 ${
                         isDone || isActive
                           ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white shadow-[0_4px_12px_rgba(124,58,237,0.2)]"
                           : "border-2 border-[var(--sf-card-border)] bg-[var(--sf-card-bg)] text-[var(--sf-muted-text)]"
@@ -579,7 +579,7 @@ function CustomerModalForm({
                       {isDone ? <CheckCircle2 className="h-5 w-5" /> : <StepIcon className="h-4 w-4" />}
                     </div>
                     <p
-                      className={`text-[11px] font-semibold tracking-[0.12em] uppercase transition ${
+                      className={`sf-installation-wizard-step-label transition ${
                         isActive ? "text-[var(--sf-text)]" : isDone ? "text-[var(--sf-muted-text)]" : "text-[var(--sf-muted-text)]"
                       }`}
                     >
@@ -677,7 +677,7 @@ function CustomerModalForm({
             </div>
           </footer>
 
-          {loading ? <ModalBusyOverlay message="Creating installation..." /> : null}
+          {loading ? <ModalBusyOverlay message="Creating..." /> : null}
         </form>
       </motion.div>
     </ModalPortal>
