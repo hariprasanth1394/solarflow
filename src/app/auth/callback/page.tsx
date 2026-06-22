@@ -1,9 +1,8 @@
 "use client"
 
-import { useEffect } from "react"
+import { Suspense, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
-import { getProvisionBlockMessage } from "@/lib/rbac/roles"
 import { denyUnprovisionedSession, validateProvisionedAccess } from "@/services/userProvisionService"
 
 const ACCESS_COOKIE = "sb-access-token"
@@ -13,7 +12,18 @@ function setAccessCookie(token: string) {
   document.cookie = `${ACCESS_COOKIE}=${encodeURIComponent(token)}; Path=/; SameSite=Lax${secure}`
 }
 
-export default function AuthCallbackPage() {
+function AuthCallbackFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="text-center">
+        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-300 border-t-violet-500" />
+        <p className="text-sm text-slate-600 dark:text-slate-300">Verifying your SolarFlow access…</p>
+      </div>
+    </div>
+  )
+}
+
+function AuthCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -53,12 +63,13 @@ export default function AuthCallbackPage() {
     }
   }, [router, searchParams])
 
+  return <AuthCallbackFallback />
+}
+
+export default function AuthCallbackPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-      <div className="text-center">
-        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-slate-300 border-t-violet-500" />
-        <p className="text-sm text-slate-600 dark:text-slate-300">Verifying your SolarFlow access…</p>
-      </div>
-    </div>
+    <Suspense fallback={<AuthCallbackFallback />}>
+      <AuthCallbackContent />
+    </Suspense>
   )
 }
