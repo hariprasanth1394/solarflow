@@ -1684,33 +1684,18 @@ html.dark .sf-modal-panel,
 }
 
 .sf-modal-busy-spinner {
-  position: relative;
+  display: block;
   height: 40px;
   width: 40px;
   flex-shrink: 0;
-  border-radius: 9999px;
-  background: conic-gradient(
-    from 0deg,
-    color-mix(in srgb, var(--sf-primary-start) 18%, transparent) 0deg,
-    var(--sf-primary-start) 120deg,
-    var(--sf-primary-end) 240deg,
-    color-mix(in srgb, var(--sf-primary-end) 18%, transparent) 300deg,
-    transparent 360deg
-  );
-  animation: sf-modal-busy-spin 0.85s linear infinite;
-  will-change: transform;
-  transform: translateZ(0);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--sf-primary-start) 16%, transparent),
-    0 0 18px color-mix(in srgb, var(--sf-primary-start) 28%, transparent);
-}
-
-.sf-modal-busy-spinner::after {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  border-radius: inherit;
-  background: var(--sf-card-bg);
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--sf-primary-start) 18%, transparent);
+  border-top-color: var(--sf-primary-start);
+  border-right-color: var(--sf-primary-end);
+  background: transparent;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--sf-primary-start) 30%, transparent);
+  animation: sf-modal-busy-spin 0.75s linear infinite;
+  -webkit-animation: sf-modal-busy-spin 0.75s linear infinite;
 }
 
 .sf-modal-busy-message {
@@ -1736,7 +1721,21 @@ html.dark .sf-modal-panel,
 }
 
 @keyframes sf-modal-busy-spin {
+  from {
+    transform: rotate(0deg);
+  }
   to {
+    transform: rotate(360deg);
+  }
+}
+
+@-webkit-keyframes sf-modal-busy-spin {
+  from {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to {
+    -webkit-transform: rotate(360deg);
     transform: rotate(360deg);
   }
 }
