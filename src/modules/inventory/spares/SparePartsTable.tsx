@@ -2,7 +2,8 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from "react"
 import { makeSpareCodeKey } from "@/lib/inventoryImportNormalize"
-import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react"
+import { Eye, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, AlertTriangle } from "lucide-react"
+import InventoryTablePager from "../components/InventoryTablePager"
 import {
   inventoryTableCellClass,
   inventoryTableClass,
@@ -11,10 +12,7 @@ import {
   inventoryTableStickyHeaderCellClass,
   inventoryTableRowClass,
   inventoryTableWrapperClass,
-  inventoryMobileCardClass,
   inventoryInlineMenuClass,
-  inventoryPagerButtonActiveClass,
-  inventoryPagerButtonClass,
 } from "../components/inventoryTableStyles"
 
 type SpareRow = {
@@ -37,6 +35,7 @@ type SparePartsTableProps = {
   pageSize: number
   totalCount: number
   onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
   onEdit: (row: SpareRow) => void
   onUpdateStock: (row: SpareRow) => void
   onViewDetails: (row: SpareRow) => void
@@ -49,6 +48,14 @@ function formatCurrency(value: number) {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2
+  }).format(value)
+}
+
+function formatUnitPrice(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
   }).format(value)
 }
 
@@ -70,26 +77,10 @@ function getStockStatus(row: SpareRow) {
   }
 
   return {
-    label: "Healthy",
-    tone: "text-emerald-600",
-    dot: "bg-emerald-500"
+    label: "In stock",
+    tone: "inv-stock-status inv-stock-status--ok",
+    dot: "inv-stock-status-dot inv-stock-status-dot--ok",
   }
-}
-
-function getVisiblePages(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) {
-    return Array.from({ length: totalPages }, (_, index) => index + 1)
-  }
-
-  if (currentPage <= 4) {
-    return [1, 2, 3, 4, 5, -1, totalPages]
-  }
-
-  if (currentPage >= totalPages - 3) {
-    return [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
-  }
-
-  return [1, -1, currentPage - 1, currentPage, currentPage + 1, -1, totalPages]
 }
 
 function SparePartsTable({
@@ -100,6 +91,7 @@ function SparePartsTable({
   pageSize,
   totalCount,
   onPageChange,
+  onPageSizeChange,
   onEdit,
   onUpdateStock,
   onViewDetails,
@@ -108,23 +100,10 @@ function SparePartsTable({
 }: SparePartsTableProps) {
   const [openActionRowId, setOpenActionRowId] = useState<string | null>(null)
   const actionMenuRef = useRef<HTMLDivElement | null>(null)
-  const totalPages = Math.ceil(totalCount / pageSize)
-  const effectiveTotalPages = Math.max(1, totalPages)
-  const currentPage = Math.min(Math.max(1, page), effectiveTotalPages)
   const highlightedCodeSet = useMemo(
     () => new Set(highlightedSpareCodes.map((value) => makeSpareCodeKey(value))),
     [highlightedSpareCodes]
   )
-
-  const visiblePages = useMemo(
-    () => (totalCount === 0 ? [] : getVisiblePages(currentPage, effectiveTotalPages)),
-    [currentPage, effectiveTotalPages, totalCount]
-  )
-
-  const canGoPrevious = totalCount > 0 && currentPage > 1
-  const canGoNext = totalCount > 0 && currentPage < effectiveTotalPages
-  const showingFrom = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const showingTo = totalCount === 0 ? 0 : Math.min(currentPage * pageSize, totalCount)
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -192,17 +171,27 @@ function SparePartsTable({
                 return (
                 <tr
                   key={row.id}
-                  className={`group ${inventoryTableRowClass} ${
-                    isHighlighted
-                      ? 'bg-emerald-50/85 shadow-[inset_4px_0_0_0_rgb(16_185_129)] transition-colors duration-300'
-                      : ''
-                  }`}
+                  className={`group ${inventoryTableRowClass} ${isHighlighted ? "inv-spares-row--updated" : ""}`}
                 >
-                  <td className={`${inventoryTableCellClass} font-medium text-slate-900`}>{row.name}</td>
+                  <td className={`${inventoryTableCellClass} font-medium text-[var(--inv-text)]`}>
+                    <div>{row.name}</div>
+                    <div className="inv-table-mono text-xs text-[var(--inv-secondary)]">{row.spare_code}</div>
+                  </td>
                   <td className={inventoryTableCellClass}>{row.category || "-"}</td>
                   <td className={inventoryTableCellClass}>{row.supplierName || "-"}</td>
                   <td className={inventoryTableCellClass}>{row.unit || "-"}</td>
-                  <td className={`${inventoryTableCellClass} text-right font-semibold tabular-nums text-slate-900`}>{row.stock_quantity}</td>
+                  <td className={`${inventoryTableCellClass} text-right font-bold tabular-nums text-[var(--inv-text)]`}>
+                    {row.stock_quantity <= row.min_stock ? (
+                      <span className="inv-stock-qty inv-stock-qty--low">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        {row.stock_quantity}
+                      </span>
+                    ) : (
+                      <span className={`inv-stock-qty inv-stock-qty--ok ${isHighlighted ? "inv-stock-qty--updated" : ""}`}>
+                        {row.stock_quantity}
+                      </span>
+                    )}
+                  </td>
                   <td className={`${inventoryTableCellClass} text-right tabular-nums text-slate-900`}>{row.min_stock}</td>
                   <td className={inventoryTableCellClass}>
                     <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${getStockStatus(row).tone}`}>
@@ -247,7 +236,7 @@ function SparePartsTable({
                             className="dropdown-item flex items-center gap-2"
                           >
                             <RefreshCw className="h-4 w-4" />
-                            Update stock
+                            Adjust stock
                           </button>
                           <button
                             type="button"
@@ -283,158 +272,70 @@ function SparePartsTable({
         </table>
       </div>
 
-      <div className="space-y-3 p-3 md:hidden">
+      <div className="inv-mobile-spares-table md:hidden">
         {loading ? (
-          Array.from({ length: 5 }).map((_, index) => (
-            <div key={`mobile-skeleton-${index}`} className={inventoryMobileCardClass}>
-              <div className="h-4 w-1/2 animate-pulse rounded bg-slate-100" />
-              <div className="mt-2 h-3 w-2/3 animate-pulse rounded bg-slate-100" />
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="h-12 animate-pulse rounded bg-slate-100" />
-                <div className="h-12 animate-pulse rounded bg-slate-100" />
+          Array.from({ length: 6 }).map((_, index) => (
+            <div key={`mobile-skeleton-${index}`} className="inv-mobile-spares-row inv-mobile-spares-row--skeleton">
+              <div className="space-y-2">
+                <div className="h-4 w-40 animate-pulse rounded bg-slate-100" />
+                <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
               </div>
+              <div className="h-4 w-8 animate-pulse rounded bg-slate-100" />
+              <div className="h-4 w-16 animate-pulse rounded bg-slate-100" />
             </div>
           ))
         ) : rows.length === 0 ? (
-          <div className={`${inventoryMobileCardClass} px-4 py-10 text-center`}>
-            <p className="text-base font-semibold text-slate-900">No spare parts found</p>
-            <p className="mt-2 text-sm text-slate-500">Try changing your filters or add a new spare to get started.</p>
-            <button
-              type="button"
-              onClick={onAddSpare}
-              className="btn btn-primary mx-auto mt-4"
-            >
+          <div className="inv-mobile-spares-empty">
+            <p className="text-sm font-semibold text-slate-900">No spare parts found</p>
+            <button type="button" onClick={onAddSpare} className="btn btn-primary inv-btn-page mx-auto mt-3">
               <Plus className="h-4 w-4" />
-              Add spare
+              Add Spare
             </button>
           </div>
         ) : (
-          rows.map((row) => {
-            const stock = getStockStatus(row)
-            const isHighlighted = highlightedCodeSet.has(makeSpareCodeKey(row.spare_code))
-            const statusLeftBorder =
-              stock.label === "Out of stock"
-                ? "border-l-rose-500"
-                : stock.label === "Low"
-                ? "border-l-amber-500"
-                : "border-l-emerald-500"
-            return (
-              <article
-                key={row.id}
-                className={`${inventoryMobileCardClass} border-l-4 ${statusLeftBorder} ${
-                  isHighlighted ? 'bg-emerald-50/85 ring-1 ring-emerald-200 transition-colors duration-300' : ''
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-base font-bold text-slate-900">{row.name}</h3>
-                    <p className="mt-1 text-sm text-slate-500">{row.category || "Uncategorized"} • {row.unit || "Unit n/a"}</p>
-                    <p className="mt-0.5 text-xs text-slate-400">Supplier: {row.supplierName || "-"}</p>
+          <>
+            <div className="inv-mobile-spares-header">
+              <span>SKU / NAME</span>
+              <span>STOCK</span>
+              <span>UNIT ₹</span>
+            </div>
+            {rows.map((row) => {
+              const isHighlighted = highlightedCodeSet.has(makeSpareCodeKey(row.spare_code))
+              const isLowStock = row.stock_quantity <= row.min_stock
+
+              return (
+                <button
+                  key={row.id}
+                  type="button"
+                  onClick={() => onViewDetails(row)}
+                  className={`inv-mobile-spares-row ${isHighlighted ? "inv-mobile-spares-row--highlight" : ""}`}
+                >
+                  <div className="min-w-0 text-left">
+                    <p className="inv-mobile-spares-name">{row.name}</p>
+                    <p className="inv-mobile-spares-sku">{row.spare_code}</p>
                   </div>
-                  <span className={`inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-semibold ${stock.tone}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${stock.dot}`} />
-                    {stock.label}
+                  <span
+                    className={`inv-mobile-spares-stock ${isLowStock ? "inv-mobile-spares-stock--low" : ""} ${isHighlighted ? "inv-mobile-spares-stock--updated" : ""}`}
+                  >
+                    {isLowStock ? <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : null}
+                    {row.stock_quantity}
                   </span>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-medium text-slate-500">Stock</p>
-                    <p className="mt-1 font-semibold text-slate-900">{row.stock_quantity}</p>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-medium text-slate-500">Min</p>
-                    <p className="mt-1 font-semibold text-slate-900">{row.min_stock}</p>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid grid-cols-1 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onUpdateStock(row)}
-                    className="btn btn-primary w-full"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Add Stock
-                  </button>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => onViewDetails(row)}
-                      className="btn btn-secondary w-full"
-                    >
-                      <Eye className="h-4 w-4" />
-                      View
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onEdit(row)}
-                      className="btn btn-secondary w-full"
-                    >
-                      <Pencil className="h-4 w-4" />
-                      Edit
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(row)}
-                    className="btn btn-secondary w-full border-rose-200 text-rose-600 hover:bg-rose-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Delete
-                  </button>
-                </div>
-              </article>
-            )
-          })
+                  <span className="inv-mobile-spares-price">{formatUnitPrice(Number(row.cost_price ?? 0))}</span>
+                </button>
+              )
+            })}
+          </>
         )}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-medium text-slate-600" aria-live="polite">
-          Showing {showingFrom}–{showingTo} of {totalCount}
-        </span>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={!canGoPrevious}
-            className={inventoryPagerButtonClass}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Prev
-          </button>
-
-          {visiblePages.map((pageNumber, index) =>
-            pageNumber === -1 ? (
-              <span key={`ellipsis-${index}`} className="px-1 text-slate-400">
-                …
-              </span>
-            ) : (
-              <button
-                key={pageNumber}
-                type="button"
-                onClick={() => onPageChange(pageNumber)}
-                className={pageNumber === currentPage ? inventoryPagerButtonActiveClass : inventoryPagerButtonClass}
-                aria-current={pageNumber === currentPage ? "page" : undefined}
-              >
-                {pageNumber}
-              </button>
-            )
-          )}
-
-          <button
-            type="button"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={!canGoNext}
-            className={inventoryPagerButtonClass}
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      <InventoryTablePager
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        itemLabel="spares"
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+      />
     </div>
   )
 }

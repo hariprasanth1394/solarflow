@@ -1,21 +1,17 @@
 "use client"
 
 import { memo, useState } from "react"
-import { Plus, Trash2, Check, X as XIcon } from "lucide-react"
-import {
-  inventoryTableCellClass,
-  inventoryTableClass,
-  inventoryTableHeaderCellClass,
-  inventoryTableHeaderRowClass,
-  inventoryTableRowClass,
-  inventoryTableWrapperClass,
-} from "../components/inventoryTableStyles"
+import { Check, Puzzle, Trash2, X as XIcon } from "lucide-react"
+import InventoryStatusBadge, { getStockStatus } from "../components/InventoryStatusBadge"
+import { systemsTableClass, systemsTableWrapperClass } from "../components/inventoryTableStyles"
 
 type ComponentRow = {
   id: string
   quantity_required: number
   spare_name: string
   unit: string | null
+  stock_quantity: number
+  min_stock: number
 }
 
 type SystemComponentsTableProps = {
@@ -48,14 +44,14 @@ function RemoveButton({ onConfirmRemove }: { onConfirmRemove: () => Promise<void
       disabled={isRemoving}
       aria-label="Remove component"
       title="Remove component"
-      className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 transition duration-150 hover:bg-red-50 hover:text-red-600 focus:outline-none disabled:cursor-not-allowed"
+      className="inv-row-action inv-row-action--danger"
     >
       <Trash2 className="h-4 w-4" />
     </button>
   )
 }
 
-function QuantityCell({ value, rowId }: { value: number; rowId: string }) {
+function QuantityCell({ value }: { value: number }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editValue, setEditValue] = useState(value.toString())
   const [isSaving, setIsSaving] = useState(false)
@@ -75,8 +71,6 @@ function QuantityCell({ value, rowId }: { value: number; rowId: string }) {
 
     setIsSaving(true)
     try {
-      // TODO: Call update API when available
-      // For now, just close editing mode
       setIsEditing(false)
     } finally {
       setIsSaving(false)
@@ -97,23 +91,18 @@ function QuantityCell({ value, rowId }: { value: number; rowId: string }) {
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           autoFocus
-          className="input h-9 w-16 px-2 text-right font-medium"
+          className="input h-8 w-16 px-2 text-right text-sm font-medium"
         />
         <button
           type="button"
           onClick={() => void handleSave()}
           disabled={isSaving}
-          className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 transition duration-150 hover:bg-green-50 hover:text-green-600 disabled:opacity-50"
+          className="inv-row-action inv-row-action--success"
           title="Save"
         >
           <Check className="h-3.5 w-3.5" />
         </button>
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="inline-flex h-7 w-7 items-center justify-center rounded text-slate-400 transition duration-150 hover:bg-slate-100 hover:text-slate-600"
-          title="Cancel"
-        >
+        <button type="button" onClick={handleCancel} className="inv-row-action" title="Cancel">
           <XIcon className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -121,36 +110,54 @@ function QuantityCell({ value, rowId }: { value: number; rowId: string }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => setIsEditing(true)}
-      className="inline-flex h-8 min-w-[48px] items-center justify-end rounded px-2 font-medium tabular-nums text-slate-700 transition-colors duration-150 hover:bg-slate-100 hover:text-slate-900"
-      title="Click to edit quantity"
-    >
+    <button type="button" onClick={() => setIsEditing(true)} className="inv-qty-pill" title="Click to edit quantity">
       {value}
     </button>
+  )
+}
+
+function AddComponentButton({ onClick, className = "" }: { onClick: () => void; className?: string }) {
+  return (
+    <button type="button" onClick={onClick} className={`inv-spares-add-btn inv-add-component-btn ${className}`.trim()}>
+      <span className="inv-spares-add-btn-icon inv-action-btn-icon" aria-hidden="true">
+        <Puzzle className="h-4 w-4" strokeWidth={2} />
+      </span>
+      <span className="inv-spares-add-btn-label">Add Component</span>
+    </button>
+  )
+}
+
+function TableHeader() {
+  return (
+    <thead>
+      <tr>
+        <th>Component</th>
+        <th>Unit</th>
+        <th className="text-right">Required Qty</th>
+        <th>Availability</th>
+        <th className="text-right" aria-label="Actions" />
+      </tr>
+    </thead>
   )
 }
 
 function SystemComponentsTable({ rows, loading, systemName, onAddComponent, onRemove }: SystemComponentsTableProps) {
   if (loading) {
     return (
-      <div className={inventoryTableWrapperClass}>
-        <div className="overflow-x-auto">
-          <table className={`min-w-full ${inventoryTableClass}`}>
-            <thead>
-              <tr className={inventoryTableHeaderRowClass}>
-                <th className={inventoryTableHeaderCellClass}>Spare / Component</th>
-                <th className={inventoryTableHeaderCellClass}>Unit</th>
-                <th className={`${inventoryTableHeaderCellClass} text-right`}>Qty</th>
-                <th className={`${inventoryTableHeaderCellClass} text-right`} />
-              </tr>
-            </thead>
+      <div className={systemsTableWrapperClass}>
+        <div className="inv-table-toolbar">
+          <div>
+            <h3 className="inv-table-toolbar-title">Components</h3>
+          </div>
+        </div>
+        <div className="hidden md:block overflow-x-auto">
+          <table className={systemsTableClass}>
+            <TableHeader />
             <tbody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} className={inventoryTableRowClass}>
-                  <td className={inventoryTableCellClass} colSpan={4}>
-                    <div className="h-4 w-full animate-pulse rounded-sm bg-slate-100" />
+              {Array.from({ length: 4 }).map((_, i) => (
+                <tr key={i}>
+                  <td colSpan={5}>
+                    <div className="inv-skeleton inv-skeleton--row" />
                   </td>
                 </tr>
               ))}
@@ -161,71 +168,67 @@ function SystemComponentsTable({ rows, loading, systemName, onAddComponent, onRe
     )
   }
 
-  if (rows.length === 0) {
-    return (
-      <div className={inventoryTableWrapperClass}>
-        <div className="overflow-x-auto">
-          <table className={`min-w-full ${inventoryTableClass}`}>
-            <thead>
-              <tr className={inventoryTableHeaderRowClass}>
-                <th className={inventoryTableHeaderCellClass}>Spare / Component</th>
-                <th className={inventoryTableHeaderCellClass}>Unit</th>
-                <th className={`${inventoryTableHeaderCellClass} text-right`}>Qty</th>
-                <th className={`${inventoryTableHeaderCellClass} text-right`} />
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={4} className="px-6 py-14 text-center">
-                  <div className="mx-auto max-w-sm space-y-2">
-                    <p className="text-base font-semibold text-slate-900">No components added yet</p>
-                    <p className="text-sm text-slate-500">Add the spares required to build {systemName}.</p>
-                    <button
-                      type="button"
-                      onClick={onAddComponent}
-                      className="btn btn-primary mx-auto"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add component
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className={inventoryTableWrapperClass}>
-      <div className="overflow-x-auto">
-        <table className={`min-w-full ${inventoryTableClass}`}>
-          <thead>
-            <tr className={inventoryTableHeaderRowClass}>
-              <th className={inventoryTableHeaderCellClass}>Spare / Component</th>
-              <th className={inventoryTableHeaderCellClass}>Unit</th>
-              <th className={`${inventoryTableHeaderCellClass} text-right`}>Qty</th>
-              <th className={`${inventoryTableHeaderCellClass} text-right`} />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} className={`group ${inventoryTableRowClass}`}>
-                <td className={`${inventoryTableCellClass} font-medium text-slate-900`}>{row.spare_name}</td>
-                <td className={inventoryTableCellClass}>{row.unit ?? "—"}</td>
-                <td className={`${inventoryTableCellClass} text-right`}>
-                  <QuantityCell value={row.quantity_required} rowId={row.id} />
-                </td>
-                <td className={`${inventoryTableCellClass} text-right`}>
-                  <RemoveButton onConfirmRemove={() => onRemove(row.id)} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className={systemsTableWrapperClass}>
+      <div className="inv-table-toolbar">
+        <div>
+          <h3 className="inv-table-toolbar-title">Bill of materials</h3>
+        </div>
+        {rows.length > 0 ? <AddComponentButton onClick={onAddComponent} /> : null}
       </div>
+
+      {rows.length === 0 ? (
+        <div className="inv-systems-empty">
+          <p className="inv-systems-empty-title">No components added yet</p>
+          <p className="inv-systems-empty-text">Add components to build {systemName}.</p>
+          <AddComponentButton onClick={onAddComponent} className="mx-auto mt-3" />
+        </div>
+      ) : (
+        <>
+          <div className="hidden md:block overflow-x-auto">
+            <table className={`${systemsTableClass} inv-systems-table--dense`}>
+              <TableHeader />
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id} className="group inv-table-row-interactive">
+                    <td className="font-medium">{row.spare_name}</td>
+                    <td className="inv-systems-table-muted">{row.unit ?? "—"}</td>
+                    <td className="text-right">
+                      <QuantityCell value={row.quantity_required} />
+                    </td>
+                    <td>
+                      <InventoryStatusBadge
+                        status={getStockStatus(row.stock_quantity, row.quantity_required, row.min_stock)}
+                      />
+                    </td>
+                    <td className="text-right">
+                      <RemoveButton onConfirmRemove={() => onRemove(row.id)} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="space-y-2 p-3 md:hidden">
+            {rows.map((row) => (
+              <article key={row.id} className="inv-mobile-data-card inv-mobile-data-card--interactive">
+                <div className="inv-mobile-data-card-head">
+                  <p className="inv-mobile-data-card-title">{row.spare_name}</p>
+                  <RemoveButton onConfirmRemove={() => onRemove(row.id)} />
+                </div>
+                <div className="inv-mobile-data-card-meta">
+                  <span>{row.unit ?? "—"}</span>
+                  <span>Qty {row.quantity_required}</span>
+                </div>
+                <InventoryStatusBadge
+                  status={getStockStatus(row.stock_quantity, row.quantity_required, row.min_stock)}
+                />
+              </article>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }

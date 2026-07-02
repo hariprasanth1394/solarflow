@@ -1,8 +1,9 @@
 "use client"
 
-import { memo, useEffect, useMemo, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, ChevronRight, Eye, MoreHorizontal, Pencil, Trash2, UserPlus } from "lucide-react"
+import { Eye, MoreHorizontal, Pencil, Trash2, UserPlus } from "lucide-react"
+import InventoryTablePager from "../inventory/components/InventoryTablePager"
 import {
   inventoryTableCellClass,
   inventoryTableClass,
@@ -13,8 +14,6 @@ import {
   inventoryTableWrapperClass,
   inventoryMobileCardClass,
   inventoryInlineMenuClass,
-  inventoryPagerButtonActiveClass,
-  inventoryPagerButtonClass,
 } from "../inventory/components/inventoryTableStyles"
 import { formatDateTimeUTC } from "../../utils/dateFormat"
 
@@ -44,6 +43,7 @@ type CustomerTableProps = {
   pageSize: number
   totalCount: number
   onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
   onEdit: (row: CustomerRow) => void | Promise<void>
   onDelete: (id: string) => void | Promise<void>
   onAddCustomer?: () => void
@@ -107,13 +107,6 @@ function avatarColor(name: string) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
 }
 
-function getVisiblePages(currentPage: number, totalPages: number) {
-  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1)
-  if (currentPage <= 4) return [1, 2, 3, 4, 5, -1, totalPages]
-  if (currentPage >= totalPages - 3) return [1, -1, totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
-  return [1, -1, currentPage - 1, currentPage, currentPage + 1, -1, totalPages]
-}
-
 function CustomerTable({
   rows,
   loading,
@@ -122,6 +115,7 @@ function CustomerTable({
   pageSize,
   totalCount,
   onPageChange,
+  onPageSizeChange,
   onEdit,
   onDelete,
   onAddCustomer,
@@ -129,20 +123,6 @@ function CustomerTable({
   const router = useRouter()
   const [openActionRowId, setOpenActionRowId] = useState<string | null>(null)
   const actionMenuRef = useRef<HTMLDivElement | null>(null)
-
-  const totalPages = Math.max(1, Math.ceil((totalCount || 0) / pageSize))
-  const effectiveTotalPages = totalPages
-  const currentPage = Math.min(Math.max(1, page), effectiveTotalPages)
-
-  const visiblePages = useMemo(
-    () => (totalCount === 0 ? [] : getVisiblePages(currentPage, effectiveTotalPages)),
-    [currentPage, effectiveTotalPages, totalCount]
-  )
-
-  const canGoPrevious = totalCount > 0 && currentPage > 1
-  const canGoNext = totalCount > 0 && currentPage < effectiveTotalPages
-  const showingFrom = totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1
-  const showingTo = totalCount === 0 ? 0 : Math.min(currentPage * pageSize, totalCount)
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -405,50 +385,14 @@ function CustomerTable({
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex flex-col gap-2 border-t border-slate-100 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-        <span className="font-medium text-slate-600" aria-live="polite">
-          Showing {showingFrom}–{showingTo} of {totalCount} customers
-        </span>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={!canGoPrevious}
-            className={inventoryPagerButtonClass}
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Prev
-          </button>
-
-          {visiblePages.map((pageNumber, index) =>
-            pageNumber === -1 ? (
-              <span key={`ellipsis-${index}`} className="px-1 text-slate-400">…</span>
-            ) : (
-              <button
-                key={pageNumber}
-                type="button"
-                onClick={() => onPageChange(pageNumber)}
-                className={pageNumber === currentPage ? inventoryPagerButtonActiveClass : inventoryPagerButtonClass}
-                aria-current={pageNumber === currentPage ? "page" : undefined}
-              >
-                {pageNumber}
-              </button>
-            )
-          )}
-
-          <button
-            type="button"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={!canGoNext}
-            className={inventoryPagerButtonClass}
-          >
-            Next
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      <InventoryTablePager
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        itemLabel="customers"
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+      />
     </div>
   )
 }

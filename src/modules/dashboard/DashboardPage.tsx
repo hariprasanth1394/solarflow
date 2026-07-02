@@ -1,5 +1,6 @@
 "use client"
 
+import { LayoutDashboard } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import ContentArea from "../../components/layout/ContentArea"
 import FilterBar from "../../components/layout/FilterBar"
@@ -89,7 +90,7 @@ export default function DashboardPage() {
     <div ref={containerRef} className="space-y-4">
       <PageContainer
         title="Dashboard"
-        subtitle="Solar Flow enterprise overview for revenue, tasks, inventory, and operations."
+        icon={LayoutDashboard}
         breadcrumbs={[{ label: "Dashboard" }]}
       >
         <FilterBar>

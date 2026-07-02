@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
         const insertPayload = toInsert.map((row) => ({
           organization_id: organizationId,
           name: row.name,
-          stock_quantity: row.stock_quantity,
+          stock_quantity: 0,
           min_stock: 0,
           cost_price: row.cost_price
         }))
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
           toUpdate.map(async (row) => {
             const { error } = await db
               .from('spares')
-              .update({ stock_quantity: row.stock_quantity, cost_price: row.cost_price })
+              .update({ cost_price: row.cost_price })
               .eq('id', row.id)
               .eq('organization_id', organizationId)
 
@@ -169,11 +169,11 @@ export async function POST(request: NextRequest) {
           quantity: row.delta,
           reference: `IMPORT-UPDATE-${new Date().toISOString()}`
         })),
-        ...insertedSpares.map((row: any) => ({
+        ...insertedSpares.map((row: any, index: number) => ({
           organization_id: organizationId,
           spare_id: row.id,
           type: 'adjustment',
-          quantity: Number(row.stock_quantity || 0),
+          quantity: Number(toInsert[index]?.stock_quantity || 0),
           reference: `IMPORT-NEW-${new Date().toISOString()}`
         }))
       ]

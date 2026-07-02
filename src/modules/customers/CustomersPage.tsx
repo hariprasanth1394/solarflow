@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Plus, Search, Users } from "lucide-react"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import AddCustomerModal from "./AddCustomerModal"
 import CustomerTable, { type CustomerRow } from "./CustomerTable"
 import Card from "@/components/ui/Card"
@@ -12,10 +13,11 @@ import {
   inventorySectionCardClass,
   inventoryTableWrapperClass,
 } from "../inventory/components/inventoryTableStyles"
+import { INVENTORY_PAGE_SIZE_OPTIONS } from "../inventory/components/InventoryTablePager"
 
 type SalesRep = { id: string; name: string | null; email: string | null }
 
-const pageSize = 10
+const ROW_SIZE_OPTIONS = INVENTORY_PAGE_SIZE_OPTIONS
 
 const stageOptions = [
   { value: "All", label: "All Stages" },
@@ -35,6 +37,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState<number>(ROW_SIZE_OPTIONS[0])
   const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -43,6 +46,8 @@ export default function CustomersPage() {
   const [editing, setEditing] = useState<CustomerRow | null>(null)
   const [errorMessage, setErrorMessage] = useState("")
   const [successMessage, setSuccessMessage] = useState("")
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pageSize)), [pageSize, totalCount])
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true)
@@ -57,7 +62,26 @@ export default function CustomersPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, page, statusFilter])
+  }, [search, page, pageSize, statusFilter])
+
+  useEffect(() => {
+    setPage((currentPage) => {
+      const nextPage = Math.min(Math.max(1, currentPage), totalPages)
+      return nextPage === currentPage ? currentPage : nextPage
+    })
+  }, [totalPages])
+
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      setPage(Math.min(Math.max(1, nextPage), totalPages))
+    },
+    [totalPages]
+  )
+
+  const handlePageSizeChange = useCallback((nextPageSize: number) => {
+    setPageSize(nextPageSize)
+    setPage(1)
+  }, [])
 
   const fetchSalesReps = useCallback(async () => {
     try {
@@ -92,21 +116,20 @@ export default function CustomersPage() {
   return (
     <div className={inventoryPageContainerClass}>
 
-      {/* ── Header ── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-slate-900">Customers</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Manage customer pipeline and installation lifecycle</p>
-        </div>
-        <button
-          type="button"
-          onClick={openAddModal}
-          className="btn btn-primary"
-        >
-          <Plus className="h-4 w-4" />
-          Add Customer
-        </button>
-      </div>
+      <ModulePageHeader
+        title="Customers"
+        icon={Users}
+        actions={
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="btn btn-primary"
+          >
+            <Plus className="h-4 w-4" />
+            Add Customer
+          </button>
+        }
+      />
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
@@ -172,7 +195,8 @@ export default function CustomersPage() {
         page={page}
         pageSize={pageSize}
         totalCount={totalCount}
-        onPageChange={setPage}
+        onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
         onAddCustomer={openAddModal}
         onEdit={(row) => {
           setEditing(row)

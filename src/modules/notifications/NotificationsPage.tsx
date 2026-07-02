@@ -1,6 +1,8 @@
 "use client"
 
+import { Bell } from "lucide-react"
 import { useEffect, useState } from "react"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import { getActivityLogs, getNotificationSummary } from "../../services/notificationsService"
 import { formatDateTimeUTC, formatDateUTC } from "../../utils/dateFormat"
 
@@ -64,10 +66,7 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold text-gray-900">Notifications</h2>
-        <p className="mt-1 text-sm text-gray-600">System alerts and recent activity logs.</p>
-      </section>
+      <ModulePageHeader title="Notifications" icon={Bell} />
 
       <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
         <div className="flex flex-wrap gap-2">

@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
@@ -543,67 +543,55 @@ function CustomerModalForm({
             </div>
           </header>
 
-          <section className="sf-installation-wizard-stepper">
-            {/* Background track line — centered through step icons */}
-            <div className="pointer-events-none absolute inset-x-6 top-1/2 -translate-y-[calc(50%+10px)]">
-              <div className="mx-auto h-[2px] bg-[var(--sf-card-border)]" style={{ width: "calc(100% - 40px)", marginLeft: "20px" }} />
-            </div>
-
-            {/* Animated progress overlay */}
-            <div className="pointer-events-none absolute inset-x-6 top-1/2 -translate-y-[calc(50%+10px)]">
+          <section className="sf-installation-wizard-stepper" aria-label="Installation wizard progress">
+            <div className="sf-wizard-stepper-rail" aria-hidden="true">
+              <div className="sf-wizard-stepper-rail-bg" />
               <motion.div
-                className="h-[2px] rounded-full"
-                style={{
-                  background: "linear-gradient(to right, var(--primary-start, #7c3aed), var(--primary-end, #06b6d4))",
-                  marginLeft: "20px",
-                }}
+                className="sf-wizard-stepper-rail-fill"
+                initial={false}
                 animate={{
-                  width:
-                    currentStep === 0
-                      ? "0%"
-                      : currentStep === 1
-                      ? "calc(50% - 20px)"
-                      : "calc(100% - 40px)",
+                  scaleX: currentStep === 0 ? 0 : currentStep === 1 ? 0.5 : 1,
                 }}
                 transition={{ type: "spring", stiffness: 280, damping: 30 }}
               />
             </div>
 
-            {/* Step circles */}
-            <div className="relative z-10 flex w-full justify-between">
+            <ol className="sf-wizard-stepper-steps">
               {steps.map((step, index) => {
                 const isDone = index < currentStep
                 const isActive = index === currentStep
                 const isFuture = index > currentStep
                 const StepIcon = step.icon
                 return (
-                  <button
-                    key={step.title}
-                    type="button"
-                    onClick={() => handleStepChange(index)}
-                    className={`flex flex-col items-center gap-1.5 transition ${isFuture ? "cursor-not-allowed opacity-60" : ""}`}
-                    disabled={loading || isFuture}
-                  >
-                    <div
-                      className={`sf-installation-wizard-step-icon flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold transition-all duration-200 ${
-                        isDone || isActive
-                          ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white shadow-[0_4px_12px_rgba(124,58,237,0.2)]"
-                          : "border-2 border-[var(--sf-card-border)] bg-[var(--sf-card-bg)] text-[var(--sf-muted-text)]"
-                      }`}
+                  <li key={step.title} className="sf-wizard-stepper-step">
+                    <button
+                      type="button"
+                      onClick={() => handleStepChange(index)}
+                      className={`sf-wizard-stepper-step-button ${isFuture ? "cursor-not-allowed opacity-60" : ""}`}
+                      disabled={loading || isFuture}
+                      aria-current={isActive ? "step" : undefined}
                     >
-                      {isDone ? <CheckCircle2 className="h-5 w-5" /> : <StepIcon className="h-4 w-4" />}
-                    </div>
-                    <p
-                      className={`sf-installation-wizard-step-label transition ${
-                        isActive ? "text-[var(--sf-text)]" : isDone ? "text-[var(--sf-muted-text)]" : "text-[var(--sf-muted-text)]"
-                      }`}
-                    >
-                      {step.title}
-                    </p>
-                  </button>
+                      <span
+                        className={`sf-installation-wizard-step-icon sf-wizard-stepper-icon flex items-center justify-center rounded-full text-sm font-semibold transition-all duration-200 ${
+                          isDone || isActive
+                            ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white shadow-[0_4px_14px_rgba(124,58,237,0.28)]"
+                            : "border-2 border-[var(--sf-card-border)] bg-[var(--sf-card-bg)] text-[var(--sf-muted-text)]"
+                        } ${isActive ? "sf-wizard-stepper-icon-active" : ""}`}
+                      >
+                        {isDone ? <CheckCircle2 className="h-5 w-5" /> : <StepIcon className="h-4 w-4" />}
+                      </span>
+                      <span
+                        className={`sf-installation-wizard-step-label sf-wizard-stepper-label ${
+                          isActive ? "text-[var(--sf-text)]" : "text-[var(--sf-muted-text)]"
+                        }`}
+                      >
+                        {step.title}
+                      </span>
+                    </button>
+                  </li>
                 )
               })}
-            </div>
+            </ol>
           </section>
 
           {toastMessage ? (

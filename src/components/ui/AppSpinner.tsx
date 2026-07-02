@@ -16,7 +16,7 @@ type AppSpinnerProps = {
   size?: AppSpinnerSize
   className?: string
   label?: string
-  variant?: "default" | "onPrimary"
+  variant?: "default" | "onPrimary" | "inventory"
 }
 
 /**
@@ -36,7 +36,11 @@ export default function AppSpinner({
       className={cn(
         "sf-spinner",
         SIZE_CLASS[size],
-        variant === "onPrimary" ? "sf-spinner--on-primary" : null,
+        variant === "onPrimary"
+          ? "sf-spinner--on-primary"
+          : variant === "inventory"
+            ? "sf-spinner--inventory"
+            : null,
         className
       )}
       role="status"

@@ -7,6 +7,8 @@
 
 # Frontend UI & System Availability Design
 
+> **Stable inventory UI:** See **[INVENTORY_UI_STABLE.md](./INVENTORY_UI_STABLE.md)** for the current production import/export workflow (`InventoryImportExportPage`), dark-mode tokens, push notifications, loaders, and Spares post-import behavior. The sections below describe earlier/legacy screen designs and availability logic.
+
 ## 📊 Architecture Overview
 
 ```

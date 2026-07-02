@@ -1,6 +1,8 @@
 "use client"
 
+import { BarChart3 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import { getFinancialAnalytics } from "../../services/analyticsService"
 
 type AnalyticsMetrics = {
@@ -44,10 +46,7 @@ export default function FinancialDashboard() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold text-gray-900">Financial Analytics Dashboard</h2>
-        <p className="mt-1 text-sm text-gray-600">Revenue, profit, capacity and conversion analytics.</p>
-      </section>
+      <ModulePageHeader title="Analytics" icon={BarChart3} />
 
       {loading ? <p className="text-sm text-gray-500">Loading analytics...</p> : null}
 

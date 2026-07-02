@@ -4,6 +4,7 @@ export type AppUserProfile = {
   id: string
   authUserId: string | null
   organizationId: string
+  organizationName: string | null
   email: string
   fullName: string | null
   role: UserRole
@@ -11,6 +12,8 @@ export type AppUserProfile = {
   isActive: boolean
   avatarUrl: string | null
   lastLoginAt: string | null
+  createdAt: string | null
+  updatedAt: string | null
   customPermissions: PermissionKey[]
 }
 

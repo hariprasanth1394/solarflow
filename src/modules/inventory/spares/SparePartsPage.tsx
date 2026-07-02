@@ -2,18 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Plus, Search, SlidersHorizontal, X } from "lucide-react"
-import Toast from "@/components/ui/Toast"
+import { PackagePlus, Search, X } from "lucide-react"
+import NotificationHost from "@/components/ui/NotificationHost"
 import ModalPortal from "@/components/ui/ModalPortal"
+import { usePushNotifications } from "@/hooks/usePushNotifications"
 import { consumeInventoryImportSuccess } from "@/lib/inventoryImportSuccess"
 import { makeSpareCodeKey } from "@/lib/inventoryImportNormalize"
 import AddSpareModal from "./AddSpareModal"
 import EditStockModal from "./EditStockModal"
 import SparePartsTable from "./SparePartsTable"
+import InventorySingleSelect from "../components/InventorySingleSelect"
 import { createSpare, deleteSpare, getSpares, getSuppliers, updateSpare, updateSpareStock } from "../../../services/spareService"
 import LoadingButton from "../../../components/ui/LoadingButton"
 import InventoryPageShell from "../components/InventoryPageShell"
-import { inventorySectionCardClass } from "../components/inventoryTableStyles"
+import InventoryToolbarSelect from "../components/InventoryToolbarSelect"
+import { INVENTORY_PAGE_SIZE_OPTIONS } from "../components/InventoryTablePager"
 
 type Supplier = { id: string; name: string }
 
@@ -42,16 +45,9 @@ type SpareRow = {
   cost_price: number
 }
 
-type AvailabilityFilter = "all" | "in_stock" | "out_of_stock"
-type SortOption = "recent" | "name_asc" | "stock_desc" | "stock_asc"
-type ToastState = {
-  type: "success" | "error" | "info"
-  title: string
-  description: string
-  duration?: number
-} | null
+const ROW_SIZE_OPTIONS = INVENTORY_PAGE_SIZE_OPTIONS
 
-const ROW_SIZE_OPTIONS = [25, 50, 100, 200] as const
+const DEFAULT_SPARE_CATEGORIES = ["Panels", "Inverters", "Batteries", "Cables", "Mounting", "Accessories"]
 
 function getSupplierName(value: SpareApiRow["suppliers"]) {
   if (!value) return "-"
@@ -62,6 +58,7 @@ function getSupplierName(value: SpareApiRow["suppliers"]) {
 export default function SparePartsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { notifications, notify, dismiss } = usePushNotifications()
   const [rows, setRows] = useState<SpareRow[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [searchInput, setSearchInput] = useState("")
@@ -85,45 +82,23 @@ export default function SparePartsPage() {
   const [editUnit, setEditUnit] = useState("")
   const [editMinStock, setEditMinStock] = useState("0")
   const [editCostPrice, setEditCostPrice] = useState("0")
-  const [filterOpen, setFilterOpen] = useState(false)
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
-  const [availabilityFilter, setAvailabilityFilter] = useState<AvailabilityFilter>("all")
-  const [supplierFilter, setSupplierFilter] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("")
-  const [sortBy, setSortBy] = useState<SortOption>("recent")
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([])
   const [message, setMessage] = useState("")
-  const [toast, setToast] = useState<ToastState>(null)
   const [highlightedSpareCodes, setHighlightedSpareCodes] = useState<string[]>([])
   const importSuccess = searchParams.get('updated') === 'true'
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pageSize)), [pageSize, totalCount])
-  const activeFilterCount = useMemo(() => {
-    let count = 0
-    if (availabilityFilter !== "all") count += 1
-    if (supplierFilter) count += 1
-    if (categoryFilter.trim()) count += 1
-    return count
-  }, [availabilityFilter, categoryFilter, supplierFilter])
 
-  const sortedRows = useMemo(() => {
-    const copy = [...rows]
-    if (sortBy === "name_asc") {
-      copy.sort((a, b) => a.name.localeCompare(b.name))
-    } else if (sortBy === "stock_desc") {
-      copy.sort((a, b) => b.stock_quantity - a.stock_quantity)
-    } else if (sortBy === "stock_asc") {
-      copy.sort((a, b) => a.stock_quantity - b.stock_quantity)
-    }
-    return copy
-  }, [rows, sortBy])
+  const categorySelectOptions = useMemo(() => {
+    const merged = [
+      ...new Set([...DEFAULT_SPARE_CATEGORIES, ...categoryOptions].map((value) => value.trim()).filter(Boolean)),
+    ].sort((a, b) => a.localeCompare(b))
 
-  const cycleSort = () => {
-    setSortBy((prev) => {
-      if (prev === "recent") return "name_asc"
-      if (prev === "name_asc") return "stock_desc"
-      if (prev === "stock_desc") return "stock_asc"
-      return "recent"
-    })
-  }
+    return [
+      { label: "All categories", value: "" },
+      ...merged.map((category) => ({ label: category, value: category })),
+    ]
+  }, [categoryOptions])
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -135,20 +110,12 @@ export default function SparePartsPage() {
     }
   }, [searchInput])
 
-  useEffect(() => {
-    if (!toast) return
-    const timer = window.setTimeout(() => setToast(null), toast.duration ?? 4000)
-    return () => window.clearTimeout(timer)
-  }, [toast])
-
   const loadSpares = useCallback(async () => {
     setLoading(true)
     const { data, count, error } = await getSpares({
       search: debouncedSearch,
       page,
       pageSize,
-      availability: availabilityFilter,
-      supplierId: supplierFilter || undefined,
       category: categoryFilter.trim() || undefined
     })
     if (!error) {
@@ -167,7 +134,7 @@ export default function SparePartsPage() {
       setTotalCount(count)
     }
     setLoading(false)
-  }, [availabilityFilter, categoryFilter, debouncedSearch, page, pageSize, supplierFilter])
+  }, [categoryFilter, debouncedSearch, page, pageSize])
 
   const loadSuppliers = useCallback(async () => {
     const { data } = await getSuppliers()
@@ -186,11 +153,11 @@ export default function SparePartsPage() {
     const payload = consumeInventoryImportSuccess()
     if (!payload) return
 
-    setToast({
+    notify({
       type: "success",
-      title: "Inventory Updated",
-      description: `${payload.updatedRows} updated, ${payload.newRows} added`,
-      duration: 4000
+      title: "Import complete",
+      description: `${payload.updatedRows} updated · ${payload.newRows} added`,
+      duration: 6000
     })
     setHighlightedSpareCodes(payload.spareCodes.map(makeSpareCodeKey))
     queueMicrotask(() => {
@@ -201,18 +168,37 @@ export default function SparePartsPage() {
       setHighlightedSpareCodes([])
     }, 3000)
 
-    router.replace('/inventory?tab=spares', { scroll: false })
+    router.replace("/inventory?tab=spares", { scroll: false })
 
     return () => {
       window.clearTimeout(timer)
     }
-  }, [importSuccess, loadSpares, router])
+  }, [importSuccess, loadSpares, notify, router])
 
   useEffect(() => {
     queueMicrotask(() => {
       void loadSuppliers()
     })
   }, [loadSuppliers])
+
+  useEffect(() => {
+    let active = true
+    void (async () => {
+      const { data } = await getSpares({ page: 1, pageSize: 200 })
+      if (!active) return
+      const categories = [
+        ...new Set(
+          ((data as SpareApiRow[]) ?? [])
+            .map((row) => row.category?.trim())
+            .filter((value): value is string => Boolean(value))
+        ),
+      ].sort((a, b) => a.localeCompare(b))
+      setCategoryOptions(categories)
+    })()
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     setPage((currentPage) => {
@@ -226,6 +212,14 @@ export default function SparePartsPage() {
       setPage(Math.min(Math.max(1, nextPage), totalPages))
     },
     [totalPages]
+  )
+
+  const handlePageSizeChange = useCallback(
+    (nextPageSize: number) => {
+      setPageSize(nextPageSize)
+      setPage(1)
+    },
+    []
   )
 
   const handleUpdateStock = async (row: SpareRow, nextStockValue: number) => {
@@ -310,172 +304,18 @@ export default function SparePartsPage() {
     }).format(value)
 
   return (
-    <InventoryPageShell
-      title="Spares"
-      subtitle="Track spare inventory, search quickly, and manage stock adjustments from one consistent workspace."
-      actions={
-        <LoadingButton
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="btn btn-primary hidden md:inline-flex"
-        >
-          Add Spare
-        </LoadingButton>
-      }
-    >
-      {toast ? (
-        <div className="fixed right-4 top-4 z-50 w-[min(92vw,420px)] sm:right-6 sm:top-6">
-          <Toast
-            title={toast.title}
-            description={toast.description}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
-        </div>
-      ) : null}
+    <InventoryPageShell contentOnly>
+      <NotificationHost notifications={notifications} onDismiss={dismiss} />
 
       {message ? (
-        <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+        <div className="inv-inline-alert inv-inline-alert--success" role="status">
           {message}
         </div>
       ) : null}
 
-      <section className={`${inventorySectionCardClass} space-y-2 md:hidden`}>
-        <label className="search-input-wrapper">
-          <Search className="search-input-icon" />
-          <input
-            value={searchInput}
-            onChange={(event) => {
-              setSearchInput(event.target.value)
-              setPage(1)
-            }}
-            placeholder="Search by spare name, category, supplier..."
-            aria-label="Search spare parts"
-            className="search-input pr-9"
-          />
-          {searchInput ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchInput("")
-                setDebouncedSearch("")
-                setPage(1)
-              }}
-              className="absolute right-2 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-              aria-label="Clear search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : null}
-        </label>
-      </section>
-
-      {mobileFiltersOpen ? (
-        <section className={`${inventorySectionCardClass} space-y-3 md:hidden`}>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Availability</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {[
-                { key: "all", label: "All" },
-                { key: "in_stock", label: "In stock" },
-                { key: "out_of_stock", label: "Out of stock" }
-              ].map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => {
-                    setAvailabilityFilter(option.key as AvailabilityFilter)
-                    setPage(1)
-                  }}
-                  className={`btn ${
-                    availabilityFilter === option.key
-                      ? "border-blue-600 bg-blue-600 text-white"
-                      : "border-slate-300 text-slate-700"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Supplier</label>
-            <select
-              value={supplierFilter}
-              onChange={(event) => {
-                setSupplierFilter(event.target.value)
-                setPage(1)
-              }}
-              className="dropdown mt-1.5 h-12"
-            >
-              <option value="">All suppliers</option>
-              {suppliers.map((supplier) => (
-                <option key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Category</label>
-            <input
-              value={categoryFilter}
-              onChange={(event) => {
-                setCategoryFilter(event.target.value)
-                setPage(1)
-              }}
-              placeholder="Filter by category"
-              className="input mt-1.5 h-12"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Rows per page</label>
-            <select
-              value={pageSize}
-              onChange={(event) => {
-                setPageSize(Number(event.target.value))
-                setPage(1)
-              }}
-              className="dropdown mt-1.5 h-12"
-            >
-              {ROW_SIZE_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option} rows
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => {
-                setAvailabilityFilter("all")
-                setSupplierFilter("")
-                setCategoryFilter("")
-                setPage(1)
-              }}
-              className="text-sm font-medium text-slate-500"
-            >
-              Clear all
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileFiltersOpen(false)}
-              className="btn btn-primary"
-            >
-              Apply
-            </button>
-          </div>
-        </section>
-      ) : null}
-
-      <section className={`${inventorySectionCardClass} hidden flex-wrap items-center justify-between gap-3 md:flex`}>
-        <div className="min-w-0 flex-[1_1_42%]">
-          <label className="search-input-wrapper">
+      <section className="inv-spares-toolbar">
+        <div className="inv-spares-toolbar-bar">
+          <label className="search-input-wrapper inv-spares-search">
             <Search className="search-input-icon" />
             <input
               value={searchInput}
@@ -483,9 +323,9 @@ export default function SparePartsPage() {
                 setSearchInput(event.target.value)
                 setPage(1)
               }}
-              placeholder="Search by spare name, category, supplier..."
+              placeholder="Search SKU or name..."
               aria-label="Search spare parts"
-              className="search-input pr-9"
+              className="search-input inv-spares-search-input pr-9"
             />
             {searchInput ? (
               <button
@@ -495,153 +335,48 @@ export default function SparePartsPage() {
                   setDebouncedSearch("")
                   setPage(1)
                 }}
-                className="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                className="absolute right-3 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-[var(--inv-secondary)] transition hover:bg-[var(--hover)]"
                 aria-label="Clear search"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             ) : null}
           </label>
-        </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <select
-            value={pageSize}
-            onChange={(event) => {
-              setPageSize(Number(event.target.value))
-              setPage(1)
-            }}
-            className="dropdown"
-            aria-label="Rows per page"
-          >
-            {ROW_SIZE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option} rows
-              </option>
-            ))}
-          </select>
+          <div className="inv-spares-toolbar-secondary">
+            <InventoryToolbarSelect
+              inputId="spare-category-filter"
+              className="inv-spares-category-select"
+              ariaLabel="Filter spare parts by category"
+              placeholder="All categories"
+              value={categoryFilter}
+              options={categorySelectOptions}
+              onChange={(value) => {
+                setCategoryFilter(value)
+                setPage(1)
+              }}
+            />
 
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setFilterOpen((previous) => !previous)}
-              className={`btn items-center justify-center ${
-                activeFilterCount > 0
-                  ? "border-blue-300 bg-blue-50 text-blue-700"
-                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
-              aria-label="Open filters"
-              aria-expanded={filterOpen}
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-              {activeFilterCount > 0 ? (
-                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-semibold text-white">
-                  {activeFilterCount}
-                </span>
-              ) : null}
+            <button type="button" onClick={() => setModalOpen(true)} className="inv-spares-add-btn">
+              <span className="inv-spares-add-btn-icon inv-action-btn-icon" aria-hidden="true">
+                <PackagePlus className="h-4 w-4" strokeWidth={2} />
+              </span>
+              <span className="inv-spares-add-btn-label">Add Spare</span>
             </button>
-
-            {filterOpen ? (
-              <div className="dropdown-menu absolute right-0 z-20 mt-2 w-[320px] p-3">
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Availability</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {[
-                      { key: "all", label: "All" },
-                      { key: "in_stock", label: "In stock" },
-                      { key: "out_of_stock", label: "Out of stock" }
-                    ].map((option) => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        onClick={() => {
-                          setAvailabilityFilter(option.key as AvailabilityFilter)
-                          setPage(1)
-                        }}
-                        className={`btn btn-compact ${
-                          availabilityFilter === option.key
-                            ? "border-blue-600 bg-blue-600 text-white"
-                            : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Supplier</label>
-                  <select
-                    value={supplierFilter}
-                    onChange={(event) => {
-                      setSupplierFilter(event.target.value)
-                      setPage(1)
-                    }}
-                    className="dropdown mt-1.5"
-                  >
-                    <option value="">All suppliers</option>
-                    {suppliers.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium uppercase tracking-wide text-slate-500">Category</label>
-                  <input
-                    value={categoryFilter}
-                    onChange={(event) => {
-                      setCategoryFilter(event.target.value)
-                      setPage(1)
-                    }}
-                    placeholder="Filter by category"
-                    className="input mt-1.5"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAvailabilityFilter("all")
-                      setSupplierFilter("")
-                      setCategoryFilter("")
-                      setPage(1)
-                    }}
-                    className="text-xs font-medium text-slate-500 hover:text-slate-700"
-                  >
-                    Clear all
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFilterOpen(false)}
-                    className="btn btn-primary btn-compact"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            </div>
-            ) : null}
           </div>
         </div>
       </section>
 
       <div className="page-content">
         <SparePartsTable
-          rows={sortedRows}
+          rows={rows}
           highlightedSpareCodes={highlightedSpareCodes}
           loading={loading}
           page={page}
           pageSize={pageSize}
           totalCount={totalCount}
           onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
           onEdit={(row) => {
             handleOpenEditDetails(row)
           }}
@@ -659,38 +394,11 @@ export default function SparePartsPage() {
         />
       </div>
 
-      <div className="bottom-bar md:hidden">
-        <div className="bottom-bar-inner">
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="btn btn-primary w-full"
-          >
-            <Plus className="h-4 w-4" />
-            Add
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileFiltersOpen((previous) => !previous)}
-            className="btn btn-secondary w-full"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            Filter
-          </button>
-          <button
-            type="button"
-            onClick={cycleSort}
-            className="btn btn-secondary w-full"
-          >
-            Sort
-          </button>
-        </div>
-      </div>
-
       <AddSpareModal
         open={modalOpen}
         loading={submitting}
         suppliers={suppliers}
+        categoryOptions={categoryOptions}
         onClose={() => {
           if (!submitting) {
             setModalOpen(false)
@@ -703,6 +411,11 @@ export default function SparePartsPage() {
             if (!error) {
               setMessage("Spare created successfully")
               setModalOpen(false)
+              if (payload.category) {
+                setCategoryOptions((current) =>
+                  [...new Set([...current, payload.category!])].sort((a, b) => a.localeCompare(b))
+                )
+              }
               await loadSpares()
             }
           } catch (error) {
@@ -736,13 +449,17 @@ export default function SparePartsPage() {
           <h3 className="text-lg font-semibold text-slate-900">Edit Spare</h3>
           <p className="mt-1 text-sm text-slate-600">Update settings for {selectedSpareForEdit?.name}.</p>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input
+          <div className="mt-4 space-y-4">
+            <InventorySingleSelect
+              inputId="edit-spare-category"
+              label="Category"
+              placeholder="Select or type a category"
               value={editCategory}
-              onChange={(event) => setEditCategory(event.target.value)}
-              placeholder="Category"
-              className="input"
+              onChange={setEditCategory}
+              options={categoryOptions.map((category) => ({ label: category, value: category }))}
+              creatable
             />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <input
               value={editUnit}
               onChange={(event) => setEditUnit(event.target.value)}
@@ -766,6 +483,7 @@ export default function SparePartsPage() {
               placeholder="Cost price"
               className="input"
             />
+            </div>
           </div>
 
           <div className="mt-5 flex items-center justify-end gap-2">

@@ -57,8 +57,10 @@ export default function ModalPortal({
       role="presentation"
     >
       {onClose ? <div className="sf-modal-backdrop absolute inset-0" onClick={handleBackdropClose} aria-hidden="true" /> : null}
-      <div className="sf-modal-portal-content sf-modal-panel-interactive relative z-[2] flex h-full w-full items-end justify-center p-0 sm:items-center sm:p-4">
-        {children}
+      <div className="sf-modal-portal-content relative z-[2] flex h-full w-full items-end justify-center p-0 pointer-events-none sm:items-center sm:p-4">
+        <div className="sf-modal-portal-panel sf-modal-panel-interactive pointer-events-auto w-full sm:w-auto">
+          {children}
+        </div>
       </div>
     </div>,
     document.body

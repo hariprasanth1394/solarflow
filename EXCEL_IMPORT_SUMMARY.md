@@ -1,5 +1,7 @@
 # Excel Import Module - Implementation Summary
 
+> **UI note (July 2026):** The stable front-end for import/export is documented in **[INVENTORY_UI_STABLE.md](./INVENTORY_UI_STABLE.md)** (`InventoryImportExportPage`, tab shell, notifications, dark mode).
+
 ## ✅ Complete Build Delivered
 
 A **production-grade, enterprise-level** Excel Import module has been built for your Inventory Management system.

@@ -349,58 +349,83 @@ async function applyImportRows(
     })
 
     try {
-      if (existingSpare && Number(existingSpare.stock_quantity || 0) === targetQty) {
+      const previousQty = Number(existingSpare?.stock_quantity || 0)
+
+      if (existingSpare && previousQty === targetQty) {
         continue
       }
 
       const spareCode = existingSpare?.spare_code || generateSpareCode()
-      const { data: upsertedSpare, error: upsertError } = await db
-        .from('spares')
-        .upsert(
-          {
+      const spareFields = {
+        name: existingSpare?.name || itemName,
+        category: existingSpare?.category || category,
+        unit: existingSpare?.unit || unit,
+        min_stock: existingSpare?.min_stock || 0,
+        cost_price: unitCost || Number(existingSpare?.cost_price || 0),
+        supplier_id: existingSpare?.supplier_id || null
+      }
+
+      let appliedSpareCode = spareCode
+
+      // Stock changes go through stock_transactions only; the DB trigger applies deltas.
+      if (existingSpare) {
+        const { data: updatedSpare, error: updateError } = await db
+          .from('spares')
+          .update(spareFields)
+          .eq('id', existingSpare.id)
+          .eq('organization_id', organizationId)
+          .select('id, spare_code')
+          .single()
+
+        if (updateError) throw updateError
+
+        appliedSpareCode = String(updatedSpare.spare_code || spareCode)
+        const delta = targetQty - previousQty
+
+        if (delta !== 0) {
+          const { error: txError } = await db.from('stock_transactions').insert({
+            organization_id: organizationId,
+            spare_id: updatedSpare.id,
+            type: 'adjustment',
+            quantity: delta,
+            reference: `IMPORT-${appliedSpareCode}`
+          })
+          if (txError) throw txError
+        }
+
+        updatedRows += 1
+      } else {
+        const { data: insertedSpare, error: insertError } = await db
+          .from('spares')
+          .insert({
             organization_id: organizationId,
             spare_code: spareCode,
-            name: existingSpare?.name || itemName,
-            category: existingSpare?.category || category,
-            unit: existingSpare?.unit || unit,
-            stock_quantity: targetQty,
-            min_stock: existingSpare?.min_stock || 0,
-            cost_price: unitCost || Number(existingSpare?.cost_price || 0),
-            supplier_id: existingSpare?.supplier_id || null
-          },
-          { onConflict: 'spare_code' }
-        )
-        .select('id, spare_code, name, stock_quantity')
-        .single()
+            ...spareFields,
+            stock_quantity: 0
+          })
+          .select('id, spare_code')
+          .single()
 
-      if (upsertError) throw upsertError
+        if (insertError) throw insertError
 
-      const previousQty = Number(existingSpare?.stock_quantity || 0)
-      const delta = targetQty - previousQty
-      const { error: txError } = await db
-        .from('stock_transactions')
-        .insert({
-          organization_id: organizationId,
-          spare_id: upsertedSpare.id,
-          type: 'adjustment',
-          quantity: delta,
-          reference: `IMPORT-${spareCode}`
-        })
-      if (txError) {
-        console.warn('[inventory.import.confirm] transaction_insert_failed', {
-          rowNumber,
-          spareCode,
-          message: txError.message
-        })
+        appliedSpareCode = String(insertedSpare.spare_code || spareCode)
+
+        if (targetQty > 0) {
+          const { error: txError } = await db.from('stock_transactions').insert({
+            organization_id: organizationId,
+            spare_id: insertedSpare.id,
+            type: 'adjustment',
+            quantity: targetQty,
+            reference: `IMPORT-${appliedSpareCode}`
+          })
+          if (txError) throw txError
+        }
+
+        insertedRows += 1
       }
 
       appliedRows += 1
-      affectedSpareCodes.add(String(upsertedSpare.spare_code || spareCode).trim())
-      if (existingSpare) {
-        updatedRows += 1
-      } else {
-        insertedRows += 1
-      }
+      affectedSpareCodes.add(appliedSpareCode.trim())
     } catch (err) {
       skippedRows += 1
       rowErrors.push({ row: rowNumber, reason: err instanceof Error ? err.message : 'Upsert failed' })

@@ -1,6 +1,8 @@
 "use client"
 
+import { FileText } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import DataTable from "../../components/tables/DataTable"
 import SearchFilterBar from "../../components/forms/SearchFilterBar"
 import UploadDocumentModal from "./UploadDocumentModal"
@@ -156,19 +158,9 @@ export default function DocumentsPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold text-gray-900">Documents</h2>
-        <p className="mt-1 text-sm text-gray-600">Upload and manage customer-linked documents securely.</p>
-      </section>
-
-      <SearchFilterBar
-        search={search}
-        onSearchChange={(value: string) => {
-          setSearch(value)
-          setPage(1)
-        }}
-        placeholder="Search by document name or type"
-        filters={<></>}
+      <ModulePageHeader
+        title="Documents"
+        icon={FileText}
         actions={
           <button
             type="button"
@@ -178,6 +170,17 @@ export default function DocumentsPage() {
             Upload Document
           </button>
         }
+      />
+
+      <SearchFilterBar
+        search={search}
+        onSearchChange={(value: string) => {
+          setSearch(value)
+          setPage(1)
+        }}
+        placeholder="Search by document name or type"
+        filters={<></>}
+        actions={null}
       />
 
       {message ? <p className="text-sm text-gray-600">{message}</p> : null}

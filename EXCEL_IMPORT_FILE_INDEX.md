@@ -8,6 +8,8 @@
 
 # Excel Import Module - Complete File Structure & Navigation Guide
 
+> **Stable UI (July 2026):** Production import/export UX is `InventoryImportExportPage.tsx` inside the `/inventory` tab shell. See **[INVENTORY_UI_STABLE.md](./INVENTORY_UI_STABLE.md)** for tokens, dark mode, notifications, loaders, and post-import flow.
+
 ## 📋 Quick Navigation Matrix
 
 | Category | File | Size | Purpose | Status |
@@ -21,7 +23,9 @@
 | **Upload API** | [src/app/api/inventory/import/upload/route.ts](src/app/api/inventory/import/upload/route.ts) | — | File parsing | ⚠️ Needs integration |
 | **Validate API** | [src/app/api/inventory/import/validate/route.ts](src/app/api/inventory/import/validate/route.ts) | — | Row validation | ⚠️ Needs integration |
 | **Confirm API** | [src/app/api/inventory/import/confirm/route.ts](src/app/api/inventory/import/confirm/route.ts) | — | Transaction commit | ⚠️ Needs error handling |
-| **Import UI** | [src/modules/inventory/InventoryImportPage.tsx](src/modules/inventory/InventoryImportPage.tsx) | 600 lines | Full import workflow UI | ✅ Complete |
+| **Import UI (stable)** | [src/modules/inventory/InventoryImportExportPage.tsx](src/modules/inventory/InventoryImportExportPage.tsx) | — | Unified import + export wizard | ✅ Stable |
+| **Import UI (legacy)** | [src/modules/inventory/InventoryImportPage.tsx](src/modules/inventory/InventoryImportPage.tsx) | 600 lines | Legacy import workflow | ⚠️ Legacy |
+| **Spares (post-import)** | [src/modules/inventory/spares/SparePartsPage.tsx](src/modules/inventory/spares/SparePartsPage.tsx) | — | Success toast + row highlights | ✅ Stable |
 | **Availability UI** | [src/modules/inventory/SystemAvailabilityDashboard.tsx](src/modules/inventory/SystemAvailabilityDashboard.tsx) | 400 lines | Impact visualization | ✅ Complete |
 
 ## 📚 Documentation Files (Comprehensive Guides)

@@ -1,8 +1,9 @@
 'use client'
 
 import { memo, useMemo } from 'react'
-import Select, { MultiValue, StylesConfig } from 'react-select'
+import Select, { MultiValue } from 'react-select'
 import makeAnimated from 'react-select/animated'
+import { createInventoryMultiSelectStyles } from './inventorySelectStyles'
 
 type MultiSelectDropdownProps = {
   label: string
@@ -20,40 +21,7 @@ type SelectOption = {
 
 const SELECT_ALL_VALUE = '__ALL__'
 const animatedComponents = makeAnimated()
-
-const selectStyles: StylesConfig<SelectOption, true> = {
-  control: (base, state) => ({
-    ...base,
-    minHeight: 44,
-    borderRadius: 12,
-    backgroundColor: 'var(--sf-card-bg)',
-    color: 'var(--sf-text)',
-    borderColor: state.isFocused ? 'var(--sf-primary-start)' : 'var(--sf-card-border)',
-    boxShadow: state.isFocused ? 'var(--sf-focus-glow)' : 'none',
-    '&:hover': { borderColor: 'var(--sf-card-border)' }
-  }),
-  menu: (base) => ({
-    ...base,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: 'var(--sf-card-bg)',
-    border: '1px solid var(--sf-card-border)',
-    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.18)'
-  }),
-  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-  menuList: (base) => ({ ...base, maxHeight: 240, backgroundColor: 'var(--sf-card-bg)' }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isFocused ? 'var(--sf-hover-soft)' : 'var(--sf-card-bg)',
-    color: 'var(--sf-text)'
-  }),
-  input: (base) => ({ ...base, color: 'var(--sf-text)' }),
-  singleValue: (base) => ({ ...base, color: 'var(--sf-text)' }),
-  placeholder: (base) => ({ ...base, color: 'var(--sf-muted-text)' }),
-  multiValue: (base) => ({ ...base, borderRadius: 9999, backgroundColor: 'var(--sf-hover-soft)' }),
-  multiValueLabel: (base) => ({ ...base, color: 'var(--sf-text)', fontWeight: 500 }),
-  multiValueRemove: (base) => ({ ...base, color: 'var(--sf-text)', ':hover': { backgroundColor: 'var(--sf-hover-soft)', color: 'var(--sf-text)' } })
-}
+const selectStyles = createInventoryMultiSelectStyles(44)
 
 function MultiSelectDropdownComponent({
   label,
@@ -89,12 +57,12 @@ function MultiSelectDropdownComponent({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-slate-700">{label}</label>
+        <label className="text-sm font-medium text-[var(--inv-text)]">{label}</label>
         {selected.length > 0 && (
           <button
             type="button"
             onClick={() => onChange([])}
-            className="text-xs font-medium text-slate-500 hover:text-slate-700"
+            className="text-xs font-medium text-[var(--inv-secondary)] hover:text-[var(--inv-text)]"
           >
             Clear All
           </button>
@@ -113,8 +81,9 @@ function MultiSelectDropdownComponent({
         onChange={handleChange}
         placeholder={placeholder}
         styles={selectStyles}
+        classNamePrefix="inv-select"
       />
-      {helperText ? <p className="text-xs text-slate-500">{helperText}</p> : null}
+      {helperText ? <p className="text-xs text-[var(--inv-secondary)]">{helperText}</p> : null}
     </div>
   )
 }

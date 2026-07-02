@@ -2,9 +2,9 @@
 
 import { Bell, Menu, Moon, Sun } from "lucide-react"
 import Image from "next/image"
-import { useEffect, useState } from "react"
 import UserDropdown from "@/components/ui/UserDropdown"
-import { supabase } from "@/lib/supabaseClient"
+import { getInitials, withAvatarCacheBust } from "@/lib/avatarUtils"
+import { useAuthContext } from "@/contexts/AuthContext"
 import { toggleTheme } from "@/lib/theme"
 
 type HeaderProps = {
@@ -12,36 +12,11 @@ type HeaderProps = {
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  const [userName, setUserName] = useState("Admin")
-  const [userAvatar, setUserAvatar] = useState<string | null>(null)
+  const { profile } = useAuthContext()
 
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const { data: authData } = await supabase.auth.getUser()
-        if (!authData?.user) return
-
-        const { data: profileData } = await supabase
-          .from("users")
-          .select("full_name, name, avatar_url")
-          .eq("auth_user_id", authData.user.id)
-          .single()
-
-        if (profileData) {
-          const profile = profileData as { full_name?: string; name?: string; avatar_url?: string }
-          const fullName = profile.full_name || profile.name || authData.user.email || "User"
-          setUserName(fullName)
-          if (profile.avatar_url) {
-            setUserAvatar(profile.avatar_url)
-          }
-        }
-      } catch (error) {
-        console.error("Error loading user:", error)
-      }
-    }
-
-    void loadUser()
-  }, [])
+  const userName = profile?.fullName || profile?.email || "User"
+  const userAvatar = withAvatarCacheBust(profile?.avatarUrl, profile?.updatedAt)
+  const initials = getInitials(userName)
 
   return (
     <header
@@ -91,7 +66,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </button>
 
           <div className="relative">
-            <UserDropdown name={userName} avatar={userAvatar} />
+            <UserDropdown name={userName} avatar={userAvatar} initials={initials} />
           </div>
         </div>
       </div>

@@ -1,6 +1,8 @@
 "use client"
 
+import { Settings } from "lucide-react"
 import { useEffect, useState } from "react"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import { useRouter } from "next/navigation"
 import { getOrganizationSettings, updateOrganizationSettings } from "../../services/settingsService"
 import { supabase } from "@/lib/supabaseClient"
@@ -120,10 +122,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold text-gray-900">Settings</h2>
-        <p className="mt-1 text-sm text-gray-600">Manage organization profile and preferences.</p>
-      </section>
+      <ModulePageHeader title="Settings" icon={Settings} />
 
       <form onSubmit={saveSettings} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

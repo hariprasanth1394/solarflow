@@ -1,7 +1,9 @@
 "use client"
 
 import RoleGate from "@/components/auth/RoleGate"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import { listManagedUsers, type ManagedUser } from "@/services/userService"
+import { Users } from "lucide-react"
 import { useEffect, useState } from "react"
 
 export default function UsersSettingsPage() {
@@ -18,13 +20,8 @@ export default function UsersSettingsPage() {
 
   return (
     <RoleGate minimumRole="SUPER_ADMIN" fallback={<p className="text-sm text-slate-500">Only Super Admins can manage users.</p>}>
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-xl font-semibold text-[var(--sf-text)]">User Management</h1>
-          <p className="mt-1 text-sm text-[var(--sf-muted-text)]">
-            Provision users before they sign in with Google. No self-registration is allowed.
-          </p>
-        </div>
+      <div className="space-y-5">
+        <ModulePageHeader title="User Management" icon={Users} />
 
         {error ? <p className="text-sm text-rose-600">{error}</p> : null}
 

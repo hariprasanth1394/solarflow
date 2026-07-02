@@ -1,6 +1,8 @@
 "use client"
 
+import { Sun } from "lucide-react"
 import { useState } from "react"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import EstimatorForm from "./EstimatorForm"
 import EstimatorResult from "./EstimatorResult"
 
@@ -48,10 +50,7 @@ export default function SolarEstimatorPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold text-gray-900">AI Solar Installation Estimator</h2>
-        <p className="mt-1 text-sm text-gray-600">Estimate capacity, generation, savings and ROI for customer installations.</p>
-      </section>
+      <ModulePageHeader title="Solar Estimator" icon={Sun} />
       <EstimatorForm values={values} onChange={setValues} onSubmit={calculate} />
       <EstimatorResult result={result} />
     </div>

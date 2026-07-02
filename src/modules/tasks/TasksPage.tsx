@@ -1,6 +1,8 @@
 "use client"
 
+import { ClipboardList } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import SearchFilterBar from "../../components/forms/SearchFilterBar"
 import AddTaskModal from "./AddTaskModal"
 import TaskTable from "./TaskTable"
@@ -99,10 +101,20 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold text-gray-900">Tasks</h2>
-        <p className="mt-1 text-sm text-gray-600">Create, assign and track task delivery.</p>
-      </section>
+      <ModulePageHeader
+        title="Tasks"
+        icon={ClipboardList}
+        actions={
+          <button
+            type="button"
+            disabled={actionInProgress}
+            onClick={() => setModalOpen(true)}
+            className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+          >
+            Add Task
+          </button>
+        }
+      />
 
       <SearchFilterBar
         search={search}
@@ -127,16 +139,7 @@ export default function TasksPage() {
             <option>Cancelled</option>
           </select>
         }
-        actions={
-          <button
-            type="button"
-            disabled={actionInProgress}
-            onClick={() => setModalOpen(true)}
-            className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
-          >
-            Add Task
-          </button>
-        }
+        actions={null}
       />
 
       {errorMessage ? <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</p> : null}

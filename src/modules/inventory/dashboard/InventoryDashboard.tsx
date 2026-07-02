@@ -1,28 +1,31 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { AlertTriangle, ChevronRight, Coins, Layers, Package } from "lucide-react"
 import {
   getInventoryDashboardMetrics,
-  getInventorySpareSummary,
-  type InventorySpareSummaryRow
+  getSystemAvailability,
 } from "../../../services/inventoryService"
+import { getSpares } from "../../../services/spareService"
 import { formatDateUTC } from "../../../utils/dateFormat"
 import InventoryPageShell from "../components/InventoryPageShell"
-import {
-  inventorySectionCardClass,
-  inventoryTableCellClass,
-  inventoryTableClass,
-  inventoryTableHeaderCellClass,
-  inventoryTableHeaderRowClass,
-  inventoryTableRowClass,
-  inventoryTableWrapperClass,
-} from "../components/inventoryTableStyles"
+import InventoryStatCard from "../components/InventoryStatCard"
+import OperationsHistoryTable from "../components/OperationsHistoryTable"
 
 type DashboardMetrics = {
   totalSpareParts: number
   availableSystems: number
   reservedSystems: number
   lowStockItems: number
+  totalSystems: number
+}
+
+type AvailabilityRow = {
+  system_id: string
+  system_name: string
+  capacity_kw: number
+  available_systems: number
 }
 
 const initialState: DashboardMetrics = {
@@ -30,124 +33,139 @@ const initialState: DashboardMetrics = {
   availableSystems: 0,
   reservedSystems: 0,
   lowStockItems: 0,
+  totalSystems: 0,
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+function buildTone(count: number) {
+  if (count === 0) return "danger" as const
+  if (count < 5) return "warning" as const
+  return "success" as const
 }
 
 export default function InventoryDashboard() {
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [metrics, setMetrics] = useState<DashboardMetrics>(initialState)
-  const [rows, setRows] = useState<InventorySpareSummaryRow[]>([])
+  const [availability, setAvailability] = useState<AvailabilityRow[]>([])
+  const [inventoryValue, setInventoryValue] = useState(0)
 
   useEffect(() => {
     const run = async () => {
       setLoading(true)
-      const [metricsRes, summaryRes] = await Promise.all([getInventoryDashboardMetrics(), getInventorySpareSummary()])
+      const [metricsRes, availabilityRes, sparesRes] = await Promise.all([
+        getInventoryDashboardMetrics(),
+        getSystemAvailability(),
+        getSpares({ page: 1, pageSize: 100 }),
+      ])
 
-      if (metricsRes.data) {
-        setMetrics(metricsRes.data as DashboardMetrics)
-      }
+      if (metricsRes.data) setMetrics(metricsRes.data as DashboardMetrics)
+      setAvailability((availabilityRes.data as AvailabilityRow[]) ?? [])
 
-      setRows((summaryRes.data ?? []) as InventorySpareSummaryRow[])
+      const spares = (sparesRes.data ?? []) as Array<{ stock_quantity?: number; cost_price?: number }>
+      setInventoryValue(
+        spares.reduce((sum, spare) => sum + Number(spare.stock_quantity ?? 0) * Number(spare.cost_price ?? 0), 0)
+      )
       setLoading(false)
     }
     void run()
   }, [])
 
-  const lowCoverageRows = [...rows]
-    .sort((a, b) => a.available - b.available)
-    .slice(0, 8)
-
-  const riskRate = metrics.totalSpareParts > 0
-    ? Math.round((metrics.lowStockItems / metrics.totalSpareParts) * 100)
-    : 0
+  const buildCapabilityRows = useMemo(
+    () => [...availability].sort((a, b) => b.available_systems - a.available_systems).slice(0, 5),
+    [availability]
+  )
 
   return (
-    <InventoryPageShell
-      title="Overview"
-      subtitle="Monitor inventory health, buildable systems, and the spare parts most likely to block upcoming work."
-    >
-      {loading ? <p className="text-sm text-slate-500">Loading dashboard...</p> : null}
-
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
-          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Total spare parts</p>
-          <p className="text-[28px] font-semibold leading-[1.2] text-slate-900">{metrics.totalSpareParts}</p>
-        </div>
-        <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
-          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Buildable systems</p>
-          <p className="text-[28px] font-semibold leading-[1.2] text-slate-900">{metrics.availableSystems}</p>
-        </div>
-        <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
-          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Low-stock items</p>
-          <p className="text-[28px] font-semibold leading-[1.2] text-slate-900">{metrics.lowStockItems}</p>
-        </div>
-        <div className={`${inventorySectionCardClass} flex min-h-[112px] flex-col justify-between`}>
-          <p className="text-[12px] font-medium uppercase tracking-[0.04em] text-slate-500">Low-stock risk</p>
-          <div>
-            <p className="text-[28px] font-semibold leading-[1.2] text-slate-900">{riskRate}%</p>
-            <p className="mt-1 text-[12px] text-slate-500">Reserved systems: {metrics.reservedSystems}</p>
-          </div>
-        </div>
+    <InventoryPageShell contentOnly>
+      <div className="inv-stat-grid">
+        <InventoryStatCard label="Total SKUs" value={metrics.totalSpareParts} icon={Package} loading={loading} />
+        <InventoryStatCard
+          label="Low Stock"
+          value={metrics.lowStockItems}
+          icon={AlertTriangle}
+          tone="warning"
+          loading={loading}
+        />
+        <InventoryStatCard
+          label="Inventory Value"
+          value={formatCurrency(inventoryValue)}
+          icon={Coins}
+          tone="blue"
+          loading={loading}
+        />
+        <InventoryStatCard
+          label="System Library"
+          value={metrics.totalSystems}
+          icon={Layers}
+          tone="accent"
+          loading={loading}
+        />
       </div>
 
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-slate-900">Priority insights</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">Spares with the lowest available quantities appear first.</p>
-        </div>
+      <div className="inv-dashboard-panels">
+        <section className="inv-panel-card inv-elevated-card">
+          <header className="inv-panel-card-header">
+            <div>
+              <h2 className="inv-section-title">Build capability</h2>
+              <p className="inv-section-subtitle">Top systems you can deliver right now</p>
+            </div>
+            <Link href="/inventory?tab=availability" className="inv-link-action">
+              See full availability
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </header>
 
-        <div className={`hidden md:block ${inventoryTableWrapperClass}`}>
-          <div className="overflow-x-auto">
-            <table className={`${inventoryTableClass} text-left`}>
-              <thead>
-                <tr className={inventoryTableHeaderRowClass}>
-                  <th className={inventoryTableHeaderCellClass}>Spare Name</th>
-                  <th className={inventoryTableHeaderCellClass}>Category</th>
-                  <th className={`${inventoryTableHeaderCellClass} text-right`}>Available</th>
-                  <th className={`${inventoryTableHeaderCellClass} text-right`}>Reserved</th>
-                  <th className={`${inventoryTableHeaderCellClass} text-right`}>Consumed</th>
-                  <th className={inventoryTableHeaderCellClass}>Last Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lowCoverageRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
-                      No inventory data found.
-                    </td>
-                  </tr>
-                ) : (
-                  lowCoverageRows.map((row) => (
-                    <tr key={row.id} className={inventoryTableRowClass}>
-                      <td className={`${inventoryTableCellClass} font-medium text-slate-900`}>{row.spareName}</td>
-                      <td className={inventoryTableCellClass}>{row.category}</td>
-                      <td className={`${inventoryTableCellClass} text-right tabular-nums`}>{row.available}</td>
-                      <td className={`${inventoryTableCellClass} text-right tabular-nums`}>{row.reserved}</td>
-                      <td className={`${inventoryTableCellClass} text-right tabular-nums`}>{row.consumed}</td>
-                      <td className={inventoryTableCellClass}>{formatDateUTC(row.lastUpdated)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="inv-build-list">
+            {loading ? (
+              <div className="inv-skeleton inv-skeleton--block" />
+            ) : buildCapabilityRows.length === 0 ? (
+              <p className="text-sm text-[var(--inv-secondary)]">No build data yet.</p>
+            ) : (
+              buildCapabilityRows.map((row) => {
+                const tone = buildTone(row.available_systems)
+                return (
+                  <article key={row.system_id} className="inv-build-row">
+                    <div className="inv-build-row-copy">
+                      <p className="inv-build-row-title">{row.system_name}</p>
+                      <p className="inv-build-row-meta">{row.capacity_kw} kW</p>
+                      <div className="inv-progress inv-progress--sm">
+                        <div
+                          className={
+                            row.available_systems === 0
+                              ? "inv-progress-bar inv-progress-bar--danger"
+                              : "inv-progress-bar"
+                          }
+                          style={{ width: `${Math.min(100, row.available_systems * 10)}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className={`inv-build-count inv-build-count--${tone}`}>
+                      {row.available_systems} units
+                    </span>
+                  </article>
+                )
+              })
+            )}
           </div>
-        </div>
+        </section>
 
-        <div className="space-y-3 md:hidden">
-          {lowCoverageRows.length === 0 ? <p className="text-sm text-slate-500">No inventory data found.</p> : null}
-          {lowCoverageRows.map((row) => (
-            <article key={row.id} className={inventorySectionCardClass}>
-              <p className="text-sm font-medium text-slate-900">{row.spareName}</p>
-              <p className="mt-1 text-xs text-slate-600">Category: {row.category}</p>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-slate-700">
-                <span>Available: {row.available}</span>
-                <span>Reserved: {row.reserved}</span>
-                <span>Consumed: {row.consumed}</span>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">Updated: {formatDateUTC(row.lastUpdated)}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+        <section className="inv-panel-card inv-elevated-card">
+          <header className="inv-panel-card-header">
+            <div>
+              <h2 className="inv-section-title">Recent operations</h2>
+              <p className="inv-section-subtitle">Last imports & exports</p>
+            </div>
+          </header>
+          <OperationsHistoryTable compact />
+        </section>
+      </div>
     </InventoryPageShell>
   )
 }

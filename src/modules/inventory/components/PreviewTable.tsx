@@ -1,14 +1,15 @@
-'use client'
+"use client"
 
+import { ArrowRight } from "lucide-react"
 import {
   inventoryTableCellClass,
   inventoryTableClass,
   inventoryTableHeaderCellClass,
   inventoryTableHeaderRowClass,
-  inventoryPagerButtonClass,
   inventoryTableRowClass,
   inventoryTableWrapperClass,
-} from './inventoryTableStyles'
+} from "./inventoryTableStyles"
+import InventoryTablePager from "./InventoryTablePager"
 
 type PreviewRow = {
   rowNumber: number
@@ -19,7 +20,7 @@ type PreviewRow = {
   currentStock: number
   importedStock: number
   difference: number
-  status: 'NEW' | 'UPDATE' | 'NO CHANGE' | 'ERROR'
+  status: "NEW" | "UPDATE" | "NO CHANGE" | "ERROR"
   errors: Array<{ column: string; message: string }>
   warnings: Array<{ column: string; message: string }>
   matchFound: boolean
@@ -31,39 +32,109 @@ type PreviewTableProps = {
   showOnlyChanged: boolean
   onToggleShowOnlyChanged: (next: boolean) => void
   page: number
-  totalPages: number
-  onPrevPage: () => void
-  onNextPage: () => void
-  onUpdateImportedStock: (index: number, value: string) => void
-  onUpdateAdjustmentReason?: (index: number, value: string) => void
+  pageSize: number
+  totalCount: number
+  onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
+  onUpdateImportedStock: (rowNumber: number, value: string) => void
+  onUpdateAdjustmentReason?: (rowNumber: number, value: string) => void
 }
 
 const ADJUSTMENT_REASONS = [
-  'Physical Count',
-  'Damage/Loss',
-  'Inventory Reconciliation',
-  'Supplier Return',
-  'Stock Adjustment',
-  'System Error Correction',
-  'Other'
+  "Physical Count",
+  "Damage/Loss",
+  "Inventory Reconciliation",
+  "Supplier Return",
+  "Stock Adjustment",
+  "System Error Correction",
+  "Other"
 ]
 
-function getDifferenceColor(difference: number): string {
-  if (difference > 0) return 'text-emerald-700'
-  if (difference < 0) return 'text-rose-700'
-  return 'text-slate-500'
+function getDifferenceTone(difference: number) {
+  if (difference > 0) return "inv-import-diff--up"
+  if (difference < 0) return "inv-import-diff--down"
+  return "inv-import-diff--neutral"
 }
 
-function getDifferenceBgColor(difference: number): string {
-  if (difference > 0) return 'bg-emerald-50'
-  if (difference < 0) return 'bg-rose-50'
-  return 'bg-slate-50'
+function StatusBadge({ row }: { row: PreviewRow }) {
+  if (row.status === "ERROR") {
+    return <span className="inv-import-status inv-import-status--danger"><span className="inv-import-status-dot" />Error</span>
+  }
+  if (row.status === "NEW") {
+    return <span className="inv-import-status inv-import-status--info"><span className="inv-import-status-dot" />New</span>
+  }
+  if (row.status === "UPDATE") {
+    return <span className="inv-import-status inv-import-status--success"><span className="inv-import-status-dot" />Update</span>
+  }
+  return <span className="inv-import-status inv-import-status--muted"><span className="inv-import-status-dot" />No change</span>
 }
 
-function getStatusLabel(difference: number): string {
-  if (difference > 0) return 'Stock Increased'
-  if (difference < 0) return 'Stock Reduced'
-  return 'No Change'
+function StockChangeFields({
+  row,
+  onUpdateImportedStock,
+  onUpdateAdjustmentReason
+}: {
+  row: PreviewRow
+  onUpdateImportedStock: (rowNumber: number, value: string) => void
+  onUpdateAdjustmentReason?: (rowNumber: number, value: string) => void
+}) {
+  const isError = row.status === "ERROR"
+  const showReason = row.status === "UPDATE" || row.status === "NEW"
+
+  return (
+    <div className="inv-import-preview-stock-grid">
+      <div className="inv-import-preview-stock-field">
+        <span className="inv-import-preview-field-label">Current</span>
+        <span className="inv-import-preview-field-value">{row.currentStock}</span>
+      </div>
+      <div className="inv-import-preview-stock-arrow" aria-hidden="true">
+        <ArrowRight className="h-4 w-4" />
+      </div>
+      <div className="inv-import-preview-stock-field">
+        <label className="inv-import-preview-field-label" htmlFor={`final-stock-${row.rowNumber}`}>
+          Final stock
+        </label>
+        <input
+          id={`final-stock-${row.rowNumber}`}
+          type="number"
+          value={row.importedStock}
+          onChange={(event) => onUpdateImportedStock(row.rowNumber, event.target.value)}
+          className="input inv-import-preview-stock-input"
+          disabled={isError}
+        />
+      </div>
+      <div className={`inv-import-diff ${getDifferenceTone(row.difference)}`}>
+        <span className="inv-import-diff-value">
+          {row.difference > 0 ? "+" : ""}
+          {row.difference}
+        </span>
+        <span className="inv-import-diff-label">
+          {row.difference > 0 ? "Increase" : row.difference < 0 ? "Decrease" : "No change"}
+        </span>
+      </div>
+      {showReason ? (
+        <div className="inv-import-preview-reason">
+          <label className="inv-import-preview-field-label" htmlFor={`reason-${row.rowNumber}`}>
+            Reason (optional)
+          </label>
+          <select
+            id={`reason-${row.rowNumber}`}
+            value={row.adjustmentReason || ""}
+            onChange={(event) => onUpdateAdjustmentReason?.(row.rowNumber, event.target.value)}
+            className="dropdown inv-import-preview-reason-select"
+            disabled={isError}
+          >
+            <option value="">Select reason</option>
+            {ADJUSTMENT_REASONS.map((reason) => (
+              <option key={reason} value={reason}>
+                {reason}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export default function PreviewTable({
@@ -71,128 +142,153 @@ export default function PreviewTable({
   showOnlyChanged,
   onToggleShowOnlyChanged,
   page,
-  totalPages,
-  onPrevPage,
-  onNextPage,
+  pageSize,
+  totalCount,
+  onPageChange,
+  onPageSizeChange,
   onUpdateImportedStock,
   onUpdateAdjustmentReason
 }: PreviewTableProps) {
-  const filteredRows = showOnlyChanged 
-    ? rows.filter(row => row.status === 'UPDATE' || row.status === 'NEW')
-    : rows
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={showOnlyChanged}
-            onChange={(event) => onToggleShowOnlyChanged(event.target.checked)}
-          />
-          Show only changed rows
-        </label>
-        <p className="text-xs text-slate-500">Page {page} / {totalPages}</p>
+    <div className="inv-import-preview">
+      <div className="inv-import-preview-toolbar">
+        <div className="inv-import-preview-filter" role="group" aria-label="Row filter">
+          <button
+            type="button"
+            className={`inv-import-preview-filter-btn ${showOnlyChanged ? "inv-import-preview-filter-btn--active" : ""}`}
+            onClick={() => onToggleShowOnlyChanged(true)}
+          >
+            Changed only
+          </button>
+          <button
+            type="button"
+            className={`inv-import-preview-filter-btn ${!showOnlyChanged ? "inv-import-preview-filter-btn--active" : ""}`}
+            onClick={() => onToggleShowOnlyChanged(false)}
+          >
+            All rows
+          </button>
+        </div>
+        <p className="inv-import-preview-count">
+          {totalCount} row{totalCount === 1 ? "" : "s"} in review
+        </p>
       </div>
 
-      <div className={inventoryTableWrapperClass}>
+      <div className="inv-import-preview-mobile">
+        {rows.length === 0 ? (
+          <div className="inv-import-preview-empty">No rows match the current filter.</div>
+        ) : (
+          rows.map((row) => (
+            <article
+              key={row.rowNumber}
+              className={`inv-import-preview-card inv-import-preview-card--${row.status.toLowerCase().replace(" ", "-")}`}
+            >
+              <div className="inv-import-preview-card-head">
+                <div className="min-w-0">
+                  <p className="inv-import-preview-code">{row.spareCode || "New spare"}</p>
+                  <p className="inv-import-preview-name">{row.itemName}</p>
+                  <p className="inv-import-preview-meta">
+                    {row.category}
+                    {row.unit ? ` · ${row.unit}` : ""}
+                  </p>
+                </div>
+                <StatusBadge row={row} />
+              </div>
+
+              {row.status === "ERROR" && row.errors.length > 0 ? (
+                <p className="inv-import-preview-error">
+                  {row.errors[0]?.column}: {row.errors[0]?.message}
+                </p>
+              ) : (
+                <StockChangeFields
+                  row={row}
+                  onUpdateImportedStock={onUpdateImportedStock}
+                  onUpdateAdjustmentReason={onUpdateAdjustmentReason}
+                />
+              )}
+            </article>
+          ))
+        )}
+      </div>
+
+      <div className={`${inventoryTableWrapperClass} inv-import-preview-desktop`}>
         <div className="overflow-x-auto">
           <table className={inventoryTableClass}>
             <thead>
               <tr className={inventoryTableHeaderRowClass}>
-                <th className={`${inventoryTableHeaderCellClass} text-left`}>Spare Code</th>
-                <th className={`${inventoryTableHeaderCellClass} text-left`}>Item Name</th>
-                <th className={`${inventoryTableHeaderCellClass} text-left`}>Category</th>
-                <th className={`${inventoryTableHeaderCellClass} text-center`}>Unit</th>
-                <th className={`${inventoryTableHeaderCellClass} text-right`}>Current Stock</th>
-                <th className={`${inventoryTableHeaderCellClass} text-right`}>Final Stock</th>
-                <th className={`${inventoryTableHeaderCellClass} text-center`}>Difference</th>
-                <th className={`${inventoryTableHeaderCellClass} text-left`}>Adjustment Reason</th>
+                <th className={`${inventoryTableHeaderCellClass} text-left`}>Spare</th>
+                <th className={`${inventoryTableHeaderCellClass} text-right`}>Current</th>
+                <th className={`${inventoryTableHeaderCellClass} text-right`}>Final</th>
+                <th className={`${inventoryTableHeaderCellClass} text-center`}>Change</th>
+                <th className={`${inventoryTableHeaderCellClass} text-left`}>Reason</th>
                 <th className={`${inventoryTableHeaderCellClass} text-left`}>Status</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((row, idx) => {
-                const isError = row.status === 'ERROR'
-                const isNew = row.status === 'NEW'
-                const isUpdate = row.status === 'UPDATE'
-                const rowStatusClass = isError
-                  ? 'bg-rose-50'
-                  : isNew
-                    ? 'bg-blue-50'
-                    : isUpdate
-                      ? getDifferenceBgColor(row.difference)
-                      : 'bg-slate-50'
+              {rows.map((row) => {
+                const isError = row.status === "ERROR"
+                const showReason = row.status === "UPDATE" || row.status === "NEW"
 
                 return (
-                  <tr key={`${row.rowNumber}-${idx}`} className={`${inventoryTableRowClass} ${rowStatusClass}`}>
+                  <tr key={row.rowNumber} className={inventoryTableRowClass}>
                     <td className={inventoryTableCellClass}>
-                      <p className="font-mono text-sm font-medium text-slate-900">{row.spareCode || 'Auto-generate'}</p>
-                    </td>
-                    <td className={inventoryTableCellClass}>
-                      <p className="text-sm font-medium text-slate-900">{row.itemName}</p>
-                    </td>
-                    <td className={inventoryTableCellClass}>
-                      <p className="text-sm text-slate-700">{row.category}</p>
-                    </td>
-                    <td className={`${inventoryTableCellClass} text-center`}>
-                      <p className="text-sm text-slate-700">{row.unit}</p>
+                      <p className="inv-import-preview-code">{row.spareCode || "Auto-generate"}</p>
+                      <p className="mt-0.5 text-sm inv-import-preview-name">{row.itemName}</p>
+                      <p className="mt-0.5 text-xs inv-import-preview-meta">
+                        {row.category}
+                        {row.unit ? ` · ${row.unit}` : ""}
+                      </p>
                     </td>
                     <td className={`${inventoryTableCellClass} text-right tabular-nums`}>
-                      <p className="text-sm text-slate-700">{row.currentStock}</p>
+                      {row.currentStock}
                     </td>
                     <td className={`${inventoryTableCellClass} text-right`}>
                       <input
                         type="number"
                         value={row.importedStock}
-                        onChange={(event) => onUpdateImportedStock(idx, event.target.value)}
-                        className="input h-10 w-24 text-right font-mono"
+                        onChange={(event) => onUpdateImportedStock(row.rowNumber, event.target.value)}
+                        className="input ml-auto h-10 w-24 text-right font-mono"
                         disabled={isError}
+                        aria-label={`Final stock for ${row.itemName}`}
                       />
                     </td>
                     <td className={`${inventoryTableCellClass} text-center`}>
-                      <div className={`font-mono font-bold text-sm ${getDifferenceColor(row.difference)}`}>
-                        {row.difference > 0 ? '+' : ''}{row.difference}
+                      <div className={`inv-import-diff inv-import-diff--inline ${getDifferenceTone(row.difference)}`}>
+                        <span className="inv-import-diff-value">
+                          {row.difference > 0 ? "+" : ""}
+                          {row.difference}
+                        </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">{getStatusLabel(row.difference)}</p>
                     </td>
                     <td className={inventoryTableCellClass}>
-                      <select
-                        value={row.adjustmentReason || ''}
-                        onChange={(event) => onUpdateAdjustmentReason?.(idx, event.target.value)}
-                        className="input h-10 text-sm"
-                        disabled={isError}
-                      >
-                        <option value="">Optional</option>
-                        {ADJUSTMENT_REASONS.map((reason) => (
-                          <option key={reason} value={reason}>{reason}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className={inventoryTableCellClass}>
-                      {isError ? (
-                        <div className="space-y-1">
-                          <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-rose-100 text-rose-700">
-                            ⚠ Error
-                          </span>
-                          {row.errors.length > 0 && (
-                            <p className="text-xs text-red-600">
-                              {row.errors[0]?.column}: {row.errors[0]?.message}
-                            </p>
-                          )}
-                        </div>
-                      ) : isNew ? (
-                        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700">
-                          ➕ New
-                        </span>
-                      ) : isUpdate ? (
-                        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-emerald-100 text-emerald-700">
-                          ✔ Update
-                        </span>
+                      {showReason ? (
+                        <select
+                          value={row.adjustmentReason || ""}
+                          onChange={(event) => onUpdateAdjustmentReason?.(row.rowNumber, event.target.value)}
+                          className="dropdown h-10 w-full max-w-[220px] text-sm"
+                          disabled={isError}
+                          aria-label={`Adjustment reason for ${row.itemName}`}
+                        >
+                          <option value="">Optional</option>
+                          {ADJUSTMENT_REASONS.map((reason) => (
+                            <option key={reason} value={reason}>
+                              {reason}
+                            </option>
+                          ))}
+                        </select>
                       ) : (
-                        <span className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-700">
-                          • No Change
-                        </span>
+                        <span className="text-sm inv-import-preview-meta">—</span>
+                      )}
+                    </td>
+                    <td className={inventoryTableCellClass}>
+                      {isError && row.errors.length > 0 ? (
+                        <div className="space-y-1">
+                          <StatusBadge row={row} />
+                          <p className="text-xs text-rose-600">
+                            {row.errors[0]?.column}: {row.errors[0]?.message}
+                          </p>
+                        </div>
+                      ) : (
+                        <StatusBadge row={row} />
                       )}
                     </td>
                   </tr>
@@ -203,24 +299,14 @@ export default function PreviewTable({
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onPrevPage}
-          disabled={page <= 1}
-          className={inventoryPagerButtonClass}
-        >
-          Previous
-        </button>
-        <button
-          type="button"
-          onClick={onNextPage}
-          disabled={page >= totalPages}
-          className={inventoryPagerButtonClass}
-        >
-          Next
-        </button>
-      </div>
+      <InventoryTablePager
+        page={page}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        itemLabel="rows"
+        onPageChange={onPageChange}
+        onPageSizeChange={onPageSizeChange}
+      />
     </div>
   )
 }

@@ -1,5 +1,15 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Inventory UI (stable reference)
+
+The current stable Inventory experience lives under `/inventory` and is documented in **[INVENTORY_UI_STABLE.md](./INVENTORY_UI_STABLE.md)**. That file covers:
+
+- Tab shell (`InventoryTabsPage`) and import/export workflow
+- Dark-mode tokens, notifications, loaders, and post-import success flow
+- Reusable inventory components and API touchpoints
+
+Use that document as the canonical steering reference when changing inventory UI.
+
 ## AI Context & Cursor Rules
 
 The following folders are **gitignored by default** so local AI edits do not show up in `git status` during normal development:

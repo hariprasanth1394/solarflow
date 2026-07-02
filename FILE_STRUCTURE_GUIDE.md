@@ -29,9 +29,17 @@ solarflow/
 │  │
 │  └─ modules/
 │     └─ inventory/
-│        ├─ InventoryImportPage.tsx ⭐ MAIN UI COMPONENT
-│        └─ SystemAvailabilityDashboard.tsx ⭐ IMPACT DISPLAY
+│        ├─ InventoryTabsPage.tsx ⭐ PRIMARY TAB SHELL (/inventory)
+│        ├─ InventoryImportExportPage.tsx ⭐ STABLE IMPORT/EXPORT UI
+│        ├─ spares/SparePartsPage.tsx ⭐ SPARES LIST + POST-IMPORT TOAST
+│        ├─ systems/SystemBuilderPage.tsx
+│        ├─ availability/SystemAvailabilityPage.tsx
+│        ├─ dashboard/InventoryDashboard.tsx
+│        ├─ components/ ⭐ SHARED INVENTORY UI (see INVENTORY_UI_STABLE.md)
+│        ├─ InventoryImportPage.tsx (legacy)
+│        └─ SystemAvailabilityDashboard.tsx (legacy impact display)
 │
+├─ INVENTORY_UI_STABLE.md ⭐ CANONICAL INVENTORY UI STEERING DOC
 ├─ EXCEL_IMPORT_MODULE.md ⭐ COMPLETE DOCUMENTATION
 ├─ EXCEL_IMPORT_SUMMARY.md ⭐ EXECUTIVE SUMMARY
 ├─ EXCEL_IMPORT_QUICK_REFERENCE.ts ⭐ QUICK LOOKUP
@@ -58,11 +66,15 @@ solarflow/
 - `confirm/route.ts` - Step 3: Process import
 
 #### **Frontend UI**
-- `InventoryImportPage.tsx` - Complete import workflow
-- `SystemAvailabilityDashboard.tsx` - Results visualization
+- `InventoryTabsPage.tsx` — Tab shell for all inventory sections
+- `InventoryImportExportPage.tsx` — **Stable** import + export workflow (primary)
+- `SparePartsPage.tsx` — Spares CRUD, pagination, import success toast
+- `components/` — Shared inventory UI (see `INVENTORY_UI_STABLE.md`)
+- `InventoryImportPage.tsx` — Legacy import workflow (do not extend unless migrating)
 
 #### **Documentation**
-- `EXCEL_IMPORT_MODULE.md` - Full technical docs
+- `INVENTORY_UI_STABLE.md` — Canonical stable inventory UI reference
+- `EXCEL_IMPORT_MODULE.md` — Full technical docs
 - `EXCEL_IMPORT_SUMMARY.md` - High-level overview
 - `EXCEL_IMPORT_QUICK_REFERENCE.ts` - Code examples & quick lookup
 
@@ -82,8 +94,12 @@ solarflow/
 ### "I need to modify validation rules"
 → Edit: `src/utils/excelImportParser.ts` (validateBusinessLogic function)
 
-### "I need to change the UI"
-→ Edit: `src/modules/inventory/InventoryImportPage.tsx`
+### "I need to change the inventory UI"
+→ Read: `INVENTORY_UI_STABLE.md` (design tokens, flows, components)  
+→ Edit: `src/modules/inventory/InventoryImportExportPage.tsx` and related `components/`
+
+### "I need to change the legacy import UI"
+→ Edit: `src/modules/inventory/InventoryImportPage.tsx` (legacy — prefer stable page above)
 
 ### "I need to understand API responses"
 → Check: `EXCEL_IMPORT_QUICK_REFERENCE.ts` (API_EXAMPLES) or `EXCEL_IMPORT_MODULE.md` (API Endpoints)
@@ -128,8 +144,9 @@ User Confirms
        ↓
 UI Displays Results
     ↓
-[InventoryImportPage.tsx] Shows completion
-[SystemAvailabilityDashboard.tsx] Shows impact
+[InventoryImportExportPage.tsx] Review + confirm (stable)
+[SparePartsPage.tsx] Success toast + highlighted rows after redirect
+[SystemAvailabilityDashboard.tsx] Legacy impact display
 ```
 
 ---

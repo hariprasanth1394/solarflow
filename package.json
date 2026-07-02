@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:spinner": "node scripts/verify-spinner-animation.mjs",
-    "db:push": "node scripts/db-push.js"
+    "db:push": "node scripts/db-push.js",
+    "setup:avatars": "node scripts/setup-avatars-bucket.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",

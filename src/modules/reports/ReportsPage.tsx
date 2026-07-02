@@ -1,6 +1,8 @@
 "use client"
 
+import { BarChart3 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import ModulePageHeader from "@/components/layout/ModulePageHeader"
 import { getCustomerReports, getInventoryReports, getTaskReports } from "../../services/reportService"
 import Loader from "../../components/ui/Loader"
 import LoadingButton from "../../components/ui/LoadingButton"
@@ -97,10 +99,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold text-gray-900">Reports</h2>
-        <p className="mt-1 text-sm text-gray-600">Customer, task and inventory reports with CSV export.</p>
-      </section>
+      <ModulePageHeader title="Reports" icon={BarChart3} />
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

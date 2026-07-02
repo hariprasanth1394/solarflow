@@ -1,10 +1,12 @@
 import {
+  deleteSystemById,
   deleteSystemComponentById,
   insertSystem,
   insertSystemComponent,
   querySparesForSystemBuilder,
   querySystemComponents,
-  querySystems
+  querySystems,
+  updateSystemById,
 } from "../repositories/systemRepository"
 import { Database } from "../types/database.types"
 import { logError, logInfo } from "../utils/logger"
@@ -39,6 +41,51 @@ export async function createSystem(payload: Omit<SystemInsert, "organization_id"
       return { data, error }
     } catch (error) {
       logError("System create failed", error, { service: "systemService", organizationId })
+      throw new Error("Operation failed")
+    }
+  })
+}
+
+export async function updateSystem(
+  systemId: string,
+  payload: { system_name: string; capacity_kw: number; price: number | null }
+) {
+  assertValidUUID(systemId, "systemId")
+
+  if (!payload.system_name.trim() || Number.isNaN(Number(payload.capacity_kw))) {
+    throw new Error("Operation failed")
+  }
+
+  if (payload.price != null && (Number.isNaN(Number(payload.price)) || Number(payload.price) < 0)) {
+    throw new Error("Operation failed")
+  }
+
+  return withOrganizationContext(async (organizationId) => {
+    try {
+      const { data, error } = await updateSystemById(organizationId, systemId, {
+        system_name: payload.system_name.trim(),
+        capacity_kw: Number(payload.capacity_kw),
+        price: payload.price == null ? null : Number(payload.price),
+      })
+      logInfo("System updated", { service: "systemService", organizationId, systemId })
+      return { data, error }
+    } catch (error) {
+      logError("System update failed", error, { service: "systemService", organizationId, systemId })
+      throw new Error("Operation failed")
+    }
+  })
+}
+
+export async function deleteSystem(systemId: string) {
+  assertValidUUID(systemId, "systemId")
+
+  return withOrganizationContext(async (organizationId) => {
+    try {
+      const { error } = await deleteSystemById(organizationId, systemId)
+      logInfo("System deleted", { service: "systemService", organizationId, systemId })
+      return { error }
+    } catch (error) {
+      logError("System delete failed", error, { service: "systemService", organizationId, systemId })
       throw new Error("Operation failed")
     }
   })

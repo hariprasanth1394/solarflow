@@ -7,9 +7,11 @@ type FileUploadDropzoneProps = {
   uploading: boolean
   fileName: string
   onFileSelect: (file: File | null) => void
+  compact?: boolean
+  premium?: boolean
 }
 
-export default function FileUploadDropzone({ uploading, fileName, onFileSelect }: FileUploadDropzoneProps) {
+export default function FileUploadDropzone({ uploading, fileName, onFileSelect, compact = false, premium = false }: FileUploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
 
@@ -29,35 +31,43 @@ export default function FileUploadDropzone({ uploading, fileName, onFileSelect }
         const file = event.dataTransfer.files?.[0] || null
         onFileSelect(file)
       }}
-      className={`card border-2 border-dashed p-8 text-center transition ${dragging ? 'border-blue-500 bg-blue-50' : 'border-slate-300'}`}
+      onClick={() => inputRef.current?.click()}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          inputRef.current?.click()
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      className={`inv-dropzone ${compact ? 'inv-dropzone--compact' : ''} ${premium ? 'inv-dropzone--premium' : ''} ${dragging ? 'inv-dropzone--dragging' : ''} ${fileName ? 'inv-dropzone--has-file' : ''}`}
     >
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm">
-        <UploadCloud className="h-6 w-6 text-blue-600" />
-      </div>
-
-      <p className="text-sm font-medium text-slate-900">Drag & drop your Excel file here</p>
-      <p className="mt-1 text-xs text-slate-600">Supported format: .xlsx</p>
-
-      <button type="button" onClick={() => inputRef.current?.click()} className="btn btn-primary mt-4">
-        Browse file
-      </button>
+      {premium ? (
+        <span className="inv-dropzone-icon-wrap" aria-hidden="true">
+          <UploadCloud className="inv-dropzone-icon" aria-hidden="true" />
+        </span>
+      ) : (
+        <UploadCloud className="inv-dropzone-icon" aria-hidden="true" />
+      )}
+      <p className="inv-dropzone-title">{fileName ? 'Replace file or drop a new one' : 'Drop file or click to browse'}</p>
+      <p className="inv-dropzone-meta">CSV, XLSX up to 25 MB</p>
 
       <input
         ref={inputRef}
         type="file"
-        accept=".xlsx"
+        accept=".csv,.xlsx,.xls"
         className="hidden"
         onChange={(event) => onFileSelect(event.target.files?.[0] || null)}
       />
 
-      {fileName && (
-        <div className="card mx-auto mt-4 flex max-w-md items-center justify-center gap-2 px-3 py-2 text-sm text-slate-700">
-          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+      {fileName ? (
+        <div className="inv-dropzone-file">
+          <FileSpreadsheet className="inv-dropzone-file-icon" aria-hidden="true" />
           <span className="truncate">{fileName}</span>
         </div>
-      )}
+      ) : null}
 
-      {uploading && <p className="mt-3 text-xs text-slate-500">Validating file...</p>}
+      {uploading ? <p className="inv-dropzone-meta">Validating file...</p> : null}
     </div>
   )
 }

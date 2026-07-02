@@ -12,6 +12,7 @@ type RawProfile = {
   id?: string
   auth_user_id?: string | null
   organization_id?: string
+  organization_name?: string | null
   email?: string
   full_name?: string | null
   role?: string
@@ -19,6 +20,8 @@ type RawProfile = {
   is_active?: boolean
   avatar_url?: string | null
   last_login_at?: string | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 type ValidateRpcResult = {
@@ -40,6 +43,7 @@ function mapProfile(raw: RawProfile, customPermissions: PermissionKey[] = []): A
     id: raw.id,
     authUserId: raw.auth_user_id ?? null,
     organizationId: raw.organization_id,
+    organizationName: raw.organization_name ?? null,
     email: raw.email,
     fullName: raw.full_name ?? null,
     role,
@@ -47,6 +51,8 @@ function mapProfile(raw: RawProfile, customPermissions: PermissionKey[] = []): A
     isActive: raw.is_active !== false,
     avatarUrl: raw.avatar_url ?? null,
     lastLoginAt: raw.last_login_at ?? null,
+    createdAt: raw.created_at ?? null,
+    updatedAt: raw.updated_at ?? null,
     customPermissions,
   }
 }
