@@ -3525,7 +3525,10 @@ html.dark .inventory-module .inv-guide-rail--card,
 .dark .inventory-module .inv-guide-rail--card,
 html.theme-dark .inventory-module .inv-guide-rail--strip,
 html.dark .inventory-module .inv-guide-rail--strip,
-.dark .inventory-module .inv-guide-rail--strip {
+.dark .inventory-module .inv-guide-rail--strip,
+html.theme-dark .inventory-module .inv-guide-rail--guide,
+html.dark .inventory-module .inv-guide-rail--guide,
+.dark .inventory-module .inv-guide-rail--guide {
   background: color-mix(in srgb, var(--inv-border) 10%, var(--inv-card)) !important;
 }
 
@@ -3540,8 +3543,23 @@ html.dark .inventory-module .inv-guide-rail-strip-marker,
 
 html.theme-dark .inventory-module .inv-upload-rule,
 html.dark .inventory-module .inv-upload-rule,
-.dark .inventory-module .inv-upload-rule {
+.dark .inventory-module .inv-upload-rule,
+html.theme-dark .inventory-module .inv-import-note,
+html.dark .inventory-module .inv-import-note,
+.dark .inventory-module .inv-import-note {
   background: color-mix(in srgb, var(--inv-blue) 10%, var(--inv-card)) !important;
+}
+
+html.theme-dark .inventory-module .inv-guide-rail-guide-item,
+html.dark .inventory-module .inv-guide-rail-guide-item,
+.dark .inventory-module .inv-guide-rail-guide-item {
+  background: color-mix(in srgb, var(--inv-border) 8%, var(--inv-card)) !important;
+}
+
+html.theme-dark .inventory-module .inv-guide-rail-guide-item--active,
+html.dark .inventory-module .inv-guide-rail-guide-item--active,
+.dark .inventory-module .inv-guide-rail-guide-item--active {
+  background: color-mix(in srgb, var(--inv-blue) 12%, var(--inv-card)) !important;
 }
 
 html.theme-dark .inventory-module .inv-import-summary-item,
@@ -4215,6 +4233,136 @@ html.dark .inventory-module .inv-import-preview-reason-select.dropdown,
   height: 14px;
   margin-left: auto;
   color: var(--inv-secondary);
+}
+
+/* Import guide — icon steps (upload page) */
+.inv-guide-rail--guide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inv-guide-rail-guide-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 10px 12px;
+  align-items: start;
+  padding: 14px 14px 16px;
+  border: 1px solid var(--inv-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--inv-border) 6%, var(--inv-card));
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.inv-guide-rail-guide-item--active {
+  border-color: color-mix(in srgb, var(--inv-blue) 35%, var(--inv-border));
+  background: color-mix(in srgb, var(--inv-blue) 8%, var(--inv-card));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--inv-blue) 12%, transparent);
+}
+
+.inv-guide-rail-guide-item--done {
+  opacity: 0.88;
+}
+
+.inv-guide-rail-guide-index {
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--inv-border);
+  background: var(--inv-elevated);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--inv-secondary);
+}
+
+.inv-guide-rail-guide-item--active .inv-guide-rail-guide-index {
+  border-color: var(--inv-blue);
+  background: var(--inv-blue);
+  color: #ffffff;
+}
+
+.inv-guide-rail-guide-icon {
+  grid-row: 1 / span 2;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--inv-blue) 22%, var(--inv-border));
+  background: color-mix(in srgb, var(--inv-blue) 8%, var(--inv-card));
+  color: var(--inv-blue);
+}
+
+.inv-guide-rail-guide-item--active .inv-guide-rail-guide-icon {
+  border-color: color-mix(in srgb, var(--inv-blue) 40%, var(--inv-border));
+  background: color-mix(in srgb, var(--inv-blue) 16%, var(--inv-card));
+}
+
+.inv-guide-rail-guide-copy {
+  min-width: 0;
+  align-self: center;
+}
+
+.inv-guide-rail-guide-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--inv-text);
+}
+
+.inv-guide-rail-guide-detail {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--inv-secondary);
+}
+
+.inv-import-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--inv-blue) 28%, var(--inv-border));
+  border-left-width: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--inv-blue) 7%, var(--inv-card));
+}
+
+.inv-import-note-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--inv-blue);
+}
+
+.inv-import-note-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--inv-secondary);
+}
+
+.inv-import-note-text strong {
+  font-weight: 600;
+  color: var(--inv-text);
+}
+
+@media (max-width: 767px) {
+  .inv-guide-rail--guide {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 639px) {

@@ -15,7 +15,7 @@ import InventoryActionCard from './components/InventoryActionCard'
 import OperationsHistoryTable from './components/OperationsHistoryTable'
 import NotificationHost from '@/components/ui/NotificationHost'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
-import { Download, FileSpreadsheet, RotateCcw, Upload } from 'lucide-react'
+import { Download, FileSpreadsheet, Info, RotateCcw, Upload } from 'lucide-react'
 import { persistInventoryImportSuccess } from '@/lib/inventoryImportSuccess'
 import { makeSpareCodeKey } from '@/lib/inventoryImportNormalize'
 
@@ -25,18 +25,18 @@ const MultiSelectDropdown = dynamic(() => import('./components/MultiSelectDropdo
 
 const IMPORT_STEPS = [
   {
-    title: 'Export snapshot',
-    detail: 'Download the current spares list.',
+    title: 'Export template',
+    detail: 'Download your spare parts list as Excel.',
     icon: Download,
   },
   {
     title: 'Edit Final Stock',
-    detail: 'Update quantities only.',
+    detail: 'Update quantities only — spare codes must stay the same.',
     icon: FileSpreadsheet,
   },
   {
-    title: 'Upload & confirm',
-    detail: 'Validate, review, then apply.',
+    title: 'Upload & validate',
+    detail: 'Upload the file below, review changes, then apply.',
     icon: Upload,
   },
 ] as const
@@ -263,7 +263,7 @@ export default function InventoryImportExportPage() {
   const steps = workflow === 'export'
     ? ['Filters', 'Download']
     : workflow === 'import'
-      ? ['Upload', 'Review']
+      ? ['Upload file', 'Review changes']
       : []
   const [exportSucceeded, setExportSucceeded] = useState(false)
 
@@ -710,14 +710,18 @@ export default function InventoryImportExportPage() {
               {!summary ? (
                 <>
                   <div className="inv-upload-stage">
-                    <div className="inv-upload-rule" role="note">
-                      <span className="inv-upload-rule-label">Rule</span>
-                      <p className="inv-upload-rule-text">
-                        Edit <strong>Final Stock</strong> only. Do not change Spare Code.
+                    <div className="inv-import-note" role="note">
+                      <Info className="inv-import-note-icon" aria-hidden="true" />
+                      <p className="inv-import-note-text">
+                        Only edit <strong>Final Stock</strong> in your file. Spare codes are locked and cannot be changed.
                       </p>
                     </div>
 
-                    <ImportGuideRail steps={[...IMPORT_STEPS]} variant="strip" />
+                    <ImportGuideRail
+                      steps={[...IMPORT_STEPS]}
+                      variant="guide"
+                      activeStepIndex={2}
+                    />
 
                     <div className="inv-upload-dropzone-wrap">
                       <FileUploadDropzone
