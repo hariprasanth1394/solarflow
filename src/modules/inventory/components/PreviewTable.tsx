@@ -34,6 +34,8 @@ type PreviewTableProps = {
   page: number
   pageSize: number
   totalCount: number
+  changedCount: number
+  allCount: number
   onPageChange: (page: number) => void
   onPageSizeChange: (pageSize: number) => void
   onUpdateImportedStock: (rowNumber: number, value: string) => void
@@ -144,6 +146,8 @@ export default function PreviewTable({
   page,
   pageSize,
   totalCount,
+  changedCount,
+  allCount,
   onPageChange,
   onPageSizeChange,
   onUpdateImportedStock,
@@ -152,24 +156,30 @@ export default function PreviewTable({
   return (
     <div className="inv-import-preview">
       <div className="inv-import-preview-toolbar">
-        <div className="inv-import-preview-filter" role="group" aria-label="Row filter">
+        <div className="inv-import-preview-filter" role="tablist" aria-label="Row filter">
           <button
             type="button"
+            role="tab"
+            aria-selected={showOnlyChanged}
             className={`inv-import-preview-filter-btn ${showOnlyChanged ? "inv-import-preview-filter-btn--active" : ""}`}
             onClick={() => onToggleShowOnlyChanged(true)}
           >
-            Changed only
+            <span>Changed</span>
+            <span className="inv-import-preview-filter-count">{changedCount}</span>
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={!showOnlyChanged}
             className={`inv-import-preview-filter-btn ${!showOnlyChanged ? "inv-import-preview-filter-btn--active" : ""}`}
             onClick={() => onToggleShowOnlyChanged(false)}
           >
-            All rows
+            <span>All rows</span>
+            <span className="inv-import-preview-filter-count">{allCount}</span>
           </button>
         </div>
         <p className="inv-import-preview-count">
-          {totalCount} row{totalCount === 1 ? "" : "s"} in review
+          Showing {totalCount} row{totalCount === 1 ? "" : "s"}
         </p>
       </div>
 

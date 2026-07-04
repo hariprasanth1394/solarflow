@@ -56,8 +56,18 @@ export default function FileUploadDropzone({ uploading, fileName, onFileSelect, 
         ref={inputRef}
         type="file"
         accept=".csv,.xlsx,.xls"
-        className="hidden"
-        onChange={(event) => onFileSelect(event.target.files?.[0] || null)}
+        // Off-screen (not display:none) + value reset on open so iOS Safari
+        // reliably fires onChange, including when re-picking the same file.
+        className="sr-only"
+        tabIndex={-1}
+        onClick={(event) => {
+          event.stopPropagation()
+          ;(event.currentTarget as HTMLInputElement).value = ""
+        }}
+        onChange={(event) => {
+          const file = event.target.files?.[0] || null
+          onFileSelect(file)
+        }}
       />
 
       {fileName ? (

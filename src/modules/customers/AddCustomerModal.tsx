@@ -6,6 +6,7 @@ import { CheckCircle2, ChevronRight, CreditCard, IndianRupee, Package, Sparkles,
 import ModalBusyOverlay from "../../components/ui/ModalBusyOverlay"
 import ModalPortal from "../../components/ui/ModalPortal"
 import type { AvailableSolarSystem } from "../../services/inventoryService"
+import { toast } from "@/lib/toastStore"
 
 type SalesRep = { id: string; name: string | null; email: string | null }
 
@@ -96,7 +97,6 @@ function CustomerModalForm({
   const [basePrice, setBasePrice] = useState<number | null>(null)
   const [finalPrice, setFinalPrice] = useState<number | null>(null)
   const [priceOverrideEnabled, setPriceOverrideEnabled] = useState(false)
-  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [step1Attempted, setStep1Attempted] = useState(false)
   const [step2Attempted, setStep2Attempted] = useState(false)
   const [finalStepReady, setFinalStepReady] = useState(false)
@@ -155,12 +155,6 @@ function CustomerModalForm({
       setForm((prev) => ({ ...prev, total_cost: null }))
     }
   }, [capacity, finalPrice, priceOverrideEnabled])
-
-  useEffect(() => {
-    if (!toastMessage) return
-    const timer = window.setTimeout(() => setToastMessage(null), 3200)
-    return () => window.clearTimeout(timer)
-  }, [toastMessage])
 
   const isDirty = useMemo(
     () => JSON.stringify(form) !== JSON.stringify(initialValue ?? emptyForm),
@@ -252,9 +246,8 @@ function CustomerModalForm({
         status: "Created",
       }
       await onSubmit(draftPayload)
-      setToastMessage("Draft saved successfully.")
     } catch {
-      setToastMessage("Unable to save draft. Please try again.")
+      toast.error("Draft not saved", "Please try again.")
     }
   }
 
@@ -274,10 +267,9 @@ function CustomerModalForm({
         phone: phoneDigits.length === 10 ? `+91${phoneDigits}` : form.phone,
       }
       await onSubmit(submitPayload)
-      setToastMessage("Installation created successfully.")
       window.setTimeout(() => onClose(), 600)
     } catch {
-      setToastMessage("Unable to create installation. Please try again.")
+      toast.error("Could not create customer", "Please try again.")
     }
   }
 
@@ -593,17 +585,6 @@ function CustomerModalForm({
               })}
             </ol>
           </section>
-
-          {toastMessage ? (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="sf-installation-wizard-toast mx-6 mb-3 rounded-xl px-4 py-2.5 text-[13px]"
-            >
-              {toastMessage}
-            </motion.div>
-          ) : null}
 
           <main className={`sf-installation-wizard-main sf-scroll-area px-6 pb-4 ${loading ? "sf-modal-body-busy" : ""}`}>
             <AnimatePresence mode="wait">

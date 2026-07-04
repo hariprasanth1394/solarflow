@@ -150,16 +150,16 @@ function SparePartsTable({
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-6 py-14 text-center">
-                  <div className="mx-auto max-w-sm space-y-2">
-                    <p className="text-base font-semibold text-slate-900">No spare parts found</p>
-                    <p className="text-sm text-slate-500">Try changing your filters or add a new spare to get started.</p>
+                  <div className="mx-auto flex max-w-sm flex-col items-center gap-1.5">
+                    <p className="text-base font-semibold text-slate-900">No spare parts found for this category.</p>
+                    <p className="text-sm text-slate-500">Try another filter or add a new spare.</p>
                     <button
                       type="button"
                       onClick={onAddSpare}
-                      className="btn btn-primary mx-auto"
+                      className="btn btn-primary mx-auto mt-3"
                     >
                       <Plus className="h-4 w-4" />
-                      Add spare
+                      Add Spare
                     </button>
                   </div>
                 </td>
@@ -286,7 +286,8 @@ function SparePartsTable({
           ))
         ) : rows.length === 0 ? (
           <div className="inv-mobile-spares-empty">
-            <p className="text-sm font-semibold text-slate-900">No spare parts found</p>
+            <p className="text-sm font-semibold text-slate-900">No spare parts found for this category.</p>
+            <p className="mt-1 text-[13px] text-slate-500">Try another filter or add a new spare.</p>
             <button type="button" onClick={onAddSpare} className="btn btn-primary inv-btn-page mx-auto mt-3">
               <Plus className="h-4 w-4" />
               Add Spare

@@ -14,6 +14,7 @@ import { getCustomerActivityLogs } from "@/services/activityLogService"
 import { getSystemAvailability } from "@/services/inventoryService"
 import { consumeReservedInventoryForInstallation } from "@/services/installationInventoryService"
 import { getPaymentsByInstallationId, createPaymentForInstallation, uploadPaymentProof } from "@/services/paymentService"
+import { toast } from "@/lib/toastStore"
 import WorkflowStageCard from "./workflow/WorkflowStageCard"
 import { iconForStage } from "./workflow/stageIcons"
 import FileDropInput from "./workflow/FileDropInput"
@@ -553,7 +554,6 @@ export default function CustomerDetailsPage() {
   const [modalError, setModalError] = useState("")
   const [modalRetryable, setModalRetryable] = useState(false)
   const [modalAttempted, setModalAttempted] = useState(false)
-  const [statusToast, setStatusToast] = useState("")
   const [statusChipPulse, setStatusChipPulse] = useState(false)
   const [actionProgressMessage, setActionProgressMessage] = useState("")
 
@@ -686,12 +686,6 @@ export default function CustomerDetailsPage() {
     const timer = window.setTimeout(() => setStatusChipPulse(false), 220)
     return () => window.clearTimeout(timer)
   }, [currentStage, loading])
-
-  useEffect(() => {
-    if (!statusToast) return
-    const timer = window.setTimeout(() => setStatusToast(""), 2200)
-    return () => window.clearTimeout(timer)
-  }, [statusToast])
 
   function headerStageBadge(stage: WorkflowStageKey) {
     if (stage === "CLOSURE") return "bg-emerald-50 text-emerald-700"
@@ -850,12 +844,12 @@ export default function CustomerDetailsPage() {
             ]),
           })
           await loadDetail()
-          setStatusToast("Balance cleared — project is ready for closure")
+          toast.success("Balance cleared", "Project is ready for closure.")
         } else {
-          setStatusToast("Payment recorded successfully")
+          toast.success("Payment recorded successfully")
         }
       } else {
-        setStatusToast("Payment recorded successfully")
+        toast.success("Payment recorded successfully")
       }
 
       closePaymentModal()
@@ -1049,7 +1043,7 @@ export default function CustomerDetailsPage() {
             }
           : prev
       )
-      setStatusToast("Status updated successfully")
+      toast.success("Status updated successfully")
     }
 
     try {
@@ -1073,7 +1067,7 @@ export default function CustomerDetailsPage() {
         )
         setActionProgressMessage("Updating...")
         applyLocalStage("Approval Submitted", "SUBMITTED")
-        setStatusToast("Approval submitted successfully")
+        toast.success("Approval submitted successfully")
       }
 
       if (modalState.action === "MARK_GOVERNMENT_APPROVED") {
@@ -1093,7 +1087,7 @@ export default function CustomerDetailsPage() {
         )
         setActionProgressMessage("Updating...")
         applyLocalStage("Government Approved", "APPROVED")
-        setStatusToast("Status updated successfully")
+        toast.success("Status updated successfully")
       }
 
       if (modalState.action === "START_INSTALLATION") {
@@ -1131,7 +1125,7 @@ export default function CustomerDetailsPage() {
           })
         )
         applyLocalStage("In Progress", "INSTALLATION")
-        setStatusToast("Status updated successfully")
+        toast.success("Status updated successfully")
 
         if (customer.system_id) {
           try {
@@ -1224,10 +1218,10 @@ export default function CustomerDetailsPage() {
             })
           )
           applyLocalStage("Completed", "INSTALLATION")
-          setStatusToast("Installation complete — project is ready for closure")
+          toast.success("Installation complete", "Project is ready for closure.")
         } else {
           applyLocalStage(initialStatus, "INSTALLATION")
-          setStatusToast(
+          toast.success(
             recordPaymentOnComplete && inlineInstallPaymentAmountValue > 0
               ? "Installation complete — partial payment recorded"
               : "Installation marked complete — payment pending"
@@ -1268,8 +1262,8 @@ export default function CustomerDetailsPage() {
             ]),
           })
         )
-        applyLocalStage("Completed", "CLOSED")
-        setStatusToast("Project closed successfully")
+          applyLocalStage("Completed", "CLOSED")
+          toast.success("Project closed successfully")
       }
 
       closeModal()
@@ -1293,12 +1287,6 @@ export default function CustomerDetailsPage() {
 
   return (
     <div className="w-full space-y-6">
-      {statusToast ? (
-        <div className="fixed right-5 top-5 z-50 flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 py-3 text-sm font-medium text-emerald-700 shadow-[0_12px_32px_rgba(15,23,42,0.14)]">
-          <Check className="h-4 w-4" />
-          {statusToast}
-        </div>
-      ) : null}
 
       <Link href="/customers" className="back-button">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -1361,20 +1349,23 @@ export default function CustomerDetailsPage() {
             </div>
 
             {/* Row 2: Summary strip */}
-            <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3 sm:gap-0">
+            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-slate-100 pt-4 sm:grid-cols-3 sm:gap-0">
               <div className="sm:pr-6">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">System Capacity</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{systemCapacity}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">System Capacity</p>
+                <div className="mt-1.5 flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                  <Zap className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden="true" />
+                  <span>{systemCapacity}</span>
+                </div>
               </div>
               <div className="sm:border-l sm:border-slate-100 sm:px-6">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Current Stage</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Current Stage</p>
+                <span className={`mt-1.5 inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${headerStageBadge(currentStage)}`}>
                   {stageDefinitions.find((s) => s.key === currentStage)?.title ?? customer.status}
-                </p>
+                </span>
               </div>
-              <div className="sm:border-l sm:border-slate-100 sm:px-6">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Created</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{formatDateTimeUTC(customer.created_at)}</p>
+              <div className="col-span-2 sm:col-span-1 sm:border-l sm:border-slate-100 sm:px-6">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Created</p>
+                <p className="mt-1.5 text-sm font-semibold text-slate-900">{formatDateTimeUTC(customer.created_at)}</p>
               </div>
             </div>
           </div>

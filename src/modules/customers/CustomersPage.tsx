@@ -8,6 +8,7 @@ import CustomerTable, { type CustomerRow } from "./CustomerTable"
 import Card from "@/components/ui/Card"
 import { createCustomer, deleteCustomer, getAssignableSalesReps, getCustomers, updateCustomer } from "../../services/customerService"
 import { getAvailableSolarSystems, type AvailableSolarSystem } from "../../services/inventoryService"
+import { toast } from "@/lib/toastStore"
 import {
   inventoryPageContainerClass,
   inventorySectionCardClass,
@@ -45,7 +46,6 @@ export default function CustomersPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<CustomerRow | null>(null)
   const [errorMessage, setErrorMessage] = useState("")
-  const [successMessage, setSuccessMessage] = useState("")
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pageSize)), [pageSize, totalCount])
 
@@ -181,10 +181,7 @@ export default function CustomersPage() {
 
       {/* ── Alerts ── */}
       {errorMessage ? (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{errorMessage}</p>
-      ) : null}
-      {successMessage ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{successMessage}</p>
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">{errorMessage}</p>
       ) : null}
 
       {/* ── Table ── */}
@@ -207,10 +204,12 @@ export default function CustomersPage() {
           setErrorMessage("")
           try {
             await deleteCustomer(id)
-            setSuccessMessage("Customer deleted successfully")
+            toast.success("Customer deleted", "The customer was removed successfully.")
             await fetchCustomers()
           } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : "Operation failed")
+            const message = error instanceof Error ? error.message : "Operation failed"
+            setErrorMessage(message)
+            toast.error("Delete failed", message)
           } finally {
             setDeletingId(null)
           }
@@ -237,16 +236,20 @@ export default function CustomersPage() {
 
               if (editing) {
                 await updateCustomer(editing.id, normalized)
-                setSuccessMessage("Customer updated successfully")
+                setModalOpen(false)
+                setEditing(null)
+                toast.success("Customer updated", "Changes were saved successfully.")
               } else {
                 await createCustomer(normalized)
-                setSuccessMessage("Customer added successfully")
+                setModalOpen(false)
+                setEditing(null)
+                toast.success("Customer added", "The new customer was created successfully.")
               }
-              setModalOpen(false)
-              setEditing(null)
               await fetchCustomers()
             } catch (error) {
-              setErrorMessage(error instanceof Error ? error.message : "Operation failed")
+              const message = error instanceof Error ? error.message : "Operation failed"
+              setErrorMessage(message)
+              toast.error("Save failed", message)
             } finally {
               setSaving(false)
             }

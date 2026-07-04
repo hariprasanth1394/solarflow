@@ -15,7 +15,7 @@ import InventoryActionCard from './components/InventoryActionCard'
 import OperationsHistoryTable from './components/OperationsHistoryTable'
 import NotificationHost from '@/components/ui/NotificationHost'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
-import { Download, FileSpreadsheet, Info, RotateCcw, Upload } from 'lucide-react'
+import { ChevronDown, Download, FileSpreadsheet, HelpCircle, Info, RotateCcw, Upload } from 'lucide-react'
 import { persistInventoryImportSuccess } from '@/lib/inventoryImportSuccess'
 import { makeSpareCodeKey } from '@/lib/inventoryImportNormalize'
 
@@ -25,18 +25,18 @@ const MultiSelectDropdown = dynamic(() => import('./components/MultiSelectDropdo
 
 const IMPORT_STEPS = [
   {
-    title: 'Export template',
-    detail: 'Download your spare parts list as Excel.',
+    title: 'Export stock',
+    detail: 'Download your current spare parts list as an Excel template.',
     icon: Download,
   },
   {
-    title: 'Edit Final Stock',
-    detail: 'Update quantities only — spare codes must stay the same.',
+    title: 'Update final stock',
+    detail: 'Open the file and change only the Final Stock column. Spare codes must stay the same.',
     icon: FileSpreadsheet,
   },
   {
-    title: 'Upload & validate',
-    detail: 'Upload the file below, review changes, then apply.',
+    title: 'Import changes',
+    detail: 'Upload the edited file, review adjustments, then apply them to inventory.',
     icon: Upload,
   },
 ] as const
@@ -554,20 +554,6 @@ export default function InventoryImportExportPage() {
         <>
           <div className="inv-action-grid">
             <InventoryActionCard
-              title="Import inventory"
-              description="Bulk-update spare stock from Excel. Every change is validated before it goes live."
-              icon={Upload}
-              tone="import"
-              action={
-                <div className="inv-action-card-panel">
-                  <ImportGuideRail steps={[...IMPORT_STEPS]} variant="card" />
-                  <button type="button" onClick={startImportWorkflow} className="btn btn-primary inv-action-card-primary-btn">
-                    Begin import
-                  </button>
-                </div>
-              }
-            />
-            <InventoryActionCard
               title="Export data"
               description="Generate inventory snapshots for offline editing, audits, or reporting."
               icon={Download}
@@ -612,6 +598,20 @@ export default function InventoryImportExportPage() {
                     </button>
                   </li>
                 </ul>
+              }
+            />
+            <InventoryActionCard
+              title="Import inventory"
+              description="Bulk-update spare stock from Excel. Every change is validated before it goes live."
+              icon={Upload}
+              tone="import"
+              action={
+                <div className="inv-action-card-panel">
+                  <ImportGuideRail steps={[...IMPORT_STEPS]} variant="flow" />
+                  <button type="button" onClick={startImportWorkflow} className="btn btn-primary inv-action-card-primary-btn">
+                    Begin import
+                  </button>
+                </div>
               }
             />
           </div>
@@ -710,18 +710,32 @@ export default function InventoryImportExportPage() {
               {!summary ? (
                 <>
                   <div className="inv-upload-stage">
+                    <details className="inv-import-help">
+                      <summary className="inv-import-help-summary">
+                        <span className="inv-import-help-summary-inner">
+                          <span className="inv-import-help-summary-label">
+                            <span className="inv-import-help-summary-icon" aria-hidden="true">
+                              <HelpCircle className="h-4 w-4" />
+                            </span>
+                            How stock import works
+                          </span>
+                          <span className="inv-import-help-summary-aside">
+                            <span className="inv-import-help-summary-hint">{IMPORT_STEPS.length} steps</span>
+                            <ChevronDown className="inv-import-help-chevron" aria-hidden="true" />
+                          </span>
+                        </span>
+                      </summary>
+                      <div className="inv-import-help-body">
+                        <ImportGuideRail steps={[...IMPORT_STEPS]} variant="guide" />
+                      </div>
+                    </details>
+
                     <div className="inv-import-note" role="note">
                       <Info className="inv-import-note-icon" aria-hidden="true" />
                       <p className="inv-import-note-text">
                         Only edit <strong>Final Stock</strong> in your file. Spare codes are locked and cannot be changed.
                       </p>
                     </div>
-
-                    <ImportGuideRail
-                      steps={[...IMPORT_STEPS]}
-                      variant="guide"
-                      activeStepIndex={2}
-                    />
 
                     <div className="inv-upload-dropzone-wrap">
                       <FileUploadDropzone
@@ -817,6 +831,8 @@ export default function InventoryImportExportPage() {
                       page={safePage}
                       pageSize={pageSize}
                       totalCount={filteredRows.length}
+                      changedCount={rows.filter((row) => row.status !== 'NO CHANGE').length}
+                      allCount={rows.length}
                       onPageChange={setPage}
                       onPageSizeChange={(nextPageSize) => {
                         setPageSize(nextPageSize)

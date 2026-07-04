@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ArrowLeft, Copy, Pencil, Trash2, X, Zap } from "lucide-react"
+import { ArrowLeft, Copy, IndianRupee, Layers, PackageCheck, Pencil, Trash2, X, Zap } from "lucide-react"
 import AddComponentModal from "./AddComponentModal"
 import CreateSystemModal from "./CreateSystemModal"
 import EditSystemModal from "./EditSystemModal"
@@ -9,6 +9,7 @@ import SystemComponentsTable from "./SystemComponentsTable"
 import InventoryPageShell from "../components/InventoryPageShell"
 import InventoryStatCard from "../components/InventoryStatCard"
 import SystemListPanel from "../components/SystemListPanel"
+import Modal from "@/components/ui/Modal"
 import type { SystemCarouselItem } from "../components/SystemCardCarousel"
 import {
   addSystemComponent,
@@ -118,6 +119,7 @@ export default function SystemBuilderPage() {
   const [componentModalOpen, setComponentModalOpen] = useState(false)
   const [systemModalOpen, setSystemModalOpen] = useState(false)
   const [editSystemModalOpen, setEditSystemModalOpen] = useState(false)
+  const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false)
   const [toast, setToast] = useState<ToastState>(null)
   const [search, setSearch] = useState("")
   const [capacityFilter, setCapacityFilter] = useState<CapacityFilter>("all")
@@ -280,6 +282,7 @@ export default function SystemBuilderPage() {
 
   const handleDuplicateSystem = async () => {
     if (!selectedSystem || systemActionLoading) return
+    setDuplicateConfirmOpen(false)
     setSystemActionLoading(true)
     try {
       const duplicateName = makeDuplicateSystemName(
@@ -422,7 +425,7 @@ export default function SystemBuilderPage() {
                         className="inv-row-action inv-detail-icon-btn"
                         onClick={(event) => {
                           event.stopPropagation()
-                          void handleDuplicateSystem()
+                          setDuplicateConfirmOpen(true)
                         }}
                         disabled={systemActionLoading}
                         title="Duplicate system"
@@ -465,10 +468,10 @@ export default function SystemBuilderPage() {
               </section>
 
               <div className="inv-stat-grid inv-stat-grid--compact">
-                <InventoryStatCard label="Capacity" value={`${selectedSystem.capacity_kw} kW`} tone="blue" />
-                <InventoryStatCard label="Price" value={formatSystemPrice(selectedSystem.price)} />
-                <InventoryStatCard label="Components" value={componentCount} tone="accent" />
-                <InventoryStatCard label="Availability" value={`${availabilityCount} builds`} tone={availabilityCount > 0 ? "success" : "danger"} />
+                <InventoryStatCard label="Capacity" value={`${selectedSystem.capacity_kw} kW`} tone="blue" icon={Zap} />
+                <InventoryStatCard label="Price" value={formatSystemPrice(selectedSystem.price)} icon={IndianRupee} />
+                <InventoryStatCard label="Components" value={componentCount} tone="accent" icon={Layers} />
+                <InventoryStatCard label="Availability" value={`${availabilityCount} builds`} tone={availabilityCount > 0 ? "success" : "danger"} icon={PackageCheck} />
               </div>
 
               <SystemComponentsTable
@@ -548,6 +551,41 @@ export default function SystemBuilderPage() {
           }
         }}
       />
+
+      <Modal
+        open={duplicateConfirmOpen}
+        onClose={() => {
+          if (!systemActionLoading) setDuplicateConfirmOpen(false)
+        }}
+        title="Duplicate System"
+        showCloseButton
+        preventCloseWhile={systemActionLoading}
+        panelClassName="max-w-md"
+        footer={
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setDuplicateConfirmOpen(false)}
+              disabled={systemActionLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void handleDuplicateSystem()}
+              disabled={systemActionLoading}
+            >
+              {systemActionLoading ? "Duplicating…" : "Duplicate"}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm leading-relaxed text-[var(--sf-muted-text)]">
+          This will create a copy of the selected system including all configured components.
+        </p>
+      </Modal>
 
       <AddComponentModal
         open={componentModalOpen}

@@ -332,16 +332,16 @@ function CustomerTable({
 
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Location</p>
-                      <p className="mt-1 text-slate-700">{deriveLocation(row)}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Capacity</p>
+                      <p className="mt-1 font-medium text-slate-800">{deriveSystemCapacity(row)}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Capacity</p>
-                      <p className="mt-1 text-slate-700">{deriveSystemCapacity(row)}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Created</p>
+                      <p className="mt-1 font-medium text-slate-800">{formatDateTimeUTC(row.created_at)}</p>
                     </div>
                     <div className="col-span-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-400">Updated</p>
-                      <p className="mt-1 text-slate-700">{formatDateTimeUTC(row.created_at)}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-slate-500">Location</p>
+                      <p className="mt-1 text-slate-600">{deriveLocation(row)}</p>
                     </div>
                   </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { getCustomerById, updateCustomer } from "@/services/customerService"
 import { validateUUID } from "@/utils/validateUUID"
+import { toast } from "@/lib/toastStore"
 
 type CustomerEditModel = {
   id: string
@@ -110,10 +111,12 @@ export default function CustomerEditPage() {
                   notes: form.notes.trim() || null,
                   status: form.status || "Created"
                 })
+                toast.success("Customer updated", "Changes were saved successfully.")
                 router.push(`/customers/${customerId}`)
                 router.refresh()
               } catch {
                 setError("Failed to update customer")
+                toast.error("Update failed", "Could not save customer changes.")
               } finally {
                 setSaving(false)
               }

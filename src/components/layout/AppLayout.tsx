@@ -5,6 +5,7 @@ import { AppTopBarProvider, useAppTopBar } from "./AppTopBarContext"
 import Header from "./Header"
 import Sidebar from "./Sidebar"
 import GoTopButton from "@/components/ui/GoTopButton"
+import GlobalToastHost from "@/components/ui/GlobalToastHost"
 
 type AppLayoutProps = {
   children: React.ReactNode
@@ -47,6 +48,7 @@ function AppLayoutInner({ children }: AppLayoutProps) {
         </main>
         <GoTopButton />
       </div>
+      <GlobalToastHost />
     </div>
   )
 }
